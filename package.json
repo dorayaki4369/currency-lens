@@ -1,0 +1,30 @@
+{
+  "name": "currency-lens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A browser extension for converting the currency to your favorite currency.",
+  "license": "ISC",
+  "author": {
+    "name": "Ryuya Hirayama",
+    "email": "ryuya.hirayama@dryk.net"
+  },
+  "main": "index.js",
+  "scripts": {
+    "bex": "pnpm -C apps/browser-extension",
+    "build": "turbo build",
+    "format": "prettier --write .",
+    "pkg:oxr": "pnpm -C packages/oxr",
+    "srv": "pnpm -C apps/server",
+    "postinstall": "pnpm build"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.5"
+  },
+  "packageManager": "pnpm@10.14.0",
+  "engines": {
+    "npm": "npm not allowed",
+    "yarn": "yarn not allowed",
+    "pnpm": ">=10.14.0"
+  }
+}

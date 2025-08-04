@@ -1,0 +1,37 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "currency-lens",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-08-03",
+  // "assets": {
+  //   "binding": "ASSETS",
+  //   "directory": "./public",
+  // },
+  "observability": {
+    "enabled": true,
+  },
+  "vars": {
+    "OPEN_EXCHANGE_RATE_API_URL": "https://openexchangerates.org/api",
+  },
+  "triggers": {
+    "crons": [
+      "0 * * * *"
+    ]
+  },
+  "routes": [
+    {
+      "pattern": "currency-lens.dryk.net",
+      "custom_domain": true,
+    }
+  ],
+  "r2_buckets": [
+    {
+      "bucket_name": "open-exchange-rates-data",
+      "binding": "DATA_BUCKET",
+    },
+  ],
+}

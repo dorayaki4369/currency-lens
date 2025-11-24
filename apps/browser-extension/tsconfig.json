@@ -1,6 +1,10 @@
 {
-  "extends": ["../../tsconfig.base.json", "./.wxt/tsconfig.json"],
+  "extends": [
+    "../../tsconfig.base.json", 
+    "./.wxt/tsconfig.json",
+  ],
   "compilerOptions": {
+    "lib": ["dom"],
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx"
   }

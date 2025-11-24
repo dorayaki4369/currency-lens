@@ -18,15 +18,13 @@
     "OPEN_EXCHANGE_RATE_API_URL": "https://openexchangerates.org/api",
   },
   "triggers": {
-    "crons": [
-      "0 * * * *"
-    ]
+    "crons": ["0 * * * *"],
   },
   "routes": [
     {
       "pattern": "currency-lens.dryk.net",
       "custom_domain": true,
-    }
+    },
   ],
   "r2_buckets": [
     {

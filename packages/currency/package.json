@@ -1,29 +1,21 @@
 {
-  "name": "@cl/oxr",
+  "name": "@cl/currency",
   "private": true,
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "import": "./dist/*.js"
     }
   },
   "scripts": {
-    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "build": "tsc"
-  },
-  "dependencies": {
-    "@cl/currency": "workspace:*",
-    "zod": "^4.0.14"
   },
   "devDependencies": {
     "@cl/eslint-config": "workspace:*",
-    "@types/node": "^24.1.0",
-    "eslint": "^9.39.1"
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3"
   }
 }

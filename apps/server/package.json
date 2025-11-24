@@ -4,18 +4,22 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev --test-scheduled",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "build": "wrangler build",
     "deploy": "wrangler deploy --minify",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "wrangler": "wrangler",
     "postinstall": "./initialize.sh"
   },
   "dependencies": {
+    "@cl/oxr": "workspace:*",
     "hono": "^4.8.12",
-    "zod": "^4.0.14",
-    "@cl/oxr": "workspace:*"
+    "zod": "^4.0.14"
   },
   "devDependencies": {
+    "@cl/eslint-config": "workspace:*",
+    "eslint": "^9.39.1",
     "wrangler": "^4.27.0"
   }
 }

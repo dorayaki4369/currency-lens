@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "A browser extension for converting the currency to your favorite currency.",
-  "license": "ISC",
+  "license": "MIT",
   "author": {
     "name": "Ryuya Hirayama",
     "email": "ryuya.hirayama@dryk.net"
@@ -11,20 +11,29 @@
   "main": "index.js",
   "scripts": {
     "bex": "pnpm -C apps/browser-extension",
+    "srv": "pnpm -C apps/server",
+    "pkg:cur": "pnpm -C packages/currency",
+    "pkg:oxr": "pnpm -C packages/oxr",
+    "pkg:esl": "pnpm -C packages/eslint-config",
     "build": "turbo build",
     "format": "prettier --write .",
-    "pkg:oxr": "pnpm -C packages/oxr",
-    "srv": "pnpm -C apps/server",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
     "postinstall": "pnpm build"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
-    "turbo": "^2.5.5"
+    "turbo": "^2.6.1",
+    "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@10.14.0",
   "engines": {
     "npm": "npm not allowed",
     "yarn": "yarn not allowed",
     "pnpm": ">=10.14.0"
+  },
+  "volta": {
+    "node": "24.11.1",
+    "pnpm": "10.23.0"
   }
 }

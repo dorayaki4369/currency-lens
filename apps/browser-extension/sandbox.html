@@ -1,31 +1,36 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sandbox</title>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Currency Lens Browser Extension Sandbox Page</h1>
 
-    <h2>Currencies</h2>
-    <div style="display: flex; gap: 1rem;">
-        <div style="background-color: lightblue; padding: 1em;">
-            10.0 USD
-        </div>
+    <h2>Test Currency Detection</h2>
+    <p>Select the text below to test currency conversion:</p>
 
-        <div style="background-color: lightblue; padding: 1em;">
-            10.0 USD
-        </div>
-
-        <div style="background-color: lightblue; padding: 1em;">
-            10.0 USD
-        </div>
-
-        <div style="background-color: lightblue; padding: 1em; font-size: 3rem;">
-            10
-            <span style="font-size: 1rem; vertical-align: super;">USD</span>
-        </div>
+    <div style="margin: 2rem 0; line-height: 2">
+      <p>This item costs <strong>$50.00</strong></p>
+      <p>Price in Europe: <strong>€100.50</strong></p>
+      <p>Price in Japan: <strong>¥15,000</strong></p>
+      <p>Amount: <strong>USD 1,234.56</strong></p>
+      <p>Mixed currencies: <strong>$50</strong> and <strong>€100</strong> and <strong>£75</strong></p>
+      <p>Symbol after: <strong>100$</strong> or <strong>50€</strong></p>
+      <p>With spaces: <strong>1,000 EUR</strong> and <strong>2,500 JPY</strong></p>
+      <p>No currency here: just 100 (should not trigger)</p>
     </div>
-</body>
+
+    <h2>Original Test Cases</h2>
+    <div style="display: flex; gap: 1rem">
+      <div style="background-color: lightblue; padding: 1em">10.0 USD</div>
+      <div style="background-color: lightblue; padding: 1em">10.0 USD</div>
+      <div style="background-color: lightblue; padding: 1em">10.0 USD</div>
+      <div style="background-color: lightblue; padding: 1em; font-size: 3rem">
+        10
+        <span style="font-size: 1rem; vertical-align: super">USD</span>
+      </div>
+    </div>
+  </body>
 </html>

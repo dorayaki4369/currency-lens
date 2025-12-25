@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
-import currency from "@cl/currency";
+import { currencies } from "@cl/currency";
 
-const currencyCodeSchema = z.enum(currency.currencies.map((c) => c.code) as string[]).brand<"CurrencyCode">();
+const currencyCodeSchema = z.enum(currencies.map((c) => c.code) as string[]).brand<"CurrencyCode">();
 
 export const configSchema = z.object({
   favorites: z.array(currencyCodeSchema),

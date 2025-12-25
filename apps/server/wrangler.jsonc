@@ -6,7 +6,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "currency-lens",
   "main": "src/index.ts",
-  "compatibility_date": "2025-08-03",
+  "compatibility_date": "2025-07-30",
   // "assets": {
   //   "binding": "ASSETS",
   //   "directory": "./public",
@@ -22,7 +22,7 @@
   },
   "routes": [
     {
-      "pattern": "currency-lens.dryk.net",
+      "pattern": "cl.dryk.net",
       "custom_domain": true,
     },
   ],

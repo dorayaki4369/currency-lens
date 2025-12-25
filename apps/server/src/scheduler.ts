@@ -1,13 +1,18 @@
 import { putOxrLatestResponse } from "./bucket";
-import { latestRate } from "@cl/oxr";
+import { fetchLatestRate } from "@cl/oxr";
 
-export const scheduledHandler: ExportedHandlerScheduledHandler<CloudflareBindings> = async (event, env) => {
-  const data = await latestRate({
+export const scheduledHandler: ExportedHandlerScheduledHandler<CloudflareBindings> = async (_, env) => {
+  const data = await fetchLatestRate({
     baseUrl: env.OPEN_EXCHANGE_RATE_API_URL,
     appId: env.OPEN_EXCHANGE_RATE_APP_ID,
   });
 
   console.log("Fetched latest rate", data);
 
-  await putOxrLatestResponse(data, env);
+  const object = await putOxrLatestResponse(data, env);
+  console.log("Stored latest rate to bucket", {
+    key: object.key,
+    size: object.size,
+    customMetadata: object.customMetadata,
+  });
 };

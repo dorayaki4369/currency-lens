@@ -10,7 +10,4 @@ export default defineConfig({
   vite: () => ({
     plugins: [tailwindcss()],
   }),
-  webExt: {
-    startUrls: ["./sandbox.html"],
-  },
 });

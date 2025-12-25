@@ -5,7 +5,7 @@ export type Config = {
   appId: string;
 };
 
-export async function latestRate(config: Config): Promise<OxrLatestResponse> {
+export async function fetchLatestRate(config: Config): Promise<OxrLatestResponse> {
   const query = new URLSearchParams();
   query.set("show_alternative", "true");
   query.set("prettyprint", "0");

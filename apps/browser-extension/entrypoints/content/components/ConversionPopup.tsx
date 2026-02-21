@@ -18,7 +18,14 @@ interface ConversionPopupProps {
   onClose: () => void;
 }
 
-export function ConversionPopup({ position, results, loading, error, visible, onClose }: ConversionPopupProps) {
+export function ConversionPopup({
+  position,
+  results,
+  loading,
+  error,
+  visible,
+  onClose,
+}: ConversionPopupProps) {
   const popupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,8 +82,13 @@ export function ConversionPopup({ position, results, loading, error, visible, on
       {!loading && !error && results.length > 0 && (
         <div className="space-y-3">
           {results.map((result, index) => (
-            <div key={index} className="border-b border-gray-100 last:border-0 pb-3 last:pb-0">
-              <div className="text-xs text-gray-500 mb-1">"{result.originalText}"</div>
+            <div
+              key={index}
+              className="border-b border-gray-100 last:border-0 pb-3 last:pb-0"
+            >
+              <div className="text-xs text-gray-500 mb-1">
+                "{result.originalText}"
+              </div>
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-700">
                   {result.fromAmount} {result.fromCurrency}
@@ -92,7 +104,9 @@ export function ConversionPopup({ position, results, loading, error, visible, on
       )}
 
       {!loading && !error && results.length === 0 && (
-        <div className="text-gray-500 text-sm text-center py-2">No currency detected</div>
+        <div className="text-gray-500 text-sm text-center py-2">
+          No currency detected
+        </div>
       )}
     </div>
   );

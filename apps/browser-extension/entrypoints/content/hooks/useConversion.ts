@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { sendMessage, messageTypes, type ConvertCurrencyResponse } from "../../../lib/messages";
-import type { DetectedCurrency } from "../../../lib/currencyDetection";
+import type { DetectedCurrency } from "../../../lib/currency-detection";
 import type { ConversionResult } from "../components/ConversionPopup";
 
 type CurrencyCode = string & { readonly brand: unique symbol };
@@ -40,7 +40,7 @@ export function useConversion() {
           type: messageTypes.CONVERT_CURRENCY,
           payload: {
             amount: detected.amount,
-            fromCurrency: detected.currencyCode as CurrencyCode,
+            fromCurrency: detected.currencyCode,
             toCurrency: targetCurrency,
           },
         })) as ConvertCurrencyResponse;

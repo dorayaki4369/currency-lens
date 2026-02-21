@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@cl/currency": "workspace:*",
+    "@floating-ui/react-dom": "^2.1.6",
     "cryptocurrency-icons": "^0.18.1",
     "flag-icons": "^7.5.0",
     "react": "^19.1.0",

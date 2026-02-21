@@ -30,7 +30,8 @@ README.md contains information about the purpose of the project, its features, a
 ### After writing code
 
 1. **Always run lint and format** after writing or modifying code
-2. **Build and test** if you modified packages used by apps
+2. **Run typechecking** to ensure type safety
+3. **Build and test** if you modified packages used by apps
 
 ### Coding conventions
 

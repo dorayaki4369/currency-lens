@@ -2,27 +2,26 @@ import { useState, useEffect, useCallback } from "react";
 
 export interface SelectionInfo {
   text: string;
-  rect: DOMRect | null;
+  rect: DOMRect;
 }
 
-export function useSelection(debounceMs: number = 300): SelectionInfo {
-  const [selectionInfo, setSelectionInfo] = useState<SelectionInfo>({
-    text: "",
-    rect: null,
-  });
+export function useSelection(debounceMs: number = 300): SelectionInfo | null {
+  const [selectionInfo, setSelectionInfo] = useState<SelectionInfo | null>(
+    null,
+  );
 
   const handleSelectionChange = useCallback(() => {
     const selection = window.getSelection();
 
     if (!selection || selection.rangeCount === 0) {
-      setSelectionInfo({ text: "", rect: null });
+      setSelectionInfo(null);
       return;
     }
 
     const text = selection.toString().trim();
 
     if (text.length === 0) {
-      setSelectionInfo({ text: "", rect: null });
+      setSelectionInfo(null);
       return;
     }
 
@@ -30,13 +29,15 @@ export function useSelection(debounceMs: number = 300): SelectionInfo {
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
 
-      setSelectionInfo({
-        text,
-        rect: rect.width > 0 && rect.height > 0 ? rect : null,
-      });
+      if (rect.width === 0 && rect.height === 0) {
+        setSelectionInfo(null);
+        return;
+      }
+
+      setSelectionInfo({ text, rect });
     } catch (error) {
       console.error("Error getting selection rect:", error);
-      setSelectionInfo({ text, rect: null });
+      setSelectionInfo(null);
     }
   }, []);
 

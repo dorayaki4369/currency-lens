@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import { detectCurrencies, type DetectedCurrency } from "../../../lib/currencyDetection";
-
-type CurrencyCode = string & { readonly brand: unique symbol };
+import { detectCurrencies, type DetectedCurrency } from "../../../lib/currency-detection";
+import type { CurrencyCode } from "@cl/currency";
 
 export function useCurrencyDetection(
   text: string,

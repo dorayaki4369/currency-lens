@@ -1,9 +1,7 @@
 import { getConfig, getExchangeRateCache } from "../lib/storage";
 import {
   messageTypes,
-  type GetConfigRequest,
   type ConvertCurrencyRequest,
-  type GetRatesRequest,
   type MessageResponse,
 } from "../lib/messages";
 
@@ -41,11 +39,11 @@ async function handleMessage(message: unknown): Promise<MessageResponse> {
 
   switch (type) {
     case messageTypes.GET_CONFIG:
-      return handleGetConfig(message as GetConfigRequest);
+      return handleGetConfig();
     case messageTypes.CONVERT_CURRENCY:
       return handleConvertCurrency(message as ConvertCurrencyRequest);
     case messageTypes.GET_RATES:
-      return handleGetRates(message as GetRatesRequest);
+      return handleGetRates();
     default:
       return {
         success: false,

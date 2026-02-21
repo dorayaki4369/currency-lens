@@ -2,12 +2,15 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSelection } from "./hooks/useSelection";
 import { useCurrencyDetection } from "./hooks/useCurrencyDetection";
 import { useConversion } from "./hooks/useConversion";
+import type { CurrencyCode } from "@cl/currency";
 import { FloatingIcon } from "./components/FloatingIcon";
-import { ConversionPopup } from "./components/ConversionPopup";
-import { calculateIconPosition, calculatePopupPosition } from "../../lib/positioning";
-import { sendMessage, messageTypes, type GetConfigResponse } from "../../lib/messages";
-
-type CurrencyCode = string & { readonly brand: unique symbol };
+import { calculatePopupPosition } from "../../lib/positioning";
+import {
+  sendMessage,
+  messageTypes,
+  type GetConfigResponse,
+} from "../../lib/messages";
+import { computePosition, offset } from "@floating-ui/react-dom";
 
 export default function App() {
   const [config, setConfig] = useState<{
@@ -15,11 +18,17 @@ export default function App() {
     defaultConversions: Record<string, CurrencyCode>;
   } | null>(null);
   const [showIcon, setShowIcon] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
 
   const selectionInfo = useSelection(300);
-  const detectedCurrencies = useCurrencyDetection(selectionInfo.text, config?.defaultConversions);
-  const { results, loading, error, convert, reset } = useConversion();
+  if (!selectionInfo) {
+    return null;
+  }
+
+  const detectedCurrencies = useCurrencyDetection(
+    selectionInfo.text,
+    config?.defaultConversions,
+  );
+  const { convert, reset } = useConversion();
 
   useEffect(() => {
     sendMessage({ type: messageTypes.GET_CONFIG })
@@ -40,10 +49,8 @@ export default function App() {
   useEffect(() => {
     if (detectedCurrencies.length > 0 && selectionInfo.rect) {
       setShowIcon(true);
-      setShowPopup(false);
     } else {
       setShowIcon(false);
-      setShowPopup(false);
       reset();
     }
   }, [detectedCurrencies, selectionInfo.rect, reset]);
@@ -57,35 +64,41 @@ export default function App() {
 
     const targetCurrency = config.favorites[0];
     convert(detectedCurrencies, targetCurrency);
-    setShowPopup(true);
   }, [config, detectedCurrencies, convert, reset]);
 
-  const handleClosePopup = useCallback(() => {
-    setShowPopup(false);
-    reset();
-  }, [reset]);
-
-  const iconPosition = useMemo(() => {
-    if (!selectionInfo.rect) return { top: 0, left: 0 };
-    return calculateIconPosition(selectionInfo.rect);
-  }, [selectionInfo.rect]);
-
   const popupPosition = useMemo(() => {
-    if (!selectionInfo.rect) return { top: 0, left: 0, placement: "below" as const };
+    if (!selectionInfo.rect)
+      return { top: 0, left: 0, placement: "below" as const };
     return calculatePopupPosition(selectionInfo.rect, 300, 200);
   }, [selectionInfo.rect]);
 
+  const virtualEl = {
+    getBoundingClientRect: () => selectionInfo.rect,
+  };
+
+  const { refs, floatingStyles } = computePosition(virtualEl, {
+    placement: popupPosition.placement === "above" ? "top" : "bottom",
+    strategy: "fixed",
+    middleware: [offset(8)],
+  });
+
   return (
     <>
-      <FloatingIcon position={iconPosition} onClick={handleIconClick} visible={showIcon && !showPopup} />
-      <ConversionPopup
+      {showIcon && (
+        <FloatingIcon
+          setFloating={refs.setFloating}
+          floatingStyles={floatingStyles}
+          onClick={handleIconClick}
+        />
+      )}
+      {/* <ConversionPopup
         position={popupPosition}
         results={results}
         loading={loading}
         error={error}
         visible={showPopup}
         onClose={handleClosePopup}
-      />
+      /> */}
     </>
   );
 }

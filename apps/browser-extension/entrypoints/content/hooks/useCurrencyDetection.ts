@@ -1,16 +1,21 @@
 import { useMemo } from "react";
-import { detectCurrencies, type DetectedCurrency } from "../../../lib/currency-detection";
-import type { CurrencyCode } from "@cl/currency";
+import {
+  detectCurrencies,
+  type CurrencyDetectionOptions,
+  type DetectedCurrency,
+} from "../../../lib/currency-detection";
 
+/** Memoizes pure money detection for the current selection and locale hints. */
 export function useCurrencyDetection(
   text: string,
-  defaultConversions?: Record<string, CurrencyCode>,
+  options: CurrencyDetectionOptions,
 ): DetectedCurrency[] {
+  const { browserLocale, pageLocale, symbolOverrides } = options;
+
   return useMemo(() => {
-    if (!text || text.length === 0) {
+    if (text.length === 0) {
       return [];
     }
-
-    return detectCurrencies(text, defaultConversions);
-  }, [text, defaultConversions]);
+    return detectCurrencies(text, { browserLocale, pageLocale, symbolOverrides });
+  }, [browserLocale, pageLocale, symbolOverrides, text]);
 }

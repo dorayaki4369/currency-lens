@@ -1,141 +1,197 @@
-import { getConfig, getExchangeRateCache } from "../lib/storage";
 import {
+  convertCurrenciesResponseSchema,
+  getConfigResponseSchema,
+  getRatesResponseSchema,
+  messageSchema,
   messageTypes,
-  type ConvertCurrencyRequest,
+  parseMessageResponse,
+  setConfigResponseSchema,
+  type ConvertCurrenciesRequest,
+  type Message,
   type MessageResponse,
 } from "../lib/messages";
+import {
+  convertCurrencyBatch,
+  fetchExchangeRateCache,
+  getRateSnapshot,
+  isExchangeRateCacheStale,
+} from "../lib/rates";
+import { RATE_REFRESH_ALARM_NAME, ensureRateRefreshAlarm } from "../lib/rate-refresh";
+import {
+  getConfig,
+  getExchangeRateCache,
+  setConfig,
+  setExchangeRateCache,
+} from "../lib/storage";
+
+const RATE_ENDPOINT = "https://cl.dryk.net/latest";
+let activeRateRefresh: Promise<void> | null = null;
 
 export default defineBackground(() => {
-  console.log("Currency Lens background script initialized", { id: browser.runtime.id });
+  browser.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+    respondToRuntimeMessage(message, sendResponse);
+    return true;
+  });
 
-  browser.runtime.onMessage.addListener(
-    (message: unknown, sender: browser.Runtime.MessageSender, sendResponse: (response?: MessageResponse) => void) => {
-      handleMessage(message)
-        .then((response) => {
-          sendResponse(response);
-        })
-        .catch((error) => {
-          console.error("Error handling message:", error);
-          sendResponse({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        });
+  browser.runtime.onInstalled.addListener(() => {
+    runBackgroundTask(ensureAndRefreshRates(true), "installation rate refresh");
+  });
 
-      return true;
-    },
-  );
+  browser.runtime.onStartup.addListener(() => {
+    runBackgroundTask(ensureAndRefreshRates(true), "startup rate refresh");
+  });
+
+  browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === RATE_REFRESH_ALARM_NAME) {
+      runBackgroundTask(refreshRates(), "scheduled rate refresh");
+    }
+  });
+
+  runBackgroundTask(ensureAndRefreshRates(false), "background initialization");
 });
 
-async function handleMessage(message: unknown): Promise<MessageResponse> {
-  if (typeof message !== "object" || message === null || !("type" in message)) {
-    return {
-      success: false,
-      error: "Invalid message format",
-    };
+/** Keeps the Chrome message channel open and completes it after async validation and routing. */
+function respondToRuntimeMessage(
+  message: unknown,
+  sendResponse: (response?: unknown) => unknown,
+): void {
+  void handleMessage(message)
+    .then((response) => {
+      return sendResponse(response);
+    })
+    .catch((error: unknown) => {
+      return sendResponse({ success: false, error: getErrorMessage(error) });
+    });
+}
+
+/** Validates an incoming runtime message and routes it to its owning workflow. */
+export async function handleMessage(message: unknown): Promise<MessageResponse> {
+  const parsedMessage = messageSchema.safeParse(message);
+  if (!parsedMessage.success) {
+    return { success: false, error: "Invalid message format" };
   }
 
-  const { type } = message;
+  try {
+    return await dispatchMessage(parsedMessage.data);
+  } catch (error) {
+    return parseMessageResponse(parsedMessage.data.type, {
+      success: false,
+      error: getErrorMessage(error),
+    });
+  }
+}
 
-  switch (type) {
+/** Routes a validated message using its discriminant. */
+function dispatchMessage(message: Message): Promise<MessageResponse> {
+  switch (message.type) {
     case messageTypes.GET_CONFIG:
       return handleGetConfig();
-    case messageTypes.CONVERT_CURRENCY:
-      return handleConvertCurrency(message as ConvertCurrencyRequest);
+    case messageTypes.SET_CONFIG:
+      return handleSetConfig(message.payload);
+    case messageTypes.CONVERT_CURRENCIES:
+      return handleConvertCurrencies(message);
     case messageTypes.GET_RATES:
       return handleGetRates();
     default:
-      return {
-        success: false,
-        error: `Unknown message type: ${String(type)}`,
-      };
+      return assertNever(message);
   }
 }
 
+/** Returns runtime-validated user configuration. */
 async function handleGetConfig(): Promise<MessageResponse> {
-  try {
-    const config = await getConfig();
-    return {
-      success: true,
-      data: config,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get config",
-    };
-  }
+  const config = await getConfig();
+  return getConfigResponseSchema.parse({ success: true, data: config });
 }
 
-async function handleConvertCurrency(request: ConvertCurrencyRequest): Promise<MessageResponse> {
-  try {
-    const { amount, fromCurrency, toCurrency } = request.payload;
-
-    const cache = await getExchangeRateCache();
-
-    if (!cache) {
-      return {
-        success: false,
-        error: "Exchange rates not available. Please try again later.",
-      };
-    }
-
-    const fromRate = cache.rates[fromCurrency];
-    const toRate = cache.rates[toCurrency];
-
-    if (!fromRate || !toRate) {
-      return {
-        success: false,
-        error: `Exchange rate not available for ${fromCurrency} or ${toCurrency}`,
-      };
-    }
-
-    const amountInUSD = amount / Number.parseFloat(fromRate);
-    const convertedAmount = amountInUSD * Number.parseFloat(toRate);
-
-    const rate = (Number.parseFloat(toRate) / Number.parseFloat(fromRate)).toString();
-
-    return {
-      success: true,
-      data: {
-        amount,
-        fromCurrency,
-        toCurrency,
-        convertedAmount: convertedAmount.toFixed(2),
-        rate,
-        timestamp: cache.timestamp,
-      },
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to convert currency",
-    };
-  }
+/** Persists validated user configuration and echoes the stored value. */
+async function handleSetConfig(
+  config: Parameters<typeof setConfig>[0],
+): Promise<MessageResponse> {
+  await setConfig(config);
+  return setConfigResponseSchema.parse({ success: true, data: config });
 }
 
+/** Converts the requested batch against the retained last-good rates. */
+async function handleConvertCurrencies(
+  request: ConvertCurrenciesRequest,
+): Promise<MessageResponse> {
+  const cache = await getExchangeRateCache();
+  if (!cache) {
+    return convertCurrenciesResponseSchema.parse({
+      success: false,
+      error: "Exchange rates are not available yet.",
+    });
+  }
+
+  const snapshot = getRateSnapshot(cache);
+  const results = convertCurrencyBatch(
+    cache,
+    request.payload.amounts,
+    request.payload.targetCurrencies,
+  );
+  return convertCurrenciesResponseSchema.parse({
+    success: true,
+    data: { ...snapshot, results },
+  });
+}
+
+/** Returns the retained rates together with freshness metadata. */
 async function handleGetRates(): Promise<MessageResponse> {
-  try {
-    const cache = await getExchangeRateCache();
-
-    if (!cache) {
-      return {
-        success: false,
-        error: "Exchange rates not available. Please try again later.",
-      };
-    }
-
-    return {
-      success: true,
-      data: {
-        rates: cache.rates,
-        timestamp: cache.timestamp,
-      },
-    };
-  } catch (error) {
-    return {
+  const cache = await getExchangeRateCache();
+  if (!cache) {
+    return getRatesResponseSchema.parse({
       success: false,
-      error: error instanceof Error ? error.message : "Failed to get rates",
-    };
+      error: "Exchange rates are not available yet.",
+    });
   }
+
+  return getRatesResponseSchema.parse({
+    success: true,
+    data: { ...getRateSnapshot(cache), rates: cache.rates },
+  });
+}
+
+/** Ensures the alarm at each lifecycle entry and refreshes missing or stale data. */
+async function ensureAndRefreshRates(refreshRegardlessOfAge: boolean): Promise<void> {
+  await ensureRateRefreshAlarm(browser.alarms);
+  const cache = await getExchangeRateCache();
+  if (refreshRegardlessOfAge || !cache || isExchangeRateCacheStale(cache)) {
+    await refreshRates();
+  }
+}
+
+/** Fetches a fully validated cache before replacing the existing last-good value. */
+function refreshRates(): Promise<void> {
+  if (activeRateRefresh) {
+    return activeRateRefresh;
+  }
+
+  activeRateRefresh = performRateRefresh().finally(() => {
+    activeRateRefresh = null;
+  });
+  return activeRateRefresh;
+}
+
+/** Performs one network refresh after the single-flight guard grants ownership. */
+async function performRateRefresh(): Promise<void> {
+  const cache = await fetchExchangeRateCache(RATE_ENDPOINT);
+  await setExchangeRateCache(cache);
+}
+
+/** Observes a background promise so listener callbacks never create unhandled rejections. */
+function runBackgroundTask(task: Promise<void>, context: string): void {
+  void task.catch((error: unknown) => {
+    // A stale warning remains visible to users while this diagnostic aids extension debugging.
+    console.error(`[Currency Lens] Failed ${context}`, error);
+  });
+}
+
+/** Converts an unknown failure into a safe response message. */
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unexpected background error";
+}
+
+/** Makes message routing exhaustive as new request variants are introduced. */
+function assertNever(message: never): never {
+  throw new Error(`Unhandled message: ${JSON.stringify(message)}`);
 }

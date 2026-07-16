@@ -1,144 +1,121 @@
 # Currency Lens
 
-Webページ上の通貨をその場で換算するブラウザ拡張機能
+Currency Lensは、Webページで選択した金額をお気に入りの通貨へ換算するChrome・Firefox向けブラウザ拡張機能です。ページ内の価格を書き換えず、必要な箇所だけをGoogle翻訳のような小さな画面で確認できます。
 
-## プロダクトビジョン
+## できること
 
-### 背景・課題
+- 通常のWebページで、通貨記号または通貨コードを含むテキストを選択して換算できます。
+- 1回の選択から最大3件の金額を検出し、最大5件のお気に入り通貨へまとめて換算します。結果は最大15件です。
+- `$`のように複数通貨で使われる記号は、ページやブラウザのロケールとユーザー設定を使って解釈します。
+- 表示用UIはShadow DOM内に置き、閲覧中のページとCurrency Lensのスタイルが互いに影響しないようにします。
+- 為替レートの取得に失敗しても、最後に検証できたレートを残します。レートの提供時刻から24時間を超えた場合は、古いレートであることを画面に表示します。
 
-海外のECサイトやサービスを利用する際、表示された価格を自分の通貨に換算するために別タブで検索したり、電卓アプリを開いたりする手間が発生します。
-既存の通貨変換拡張機能の多くはページ全体の価格を自動的に書き換えるため、元の価格が見えなくなったり、誤検出による表示崩れが起きたりする問題があります。
-
-### Currency Lensが目指すもの
-
-**テキストを選択するだけで、即座に自分の通貨に換算できる体験**を提供します。
-
-ページの表示を変えることなく、知りたい価格だけをピンポイントで確認できるシンプルなツールです。
-
-### ターゲットユーザー
-
-- 海外ECサイトで買い物をする人
-- 海外旅行の計画・滞在中に現地価格を把握したい人
-- 暗号通貨の価格を法定通貨で確認したい人
-- 日常的に複数通貨を扱うビジネスパーソン
-
-## コア機能
-
-- **テキスト選択ベースの通貨検出・変換** — 価格を含むテキストを選択するだけで通貨を自動検出し換算
-- **200+通貨対応** — 主要法定通貨に加え、BTC・ETHなどの暗号通貨にも対応
-- **最新為替レートの自動取得** — [Open Exchange Rates](https://openexchangerates.org)から定期的にレートを更新
-- **お気に入り通貨の設定** — よく使う通貨をすばやく切り替え
-- **軽量動作** — 必要なときだけ動作し、ページパフォーマンスに影響しない
-
-## 差別化ポイント
-
-| 特徴           | Currency Lens                  | 従来の通貨変換拡張機能                 |
-| -------------- | ------------------------------ | -------------------------------------- |
-| 変換方式       | テキスト選択でピンポイント変換 | ページ全体の価格を自動書き換え         |
-| ページへの影響 | なし（元の表示を維持）         | DOM書き換えによる表示崩れのリスク      |
-| 暗号通貨対応   | BTC、ETHなど対応               | 法定通貨のみが多い                     |
-| 動作タイミング | ユーザー操作時のみ             | ページ読み込み時に自動実行             |
-
-## 将来の展望
-
-- 為替レートの履歴・トレンド表示
-
-## インストール
+Chrome Web StoreとFirefox Add-onsの公開ページは次のとおりです。
 
 - [Chrome Web Store](https://chrome.google.com/webstore/detail/currency-lens/cfpmgblhfmfomcgkpkghcgkcfblbpgkm)
 - [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/currency-lens)
 
-## アーキテクチャ概要
+## 使い方
 
-本プロジェクトは **pnpm ワークスペース + Turborepo** によるモノリポ構成です。
+1. 拡張機能の設定画面で、換算先にしたい通貨を最大5件登録します。
+2. Webページ上で、`$19.99`や`1,200 JPY`のような金額を含むテキストを選択します。
+3. 選択範囲の近くに表示されるCurrency Lensのアイコンを押します。
+4. 検出した金額とお気に入り通貨の組み合わせを換算結果で確認します。
+
+ブラウザの設定画面、拡張機能ストアなど、ブラウザがContent Scriptの実行を禁止しているページでは動作しません。
+
+## プライバシー
+
+選択したテキストはContent Script内で解析し、Webページの外へ送りません。Background Scriptへ渡すのは、検出後の金額、通貨コード、換算先通貨だけです。Cloudflare Workerへの通信も為替レートの取得に限られ、選択テキストや閲覧ページの内容は送信しません。
+
+設定は`browser.storage.sync`、検証済みの為替レートは`browser.storage.local`に保存します。Open Exchange Ratesの認証情報はCloudflare Workerだけが保持し、拡張機能には含めません。
+
+## 開発環境
+
+このリポジトリはpnpm workspaceによるモノリポです。タスク実行、整形、lint、型検査、テストにはVite+を使い、各アプリのビルドはWXTとWranglerが担当します。
+
+- Node.js 24
+- pnpm 11.13.0
+- TypeScript 7
+- Vite+
+- WXT、React 19、Shadow DOM向けのプレーンCSS
+- Cloudflare Workers、Hono、R2
+- Zod 4、Vitest 4
+
+Voltaを使う場合は、リポジトリの`package.json`に記載したNode.jsとpnpmのバージョンが選ばれます。
+
+### 構成
 
 ```text
 currency-lens/
 ├── apps/
-│   ├── browser-extension/   # ブラウザ拡張機能（WXT + React）
-│   └── server/              # 為替レート取得サーバー（Cloudflare Workers + Hono）
+│   ├── browser-extension/  # WXTで構築するChrome・Firefox拡張機能
+│   └── server/             # 為替レートを配信するCloudflare Worker
 ├── packages/
-│   ├── currency/            # 通貨メタデータ（コード・シンボル・小数桁数）
-│   ├── oxr/                 # Open Exchange Rates API クライアント（Zod バリデーション付き）
-│   └── eslint-config/       # 共有 ESLint 設定
-├── pnpm-workspace.yaml
-└── turbo.json
+│   ├── currency/           # 検出・表示に使う通貨メタデータ
+│   └── oxr/                # Open Exchange Ratesクライアントと検証スキーマ
+├── docs/
+│   ├── architecture.md     # データフロー、正本、境界、失敗時の挙動
+│   └── deployment.md       # GitHub、Cloudflare、ストア公開の設定
+├── vite.config.ts          # Vite+の共通設定
+└── pnpm-workspace.yaml
 ```
 
-### パッケージ間の依存関係
+実装上の責務とデータフローは[アーキテクチャ](docs/architecture.md)、外部サービスの初期設定と公開手順は[デプロイとストア公開](docs/deployment.md)を参照してください。
 
-```mermaid
-graph LR
-    EXT[browser-extension] --> CUR[@cl/currency]
-    SRV[server] --> OXR[@cl/oxr]
-    OXR --> CUR
+## セットアップ
+
+依存関係を導入します。
+
+```bash
+pnpm install --frozen-lockfile
 ```
 
-### apps/browser-extension
+ブラウザ拡張機能だけを起動する場合は、対象ブラウザに合わせて次のいずれかを実行します。
 
-[WXT](https://wxt.dev) フレームワークで構築したブラウザ拡張機能です。Chrome・Firefox に対応しています。
-
-| エントリーポイント | 役割 |
-| --- | --- |
-| Content Script | ページ上のテキスト選択を検知し、通貨を検出してポップアップUIを表示する |
-| Background Script | 為替レートの管理と通貨換算の計算を行う |
-| Popup | 基本通貨やお気に入り通貨などの設定画面 |
-
-Content Script と Background Script は**メッセージパッシング**で通信し、設定やレートキャッシュは **Browser Storage** に保存します。
-
-### apps/server
-
-[Cloudflare Workers](https://workers.cloudflare.com) 上で動作する為替レート取得サーバーです。
-
-- **Cron Trigger** で定期的に [Open Exchange Rates API](https://openexchangerates.org) から最新レートを取得
-- 取得したレートデータは **R2 Bucket** に保存
-- ブラウザ拡張機能はこの R2 Bucket から直接レートデータを取得
-
-### packages/currency (`@cl/currency`)
-
-通貨に関するメタデータ（通貨コード・シンボル・小数桁数など）を提供する共有パッケージです。ブラウザ拡張機能とサーバーの両方から利用されます。
-
-### packages/oxr (`@cl/oxr`)
-
-[Open Exchange Rates API](https://openexchangerates.org) の型安全なクライアントライブラリです。Zod によるレスポンスバリデーションを備えています。サーバーから利用されます。
-
-### packages/eslint-config (`@cl/eslint-config`)
-
-プロジェクト全体で共有する ESLint 設定です。
-
-### 全体構成図
-
-```mermaid
-graph TB
-    subgraph "ブラウザ拡張機能"
-        CS[Content Script<br/>通貨検出・UI表示]
-        BG[Background Script<br/>通貨換算・レート管理]
-        PU[Popup<br/>設定画面]
-        ST[(Browser Storage<br/>設定・レートキャッシュ)]
-
-        CS -- メッセージパッシング --> BG
-        PU -- メッセージパッシング --> BG
-        BG -- 読み書き --> ST
-    end
-
-    subgraph "サーバー（Cloudflare Workers）"
-        SC[Cron Trigger<br/>定期実行スケジューラー]
-        R2[(R2 Bucket<br/>レートデータ保存)]
-
-        SC -- 保存 --> R2
-    end
-
-    subgraph "外部サービス"
-        OXR[Open Exchange Rates API]
-    end
-
-    subgraph "共有パッケージ"
-        PKG_CUR[@cl/currency<br/>通貨メタデータ]
-        PKG_OXR[@cl/oxr<br/>OXR APIクライアント]
-    end
-
-    SC -- レート取得 --> OXR
-    CS -. 使用 .-> PKG_CUR
-    BG -. 使用 .-> PKG_CUR
-    SC -. 使用 .-> PKG_OXR
+```bash
+pnpm ext dev
+pnpm ext dev:firefox
 ```
+
+Workerだけを起動する場合は、先に後述のローカル用secretを人間が用意してから実行します。
+
+```bash
+pnpm srv dev
+```
+
+全workspaceの開発タスクをまとめて起動する場合は`pnpm dev`を使います。各アプリに固有の手順は[ブラウザ拡張機能のREADME](apps/browser-extension/README.md)と[WorkerのREADME](apps/server/README.md)にあります。
+
+### 機密情報
+
+`example.env`は、ローカル開発に必要な変数名を人間が確認するための見本です。Agentが実行するWXTとWranglerのスクリプトは既定の環境ファイル探索を無効化しています。Workerをローカル起動するときは、人間が必要な値をshellのprocess environmentへ設定してからコマンドを実行してください。実際の値はGitへ追加しません。
+
+AI Agentは`.env`、`.env.*`、`.dev.vars`、`.dev.vars.*`を絶対に読み取りません。検索、内容表示、差分確認、コピー元としての参照も禁止です。secretが必要な作業は、値を受け取ろうとせず人間へ設定を依頼します。
+
+Cloudflare Worker、R2 Bucket、Custom Domain、Chrome Web Store、Firefox Add-onsの初回設定は、リポジトリ内のコードだけでは完了しない外部作業です。[デプロイとストア公開](docs/deployment.md)に従い、各サービスの管理画面とGitHub Environmentで設定してください。
+
+## 開発コマンド
+
+| コマンド             | 用途                                       |
+| -------------------- | ------------------------------------------ |
+| `pnpm format`        | リポジトリ全体を整形する                   |
+| `pnpm format:check`  | 整形差分がないか確認する                   |
+| `pnpm lint`          | Vite+で静的解析する                        |
+| `pnpm typecheck`     | TypeScript 7で型を検査する                 |
+| `pnpm test`          | Vitestのテストを実行する                   |
+| `pnpm test:coverage` | カバレッジを計測する                       |
+| `pnpm build`         | 全workspaceをビルドする                    |
+| `pnpm validate`      | 品質検査、テスト、ビルドをまとめて実行する |
+
+Chrome版とFirefox版を個別にビルドする場合は、次のコマンドを使います。
+
+```bash
+pnpm ext build
+pnpm ext build:firefox
+```
+
+## ブランチと公開
+
+通常の開発は`develop`へPull Requestを作成し、リリース時は`develop`から`main`へのPull Requestで昇格させます。`main`へ直接変更を入れる運用は想定していません。
+
+`develop`または`main`へのpushとPull Requestでは、GitHub Actionsがformat、lint、型検査、テスト、ビルドを実行します。`main`が更新されて検証を通過するとWorkerを自動デプロイします。ブラウザ拡張機能は安定版GitHub Releaseを起点にChrome Web StoreとFirefox Add-onsへ提出します。

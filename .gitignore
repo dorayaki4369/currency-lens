@@ -1,6 +1,16 @@
 node_modules
+.turbo/
+.wrangler/
 dist
-.turbo
+.output
+.vite
+.wxt
+coverage
 .pnpm-store
+*.local.md
 
 .env
+.env.*
+.dev.vars
+.dev.vars.*
+!example.env

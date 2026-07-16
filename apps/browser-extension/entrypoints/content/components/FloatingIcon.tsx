@@ -1,29 +1,26 @@
-import icon from "../../../assets/icon.svg";
-import { useFloating } from "@floating-ui/react-dom";
-import { ButtonHTMLAttributes } from "react";
+import type { CSSProperties } from "react";
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
+interface FloatingIconProps {
+  readonly floatingStyles: CSSProperties;
+  readonly onClick: () => void;
+  readonly setFloating: (element: HTMLElement | null) => void;
+}
 
-type FloatingIconProps = ButtonProps &
-  Required<Pick<ButtonProps, "onClick">> &
-  Pick<ReturnType<typeof useFloating>["refs"], "setFloating"> &
-  Pick<ReturnType<typeof useFloating>, "floatingStyles">;
-
-export function FloatingIcon({
-  onClick,
-  setFloating,
-  floatingStyles,
-}: FloatingIconProps) {
+/** Renders the compact aperture control beside a detected selection. */
+export function FloatingIcon({ floatingStyles, onClick, setFloating }: FloatingIconProps) {
   return (
     <button
-      type="button"
-      ref={setFloating}
+      aria-label="Convert selected currencies"
+      className="cl-lens-trigger"
       onClick={onClick}
-      className="fixed w-12 h-12 bg-white text-blue-600 rounded-sm shadow-lg transition-all duration-200 ease-in-out transform hover:scale-110 cursor-pointer p-2"
+      ref={setFloating}
       style={floatingStyles}
-      title="Convert currency"
+      title="Open Currency Lens"
+      type="button"
     >
-      <img src={icon} alt="Currency Lens Icon" className="m-auto" />
+      <span aria-hidden="true" className="cl-aperture cl-aperture--small">
+        <span className="cl-aperture__core" />
+      </span>
     </button>
   );
 }

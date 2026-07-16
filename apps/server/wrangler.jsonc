@@ -6,7 +6,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "currency-lens",
   "main": "src/index.ts",
-  "compatibility_date": "2025-07-30",
+  "compatibility_date": "2026-07-16",
   // "assets": {
   //   "binding": "ASSETS",
   //   "directory": "./public",
@@ -16,6 +16,9 @@
   },
   "vars": {
     "OPEN_EXCHANGE_RATE_API_URL": "https://openexchangerates.org/api",
+  },
+  "secrets": {
+    "required": ["OPEN_EXCHANGE_RATE_APP_ID"],
   },
   "triggers": {
     "crons": ["0 * * * *"],

@@ -1,0 +1,246 @@
+name: Publish browser extension
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-stores-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "24"
+  PNPM_VERSION: "11.13.0"
+
+jobs:
+  publish:
+    name: publish Chrome and Firefox packages
+    if: github.event_name == 'workflow_dispatch' || (startsWith(github.event.release.tag_name, 'v') && github.event.release.prerelease == false)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: browser-stores
+    env:
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+    steps:
+      - name: Check out the release
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - name: Reject environment files
+        run: |
+          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) -print -quit)"
+          if [[ -n "$blocked_path" ]]; then
+            echo "::error title=Environment file in checkout::$blocked_path must not be present in the repository."
+            exit 1
+          fi
+
+      - name: Validate the release source
+        run: |
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "WXT will validate release artifacts and credential presence without uploading packages."
+            exit 0
+          fi
+
+          if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
+            echo "::error title=Invalid release ref::A live store submission must run from a tag."
+            exit 1
+          fi
+
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error title=Invalid release tag::Use a stable vMAJOR.MINOR.PATCH tag."
+            exit 1
+          fi
+
+          package_version="$(node -p "require('./apps/browser-extension/package.json').version")"
+          if [[ "$RELEASE_TAG" != "v$package_version" ]]; then
+            echo "::error title=Version mismatch::The release tag must equal v plus the extension package version."
+            exit 1
+          fi
+
+          if ! git merge-base --is-ancestor HEAD refs/remotes/origin/main; then
+            echo "::error title=Unreleased commit::The release tag must point to a commit contained in main."
+            exit 1
+          fi
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build Chrome and Firefox packages
+        run: |
+          pnpm --filter @cl/currency build
+          pnpm --dir apps/browser-extension build
+          pnpm --dir apps/browser-extension build:firefox
+          pnpm --dir apps/browser-extension zip
+          pnpm --dir apps/browser-extension zip:firefox
+
+      - name: Validate release archives
+        working-directory: apps/browser-extension
+        run: |
+          shopt -s nullglob
+          chrome_archives=(.output/*-chrome.zip)
+          firefox_archives=(.output/*-firefox.zip)
+          source_archives=(.output/*-sources.zip)
+
+          if (( ${#chrome_archives[@]} != 1 || ${#firefox_archives[@]} != 1 || ${#source_archives[@]} != 1 )); then
+            echo "::error title=Unexpected release artifacts::Expected one Chrome ZIP, one Firefox ZIP, and one Firefox sources ZIP."
+            exit 1
+          fi
+
+          for archive in "${chrome_archives[@]}" "${firefox_archives[@]}" "${source_archives[@]}"; do
+            if unzip -Z1 "$archive" | grep -E '(^|/)(\.env|\.dev\.vars)($|\.|/)' >/dev/null; then
+              echo "::error title=Secret file in archive::$archive contains an environment file."
+              exit 1
+            fi
+          done
+
+          if unzip -Z1 "${source_archives[0]}" | grep -E '(^|/)(node_modules|\.output|\.wxt)(/|$)' >/dev/null; then
+            echo "::error title=Generated files in Firefox sources::The sources ZIP contains dependencies or generated output."
+            exit 1
+          fi
+
+      - name: Rebuild Firefox from the submitted sources
+        run: |
+          shopt -s nullglob
+          source_archives=(apps/browser-extension/.output/*-sources.zip)
+          firefox_archives=(apps/browser-extension/.output/*-firefox.zip)
+          source_root="$RUNNER_TEMP/firefox-sources"
+          expected_root="$RUNNER_TEMP/firefox-expected"
+          rebuilt_root="$RUNNER_TEMP/firefox-rebuilt"
+
+          mkdir -p "$source_root" "$expected_root" "$rebuilt_root"
+          unzip -q "${source_archives[0]}" -d "$source_root"
+
+          required_source_files=(
+            package.json
+            pnpm-lock.yaml
+            pnpm-workspace.yaml
+            apps/browser-extension/package.json
+            apps/browser-extension/SOURCE_CODE_REVIEW.md
+            packages/currency/package.json
+          )
+          for required_file in "${required_source_files[@]}"; do
+            if [[ ! -f "$source_root/$required_file" ]]; then
+              echo "::error title=Incomplete Firefox sources::$required_file is missing from the sources ZIP."
+              exit 1
+            fi
+          done
+
+          (
+            cd "$source_root"
+            pnpm install --frozen-lockfile
+            pnpm --filter @cl/currency build
+            pnpm --dir apps/browser-extension zip:firefox
+          )
+
+          rebuilt_archives=("$source_root"/apps/browser-extension/.output/*-firefox.zip)
+          if (( ${#rebuilt_archives[@]} != 1 )); then
+            echo "::error title=Unexpected rebuilt artifacts::Expected one rebuilt Firefox ZIP."
+            exit 1
+          fi
+
+          unzip -q "${firefox_archives[0]}" -d "$expected_root"
+          unzip -q "${rebuilt_archives[0]}" -d "$rebuilt_root"
+          if ! diff --recursive --brief "$expected_root" "$rebuilt_root"; then
+            echo "::error title=Non-reproducible Firefox build::The submitted sources do not reproduce the Firefox package."
+            exit 1
+          fi
+
+      - name: Preserve release archives
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-extension-${{ github.run_id }}
+          path: apps/browser-extension/.output/*.zip
+          if-no-files-found: error
+          include-hidden-files: true
+          compression-level: 0
+          retention-days: 30
+
+      - name: Submit packages with WXT
+        working-directory: apps/browser-extension
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
+          FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+          FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+        run: |
+          shopt -s nullglob
+          chrome_archives=(.output/*-chrome.zip)
+          firefox_archives=(.output/*-firefox.zip)
+          source_archives=(.output/*-sources.zip)
+
+          required_credentials=(
+            CHROME_EXTENSION_ID
+            CHROME_CLIENT_ID
+            CHROME_CLIENT_SECRET
+            CHROME_REFRESH_TOKEN
+            FIREFOX_EXTENSION_ID
+            FIREFOX_JWT_ISSUER
+            FIREFOX_JWT_SECRET
+          )
+
+          missing_credentials=0
+          for credential_name in "${required_credentials[@]}"; do
+            if [[ -z "${!credential_name:-}" ]]; then
+              echo "::error title=Missing store credential::$credential_name is not configured in the browser-stores environment."
+              missing_credentials=1
+            fi
+          done
+
+          if (( missing_credentials != 0 )); then
+            exit 1
+          fi
+
+          submit_arguments=(
+            submit
+            --chrome-zip "$PWD/${chrome_archives[0]}"
+            --firefox-zip "$PWD/${firefox_archives[0]}"
+            --firefox-sources-zip "$PWD/${source_archives[0]}"
+          )
+
+          if [[ "$DRY_RUN" == "true" ]]; then
+            submit_arguments+=(--dry-run)
+          fi
+
+          if [[ -e .env.submit ]]; then
+            echo "::error title=Environment file before submission::.env.submit must not be present when WXT runs."
+            exit 1
+          fi
+
+          pnpm run wxt -- "${submit_arguments[@]}"

@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 
 interface FloatingIconProps {
   readonly floatingStyles: CSSProperties;
@@ -13,6 +13,7 @@ export function FloatingIcon({ floatingStyles, onClick, setFloating }: FloatingI
       aria-label="Convert selected currencies"
       className="cl-lens-trigger"
       onClick={onClick}
+      onMouseDown={preservePageSelection}
       ref={setFloating}
       style={floatingStyles}
       title="Open Currency Lens"
@@ -23,4 +24,9 @@ export function FloatingIcon({ floatingStyles, onClick, setFloating }: FloatingI
       </span>
     </button>
   );
+}
+
+/** Keeps the host-page selection active while the trigger is pressed. */
+function preservePageSelection(event: MouseEvent<HTMLButtonElement>): void {
+  event.preventDefault();
 }

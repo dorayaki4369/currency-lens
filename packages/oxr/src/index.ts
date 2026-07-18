@@ -8,8 +8,8 @@ export type Config = {
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
-/** Resolves the latest-rates endpoint relative to the configured API path. */
-function createLatestRatesUrl(baseUrl: string): URL {
+/** Resolves the authenticated latest-rates endpoint relative to the configured API path. */
+function createLatestRatesUrl(baseUrl: string, appId: string): URL {
   const normalizedBaseUrl = new URL(baseUrl);
   if (!normalizedBaseUrl.pathname.endsWith("/")) {
     normalizedBaseUrl.pathname += "/";
@@ -18,6 +18,7 @@ function createLatestRatesUrl(baseUrl: string): URL {
   normalizedBaseUrl.hash = "";
 
   const url = new URL("latest.json", normalizedBaseUrl);
+  url.searchParams.set("app_id", appId);
   url.searchParams.set("show_alternative", "true");
   url.searchParams.set("prettyprint", "0");
   return url;
@@ -76,7 +77,7 @@ export async function fetchLatestRate(
   }
 
   const signal = AbortSignal.timeout(timeoutMs);
-  const url = createLatestRatesUrl(config.baseUrl);
+  const url = createLatestRatesUrl(config.baseUrl, config.appId);
   let response: Response;
 
   try {
@@ -84,7 +85,6 @@ export async function fetchLatestRate(
       method: "GET",
       signal,
       headers: {
-        Authorization: `Token ${config.appId}`,
         Accept: "application/json",
       },
     });

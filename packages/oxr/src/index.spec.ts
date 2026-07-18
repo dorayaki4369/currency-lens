@@ -23,7 +23,7 @@ function createResponseBody() {
 }
 
 describe("fetchLatestRate", () => {
-  it("authenticates, requests alternative currencies, and validates the response", async () => {
+  it("authenticates with an app ID query parameter and validates the response", async () => {
     const fetchMock = vi.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         new Response(JSON.stringify(createResponseBody()), { status: 200 }),
@@ -42,9 +42,10 @@ describe("fetchLatestRate", () => {
       typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(inputUrl);
     expect(url.pathname).toBe("/api/latest.json");
+    expect(url.searchParams.get("app_id")).toBe("secret-app-id");
     expect(url.searchParams.get("show_alternative")).toBe("true");
     expect(url.searchParams.get("prettyprint")).toBe("0");
-    expect(new Headers(init?.headers).get("Authorization")).toBe("Token secret-app-id");
+    expect(new Headers(init?.headers).get("Authorization")).toBeNull();
     expect(init?.signal).toBeInstanceOf(AbortSignal);
     expect(result.rates["NEW_COIN"]).toBe("2.5");
   });

@@ -27,9 +27,9 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",
-    "oxlint-tsgolint": "^0.24.0",
+    "oxlint-tsgolint": "^0.25.0",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.4",
+    "vite-plus": "^0.2.5",
     "vitest": "^4.1.10"
   },
   "engines": {

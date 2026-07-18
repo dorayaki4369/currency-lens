@@ -1,0 +1,4 @@
+interface:
+  display_name: "Currency Lens Development"
+  short_description: "Develop, verify, and release Currency Lens safely"
+  default_prompt: "Use $currency-lens-development to implement and verify a Currency Lens change."

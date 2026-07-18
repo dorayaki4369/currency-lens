@@ -1,15 +1,3 @@
-export type CurrencySymbol = string & { readonly brand: unique symbol };
-
-export function isCurrencySymbol(symbol: string): symbol is CurrencySymbol {
-  return symbol in symbols.map((s) => s.symbol);
-}
-
-export type CurrencyCode = string & { readonly brand: unique symbol };
-
-export function isCurrencyCode(code: string): code is CurrencyCode {
-  return code in currencies.map((c) => c.code);
-}
-
 export const currencies = [
   {
     code: "AED",
@@ -996,7 +984,23 @@ export const currencies = [
     code: "USD",
     number: 840,
     minorUnit: 2,
-    countries: ["AS", "BQ", "EC", "FM", "GU", "HT", "IO", "MH", "MP", "PA", "PR", "PW", "TC", "US", "VI"],
+    countries: [
+      "AS",
+      "BQ",
+      "EC",
+      "FM",
+      "GU",
+      "HT",
+      "IO",
+      "MH",
+      "MP",
+      "PA",
+      "PR",
+      "PW",
+      "TC",
+      "US",
+      "VI",
+    ],
   },
   {
     code: "UYU",
@@ -1149,17 +1153,12 @@ export const currencies = [
     countries: ["ZW"],
   },
   {
-    code: "ZWL" as CurrencyCode,
+    code: "ZWL",
     number: 932,
     minorUnit: 2,
     countries: ["ZW"],
   },
-] as const as {
-  code: CurrencyCode;
-  number: number;
-  minorUnit: number;
-  countries: string[];
-}[];
+] as const;
 
 export const symbols = [
   {
@@ -1219,8 +1218,8 @@ export const symbols = [
   },
   {
     symbol: "C$",
-    default: "NIO",
-    codes: ["NIO"],
+    default: "CAD",
+    codes: ["CAD", "NIO"],
     alternatives: [],
   },
   {
@@ -1557,6 +1556,54 @@ export const symbols = [
     symbol: "ZWL",
     default: "ZWL",
     codes: ["ZWL"],
+    alternatives: [],
+  },
+  {
+    symbol: "US$",
+    default: "USD",
+    codes: ["USD"],
+    alternatives: [],
+  },
+  {
+    symbol: "CA$",
+    default: "CAD",
+    codes: ["CAD"],
+    alternatives: [],
+  },
+  {
+    symbol: "A$",
+    default: "AUD",
+    codes: ["AUD"],
+    alternatives: [],
+  },
+  {
+    symbol: "AU$",
+    default: "AUD",
+    codes: ["AUD"],
+    alternatives: [],
+  },
+  {
+    symbol: "HK$",
+    default: "HKD",
+    codes: ["HKD"],
+    alternatives: [],
+  },
+  {
+    symbol: "NZ$",
+    default: "NZD",
+    codes: ["NZD"],
+    alternatives: [],
+  },
+  {
+    symbol: "S$",
+    default: "SGD",
+    codes: ["SGD"],
+    alternatives: [],
+  },
+  {
+    symbol: "SG$",
+    default: "SGD",
+    codes: ["SGD"],
     alternatives: [],
   },
   {
@@ -1947,13 +1994,22 @@ export const symbols = [
   },
   {
     symbol: "ل.ل",
-    default: "LBP" as CurrencyCode,
-    codes: ["LBP"] as CurrencyCode[],
+    default: "LBP",
+    codes: ["LBP"],
     alternatives: [],
   },
-] as const as {
-  symbol: string;
-  default: CurrencyCode;
-  codes: CurrencyCode[];
-  alternatives: CurrencyCode[];
-}[];
+] as const;
+
+export type CurrencyCode = (typeof currencies)[number]["code"];
+
+export type CurrencySymbol = (typeof symbols)[number]["symbol"];
+
+/** Returns whether an external string is one of the supported currency codes. */
+export function isCurrencyCode(code: string): code is CurrencyCode {
+  return currencies.some((currency) => currency.code === code);
+}
+
+/** Returns whether an external string is one of the supported currency symbols. */
+export function isCurrencySymbol(symbol: string): symbol is CurrencySymbol {
+  return symbols.some((entry) => entry.symbol === symbol);
+}

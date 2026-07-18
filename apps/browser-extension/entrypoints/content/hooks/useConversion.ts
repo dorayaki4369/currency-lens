@@ -1,90 +1,90 @@
-import { useState, useCallback } from "react";
-import { sendMessage, messageTypes, type ConvertCurrencyResponse } from "../../../lib/messages";
+import type { CurrencyCode } from "@cl/currency";
+import { useCallback, useRef, useState } from "react";
 import type { DetectedCurrency } from "../../../lib/currency-detection";
-import type { ConversionResult } from "../components/ConversionPopup";
+import {
+  messageTypes,
+  sendMessage,
+  type ConvertCurrenciesResponse,
+} from "../../../lib/messages";
 
-type CurrencyCode = string & { readonly brand: unique symbol };
+type ConversionData = Extract<ConvertCurrenciesResponse, { success: true }>["data"];
 
 export interface ConversionState {
-  results: ConversionResult[];
-  loading: boolean;
-  error: string | null;
+  readonly data: ConversionData | null;
+  readonly loading: boolean;
+  readonly error: string | null;
 }
 
+const INITIAL_STATE: ConversionState = {
+  data: null,
+  loading: false,
+  error: null,
+};
+
+/** Owns the single validated batch request used by the in-page lens. */
 export function useConversion() {
-  const [state, setState] = useState<ConversionState>({
-    results: [],
-    loading: false,
-    error: null,
-  });
+  const [state, setState] = useState<ConversionState>(INITIAL_STATE);
+  const requestGeneration = useRef(0);
 
-  const convert = useCallback(async (detectedCurrencies: DetectedCurrency[], targetCurrency: CurrencyCode) => {
-    if (detectedCurrencies.length === 0) {
-      setState({
-        results: [],
-        loading: false,
-        error: null,
-      });
-      return;
-    }
+  const convert = useCallback(
+    async (
+      detectedCurrencies: readonly DetectedCurrency[],
+      targetCurrencies: readonly CurrencyCode[],
+    ) => {
+      const generation = requestGeneration.current + 1;
+      requestGeneration.current = generation;
 
-    setState({
-      results: [],
-      loading: true,
-      error: null,
-    });
+      if (detectedCurrencies.length === 0 || targetCurrencies.length === 0) {
+        setState({
+          data: null,
+          loading: false,
+          error:
+            targetCurrencies.length === 0
+              ? "Add at least one target currency in Currency Lens settings."
+              : null,
+        });
+        return;
+      }
 
-    try {
-      const conversionPromises = detectedCurrencies.map(async (detected) => {
-        const response = (await sendMessage({
-          type: messageTypes.CONVERT_CURRENCY,
+      setState({ data: null, loading: true, error: null });
+
+      try {
+        const response = await sendMessage({
+          type: messageTypes.CONVERT_CURRENCIES,
           payload: {
-            amount: detected.amount,
-            fromCurrency: detected.currencyCode,
-            toCurrency: targetCurrency,
+            amounts: detectedCurrencies.map(({ amount, currencyCode }) => ({
+              amount,
+              currencyCode,
+            })),
+            targetCurrencies: [...targetCurrencies],
           },
-        })) as ConvertCurrencyResponse;
-
-        if (!response.success || !response.data) {
-          throw new Error(response.error || "Conversion failed");
+        });
+        if (generation !== requestGeneration.current) {
+          return;
         }
-
-        return {
-          fromCurrency: detected.currencyCode,
-          fromAmount: detected.amount,
-          toCurrency: targetCurrency,
-          toAmount: response.data.convertedAmount,
-          originalText: detected.originalText,
-        };
-      });
-
-      const results = await Promise.all(conversionPromises);
-
-      setState({
-        results,
-        loading: false,
-        error: null,
-      });
-    } catch (error) {
-      setState({
-        results: [],
-        loading: false,
-        error: error instanceof Error ? error.message : "Failed to convert currency",
-      });
-    }
-  }, []);
+        setState(
+          response.success
+            ? { data: response.data, loading: false, error: null }
+            : { data: null, loading: false, error: response.error },
+        );
+      } catch (error: unknown) {
+        if (generation !== requestGeneration.current) {
+          return;
+        }
+        setState({
+          data: null,
+          loading: false,
+          error: error instanceof Error ? error.message : "Currency conversion failed.",
+        });
+      }
+    },
+    [],
+  );
 
   const reset = useCallback(() => {
-    setState({
-      results: [],
-      loading: false,
-      error: null,
-    });
+    requestGeneration.current += 1;
+    setState(INITIAL_STATE);
   }, []);
 
-  return {
-    ...state,
-    convert,
-    reset,
-  };
+  return { ...state, convert, reset };
 }

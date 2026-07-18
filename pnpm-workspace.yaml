@@ -2,9 +2,22 @@ packages:
   - apps/*
   - packages/*
 
-onlyBuiltDependencies:
-  - "@tailwindcss/oxide"
-  - esbuild
-  - sharp
-  - spawn-sync
-  - workerd
+# Never let a script silently repair dependency drift with a different global pnpm.
+verifyDepsBeforeRun: error
+enableGlobalVirtualStore: false
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  spawn-sync: true
+  workerd: true
+
+minimumReleaseAgeExclude:
+  - miniflare@4.20260710.0
+  - wrangler@4.111.0
+
+# Vite+ 0.2.4 predates TypeScript 7's peer range, but its tsgolint path is
+# validated by this repository's full typecheck and build matrix.
+peerDependencyRules:
+  allowedVersions:
+    typescript: "7"

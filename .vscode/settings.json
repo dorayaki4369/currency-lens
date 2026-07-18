@@ -1,0 +1,5 @@
+{
+  "oxc.fmt.configPath": "./vite.config.ts",
+  "oxc.enable": true,
+  "oxc.typeAware": true
+}

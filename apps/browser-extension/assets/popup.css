@@ -1,0 +1,52 @@
+@import "./style.css";
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  padding: 0;
+  width: 400px;
+}
+
+body {
+  background: #f3f7fb;
+  overflow-x: hidden;
+}
+
+.cl-popup {
+  background:
+    radial-gradient(circle at 85% -10%, rgb(32 200 219 / 12%), transparent 30%),
+    var(--cl-canvas);
+  min-height: 580px;
+  padding: 17px;
+  width: 400px;
+}
+
+.cl-popup__hero {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 1px 0;
+}
+
+.cl-popup__footer {
+  align-items: center;
+  background: color-mix(in srgb, var(--cl-canvas) 88%, transparent);
+  border-top: 1px solid var(--cl-line);
+  bottom: 0;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 12px -17px -17px;
+  padding: 12px 17px 14px;
+  position: sticky;
+}
+
+.cl-popup__footer p {
+  color: var(--cl-ink-muted);
+  font-size: 9px;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 205px;
+}

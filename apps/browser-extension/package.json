@@ -32,6 +32,7 @@
     "@wxt-dev/auto-icons": "^1.1.1",
     "@wxt-dev/module-react": "^1.2.2",
     "happy-dom": "^20.10.6",
+    "publish-browser-extension": "^4.0.5",
     "wxt": "^0.20.27"
   }
 }

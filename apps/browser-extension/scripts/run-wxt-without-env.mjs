@@ -12,10 +12,21 @@ const publishExtensionBin = fileURLToPath(
 );
 const safeWorkingDirectory = await mkdtemp(join(tmpdir(), "currency-lens-wxt-"));
 const rawUserArguments = process.argv.slice(2);
+const localApiEndpointOption = "--use-local-api-endpoint";
+const useLocalApiEndpoint = rawUserArguments[0] === localApiEndpointOption;
+const argumentsAfterOptions = useLocalApiEndpoint
+  ? rawUserArguments.slice(1)
+  : rawUserArguments;
 const userArguments =
-  rawUserArguments[0] === "--" ? rawUserArguments.slice(1) : rawUserArguments;
+  argumentsAfterOptions[0] === "--"
+    ? argumentsAfterOptions.slice(1)
+    : argumentsAfterOptions;
 const projectCommands = new Set(["build", "clean", "cleanup", "prepare", "zip"]);
 const publishCommands = new Set(["publish-extension", "submit"]);
+
+if (useLocalApiEndpoint) {
+  process.env.API_ENDPOINT = "http://localhost:8787";
+}
 
 /** Selects the dedicated publishing CLI without resolving project config. */
 function createCommand() {

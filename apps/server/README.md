@@ -22,9 +22,13 @@ R2のデータが壊れている場合、secretがない場合、Open Exchange R
 pnpm install --frozen-lockfile
 ```
 
-`example.env`は人間がローカル用secretの変数名を確認するための見本です。package scriptは`wrangler.no-secrets`を明示してWranglerの既定ファイル探索を止めるため、ローカル起動に必要な値は人間がshellのprocess environmentへ設定してください。`wrangler.no-secrets`には値を追加しません。
+人間がローカル開発を行う場合は、リポジトリ直下の`.env`へOpen Exchange RatesのApp IDを設定します。`pnpm srv dev`はこのファイルを明示的に読み込みます。`wrangler.no-secrets`には値を追加しません。
 
-AI Agentは`.env`、`.env.*`、`.dev.vars`、`.dev.vars.*`を絶対に読み取りません。値の確認やファイル作成が必要になった時点で作業を止め、人間に設定を依頼します。
+```dotenv
+OPEN_EXCHANGE_RATE_APP_ID=your-app-id
+```
+
+AI Agentは`.env`、`.env.*`、`.dev.vars`、`.dev.vars.*`を絶対に読み取りません。AgentがWorkerを起動する場合は`pnpm srv dev:agent`を使います。このコマンドは環境ファイルを読みませんが、secretを渡さないため空のローカルR2を自動初期化できません。
 
 ```bash
 pnpm srv dev

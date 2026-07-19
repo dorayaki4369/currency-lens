@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false wrangler dev --env-file wrangler.no-secrets --test-scheduled",
+    "dev": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=true WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false node --env-file-if-exists=../../.env node_modules/wrangler/bin/wrangler.js dev --env-file wrangler.no-secrets --test-scheduled",
+    "dev:agent": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false wrangler dev --env-file wrangler.no-secrets --test-scheduled",
     "typegen": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false wrangler types --env-file wrangler.no-secrets --env-interface CloudflareBindings",
     "build": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false wrangler build --env-file wrangler.no-secrets",
     "deploy": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false wrangler deploy --env-file wrangler.no-secrets --minify",

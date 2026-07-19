@@ -1,6 +1,17 @@
 import { defineConfig } from "vite-plus";
 
 const MAX_CYCLOMATIC_COMPLEXITY = 12;
+const TEST_API_ENDPOINT = "https://cl.dryk.net";
+const SECRET_FILE_PATTERNS = [
+  ".env",
+  ".env.*",
+  ".dev.vars",
+  ".dev.vars.*",
+  "**/.env",
+  "**/.env.*",
+  "**/.dev.vars",
+  "**/.dev.vars.*",
+] as const;
 
 /**
  * Centralizes formatting, strict static analysis, type checking, and tests for
@@ -9,8 +20,12 @@ const MAX_CYCLOMATIC_COMPLEXITY = 12;
 export default defineConfig({
   // Repository commands never load local environment files. Runtime secrets belong to deployment boundaries.
   envDir: false,
+  define: {
+    "import.meta.env.API_ENDPOINT": JSON.stringify(TEST_API_ENDPOINT),
+  },
   fmt: {
     ignorePatterns: [
+      ...SECRET_FILE_PATTERNS,
       ".agents/**",
       "**/.output/**",
       "**/.wxt/**",
@@ -34,6 +49,7 @@ export default defineConfig({
       perf: "error",
     },
     ignorePatterns: [
+      ...SECRET_FILE_PATTERNS,
       ".agents/**",
       "**/.output/**",
       "**/.wxt/**",

@@ -118,7 +118,7 @@ Cloudflare Worker、R2 Bucket、Custom Domain、Chrome Web Store、Firefox Add-o
 | `pnpm build`         | 全workspaceをビルドする                              |
 | `pnpm validate`      | 品質検査、テスト、ビルドをまとめて実行する           |
 
-`pnpm build`と`pnpm validate`は環境ファイルを読みません。ローカルで実行するときは、`API_ENDPOINT`をprocess environmentへ明示的に渡してください。GitHub ActionsではRepository variableから自動的に渡します。
+`pnpm build`と`pnpm validate`は環境ファイルを読みません。ローカルで実行するときは、`API_ENDPOINT`をprocess environmentへ明示的に渡してください。GitHub Actionsでは、CIは既知の本番URL、Workerデプロイとストア公開はRepository variableを使います。
 
 Chrome版とFirefox版を個別にビルドする場合は、次のコマンドを使います。
 

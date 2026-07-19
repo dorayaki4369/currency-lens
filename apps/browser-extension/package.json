@@ -6,15 +6,15 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=../../.env scripts/run-wxt-without-env.mjs",
-    "dev:agent": "API_ENDPOINT=http://localhost:8787 node scripts/run-wxt-without-env.mjs",
+    "dev:agent": "node scripts/run-wxt-without-env.mjs --use-local-api-endpoint",
     "dev:firefox": "node --env-file-if-exists=../../.env scripts/run-wxt-without-env.mjs -b firefox --mv3",
-    "dev:firefox:agent": "API_ENDPOINT=http://localhost:8787 node scripts/run-wxt-without-env.mjs -b firefox --mv3",
+    "dev:firefox:agent": "node scripts/run-wxt-without-env.mjs --use-local-api-endpoint -b firefox --mv3",
     "typecheck": "tsc --noEmit",
     "build": "node scripts/run-wxt-without-env.mjs build",
     "build:firefox": "node scripts/run-wxt-without-env.mjs build -b firefox --mv3",
     "zip": "node scripts/run-wxt-without-env.mjs zip",
     "zip:firefox": "node scripts/run-wxt-without-env.mjs zip -b firefox --mv3",
-    "postinstall": "API_ENDPOINT=http://localhost:8787 node scripts/run-wxt-without-env.mjs prepare",
+    "postinstall": "node scripts/run-wxt-without-env.mjs --use-local-api-endpoint prepare",
     "wxt": "node scripts/run-wxt-without-env.mjs"
   },
   "dependencies": {

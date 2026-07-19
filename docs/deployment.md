@@ -35,7 +35,7 @@ Dependabotの更新先も`develop`に固定しています。WorkflowとDependab
 
 ### Actionsの設定変数
 
-Repository variableとして次を登録します。公開URLなのでsecretではなくvariableとして管理し、CI、Workerの事前検証、Chrome／Firefoxの配布ビルドへ同じ値を渡します。
+Repository variableとして次を登録します。公開URLなのでsecretではなくvariableとして管理し、Workerの事前検証とChrome／Firefoxの配布ビルドへ同じ値を渡します。Pull RequestのCIはデプロイ設定から独立させ、既知の本番URLをWorkflow内で使います。
 
 | variable       | 値                    | 用途                     |
 | -------------- | --------------------- | ------------------------ |
@@ -58,7 +58,9 @@ API tokenにはCloudflareの`Edit Cloudflare Workers`テンプレートを使い
 
 ### browser-stores Environment
 
-`browser-stores` Environmentを作り、選択可能なbranch/tagを`main`と`v*` tagに制限します。`main`は手動dry-run、`v*`はGitHub Releaseからの提出に使います。
+`browser-stores` Environmentを作り、選択可能なbranch/tagを`main`と`v*` tagに制限します。`main`は手動dry-run、`v*`はGitHub Releaseからの提出に使います。Workflowの手動実行は`main`だけを受け付け、別branchやtagを選んだ実行ではpublish jobを開始しません。
+
+GitHub Actionsは起動元refに含まれるWorkflowを実行するため、`v*` tagの作成とRelease公開を行える権限は、ストア用secretを使う処理を起動できる権限でもあります。共同開発へ移行するときはこの権限をrelease担当者へ限定し、さらに強い分離が必要ならEnvironmentのrequired reviewerとself-review禁止を有効にしてください。その場合、ストア提出は完全自動ではなく承認待ちになります。
 
 次のEnvironment secretsを登録します。名前はWXTの`submit`コマンドが使用する環境変数と一致させています。
 

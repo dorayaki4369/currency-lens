@@ -20,7 +20,7 @@ env:
 jobs:
   publish:
     name: publish Chrome and Firefox packages
-    if: github.event_name == 'workflow_dispatch' || (startsWith(github.event.release.tag_name, 'v') && github.event.release.prerelease == false)
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (startsWith(github.event.release.tag_name, 'v') && github.event.release.prerelease == false)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
@@ -35,7 +35,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-          ref: ${{ github.event.release.tag_name || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'refs/heads/main' || github.event.release.tag_name }}
 
       - name: Reject environment files
         run: |
@@ -55,6 +55,17 @@ jobs:
       - name: Validate the release source
         run: |
           if [[ "$DRY_RUN" == "true" ]]; then
+            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+              echo "::error title=Invalid dry-run ref::Manual validation must run from main."
+              exit 1
+            fi
+
+            main_sha="$(git rev-parse refs/remotes/origin/main)"
+            if [[ "$(git rev-parse HEAD)" != "$main_sha" ]]; then
+              echo "::error title=Stale dry-run source::Manual validation must use the current main commit."
+              exit 1
+            fi
+
             echo "WXT will validate release artifacts and credential presence without uploading packages."
             exit 0
           fi

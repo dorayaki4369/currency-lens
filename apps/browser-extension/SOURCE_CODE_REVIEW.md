@@ -13,7 +13,7 @@ From the extracted archive root, run:
 ```text
 corepack pnpm@11.13.0 install --frozen-lockfile
 corepack pnpm@11.13.0 --filter @cl/currency build
-corepack pnpm@11.13.0 --filter @cl/browser-extension build:firefox
+API_ENDPOINT=https://cl.dryk.net corepack pnpm@11.13.0 --filter @cl/browser-extension build:firefox
 ```
 
 The unpacked extension is written to `apps/browser-extension/.output/firefox-mv3`.

@@ -17,6 +17,11 @@ Open Exchange Rates
   -> Background の stale-while-revalidate cache
 ```
 
+WXT は開発時と配布時のどちらも `API_ENDPOINT` を API のベース URL とし、HTTPS または loopback の HTTP だけを許可します。
+Background Script は検証済みのベース URL に `/latest` を付けてレートを取得します。
+配布用ビルドは GitHub Actions の Repository variable から同じ環境変数名へ値を渡します。
+Agent のローカル起動は `pnpm dev:agent` を使い、環境ファイルを読みません。
+
 ## 正本
 
 - 通貨コード、記号、minor unit: `packages/currency/src/index.ts`

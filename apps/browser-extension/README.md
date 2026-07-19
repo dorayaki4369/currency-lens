@@ -36,7 +36,11 @@ Content Scriptは選択テキストから通貨記号または通貨コードと
 
 ## ローカル開発
 
-リポジトリ直下で依存関係を導入してから、対象ブラウザの開発サーバーを起動します。
+リポジトリ直下で依存関係を導入し、人間がルートの`.env`へ開発用レートAPIを設定してから、対象ブラウザの開発サーバーを起動します。
+
+```dotenv
+API_ENDPOINT=http://localhost:8787
+```
 
 ```bash
 pnpm install --frozen-lockfile
@@ -49,7 +53,9 @@ Firefoxで確認する場合は次のコマンドを使います。
 pnpm ext dev:firefox
 ```
 
-WXTが生成する開発版をブラウザへ読み込んで、通常のHTTPまたはHTTPSページでテキスト選択、アイコン、換算結果、設定保存を確認してください。拡張機能が取得するレートの接続先は、現在は本番のCurrency Lens Workerです。
+WXTが生成する開発版をブラウザへ読み込んで、通常のHTTPまたはHTTPSページでテキスト選択、アイコン、換算結果、設定保存を確認してください。開発版と配布用ビルドは同じ`API_ENDPOINT`をベースURLとして使い、`/latest`へ接続します。配布時の値はGitHub ActionsのRepository variableから渡します。
+
+AI Agentが起動する場合は、環境ファイルを読まない`pnpm ext dev:agent`または`pnpm ext dev:firefox:agent`を使います。
 
 ## ビルド
 
@@ -68,3 +74,5 @@ pnpm ext zip:firefox
 ```
 
 通常の品質検査はリポジトリ直下で`pnpm validate`を実行します。ストアの初回登録と認証情報の設定は外部作業です。公開経路は[デプロイとストア公開](../../docs/deployment.md)にあります。
+
+ビルドと品質検査は環境ファイルを読みません。ローカルでは、例えば`API_ENDPOINT=https://cl.dryk.net pnpm validate`のようにprocess environmentへ値を渡します。

@@ -1,4 +1,5 @@
 default_permissions = "workspace"
+sandbox_mode = "workspace-write"
 
 [permissions.workspace.filesystem]
 ":minimal" = "read"
@@ -6,6 +7,8 @@ glob_scan_max_depth = 4
 
 [permissions.workspace.filesystem.":workspace_roots"]
 "." = "write"
+".git" = "write"
+".git/**" = "write"
 ".env" = "none"
 ".env.*" = "none"
 ".dev.vars" = "none"

@@ -10,7 +10,8 @@
   },
   "main": "index.js",
   "scripts": {
-    "dev": "vp run --no-cache -r dev",
+    "dev": "vp run --no-cache -r --parallel dev",
+    "dev:agent": "vp run --no-cache -r --parallel dev:agent",
     "ext": "pnpm -C apps/browser-extension",
     "srv": "pnpm -C apps/server",
     "pkg:cur": "pnpm -C packages/currency",

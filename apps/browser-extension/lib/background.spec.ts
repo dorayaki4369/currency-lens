@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RATE_REFRESH_ALARM_NAME, RATE_REFRESH_PERIOD_MINUTES } from "./rate-refresh";
 
+const TEST_RATE_ENDPOINT = "https://cl.dryk.net/latest";
+
 interface BackgroundListeners {
   installed?: () => void;
   startup?: () => void;
@@ -24,7 +26,7 @@ describe("background lifecycle", () => {
   it("ensures lifecycle alarms and shares concurrent refresh work", async () => {
     const responseResolvers: Array<(response: Response) => void> = [];
     const fetchRates = vi.fn(
-      () =>
+      (_input: RequestInfo | URL, _init?: RequestInit) =>
         new Promise<Response>((resolve) => {
           responseResolvers.push(resolve);
         }),
@@ -41,6 +43,11 @@ describe("background lifecycle", () => {
     await vi.waitFor(() => expect(harness.alarmGet).toHaveBeenCalledTimes(3));
     await vi.waitFor(() => expect(harness.localGet).toHaveBeenCalledTimes(3));
     await vi.waitFor(() => expect(fetchRates).toHaveBeenCalledTimes(1));
+    const requestedRateEndpoint = fetchRates.mock.calls[0]?.[0];
+    if (!(requestedRateEndpoint instanceof URL)) {
+      throw new TypeError("Expected the rate request to use a URL instance.");
+    }
+    expect(requestedRateEndpoint.href).toBe(TEST_RATE_ENDPOINT);
 
     responseResolvers[0]?.(createRateResponse());
     await vi.waitFor(() => expect(harness.localSet).toHaveBeenCalledTimes(1));
@@ -117,7 +124,7 @@ describe("background lifecycle", () => {
 
 /** Installs a minimal WebExtension environment and exposes its observable boundaries. */
 function installBrowserHarness(
-  fetchImplementation: () => Promise<Response>,
+  fetchImplementation: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
   initialState: Record<string, unknown> = createFreshLocalState(),
 ) {
   const listeners: BackgroundListeners = {};

@@ -26,6 +26,7 @@ jobs:
     environment:
       name: browser-stores
     env:
+      API_ENDPOINT: ${{ vars.API_ENDPOINT }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' }}
       RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
     steps:
@@ -41,6 +42,13 @@ jobs:
           blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) -print -quit)"
           if [[ -n "$blocked_path" ]]; then
             echo "::error title=Environment file in checkout::$blocked_path must not be present in the repository."
+            exit 1
+          fi
+
+      - name: Require the API endpoint
+        run: |
+          if [[ -z "$API_ENDPOINT" ]]; then
+            echo "::error title=Missing API endpoint::Configure the repository Actions variable API_ENDPOINT."
             exit 1
           fi
 

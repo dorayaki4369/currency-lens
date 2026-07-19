@@ -24,7 +24,7 @@ import {
   setExchangeRateCache,
 } from "../lib/storage";
 
-const RATE_ENDPOINT = "https://cl.dryk.net/latest";
+const RATE_ENDPOINT = new URL("latest", `${import.meta.env.API_ENDPOINT}/`).href;
 let activeRateRefresh: Promise<void> | null = null;
 
 export default defineBackground(() => {

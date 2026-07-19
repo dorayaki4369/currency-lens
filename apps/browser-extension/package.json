@@ -5,14 +5,16 @@
   "description": "Currency Lens Browser Extension",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/run-wxt-without-env.mjs",
-    "dev:firefox": "node scripts/run-wxt-without-env.mjs -b firefox --mv3",
+    "dev": "node --env-file-if-exists=../../.env scripts/run-wxt-without-env.mjs",
+    "dev:agent": "API_ENDPOINT=http://localhost:8787 node scripts/run-wxt-without-env.mjs",
+    "dev:firefox": "node --env-file-if-exists=../../.env scripts/run-wxt-without-env.mjs -b firefox --mv3",
+    "dev:firefox:agent": "API_ENDPOINT=http://localhost:8787 node scripts/run-wxt-without-env.mjs -b firefox --mv3",
     "typecheck": "tsc --noEmit",
     "build": "node scripts/run-wxt-without-env.mjs build",
     "build:firefox": "node scripts/run-wxt-without-env.mjs build -b firefox --mv3",
     "zip": "node scripts/run-wxt-without-env.mjs zip",
     "zip:firefox": "node scripts/run-wxt-without-env.mjs zip -b firefox --mv3",
-    "postinstall": "node scripts/run-wxt-without-env.mjs prepare",
+    "postinstall": "API_ENDPOINT=http://localhost:8787 node scripts/run-wxt-without-env.mjs prepare",
     "wxt": "node scripts/run-wxt-without-env.mjs"
   },
   "dependencies": {

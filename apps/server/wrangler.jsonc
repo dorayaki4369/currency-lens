@@ -7,10 +7,6 @@
   "name": "currency-lens",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-16",
-  // "assets": {
-  //   "binding": "ASSETS",
-  //   "directory": "./public",
-  // },
   "observability": {
     "enabled": true,
   },

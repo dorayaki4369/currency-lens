@@ -4,11 +4,11 @@
 
 ## 自動化
 
-| 実行基盤                  | 設定                              | 起動条件                                                       | 処理                                               |
-| ------------------------- | --------------------------------- | -------------------------------------------------------------- | -------------------------------------------------- |
-| GitHub Actions            | `ci.yml`                          | `develop`または`main`へのpushとPull Request                    | format、lint、型検査、テスト、ビルド               |
-| GitHub Actions            | `publish-extension.yml`           | `vMAJOR.MINOR.PATCH`の安定版GitHub Release公開、または手動実行 | Chrome版とFirefox版をビルドし、WXTで両ストアへ提出 |
-| Cloudflare Workers Builds | CloudflareのWorker設定            | `main`へのpush                                                  | productionへWorkerをデプロイ                       |
+| 実行基盤                  | 設定                    | 起動条件                                                       | 処理                                               |
+| ------------------------- | ----------------------- | -------------------------------------------------------------- | -------------------------------------------------- |
+| GitHub Actions            | `ci.yml`                | `develop`または`main`へのpushとPull Request                    | format、lint、型検査、テスト、ビルド               |
+| GitHub Actions            | `publish-extension.yml` | `vMAJOR.MINOR.PATCH`の安定版GitHub Release公開、または手動実行 | Chrome版とFirefox版をビルドし、WXTで両ストアへ提出 |
+| Cloudflare Workers Builds | CloudflareのWorker設定  | `main`へのpush                                                 | productionへWorkerをデプロイ                       |
 
 GitHub Actionsの全WorkflowはNode.js 24とpnpm 11を使います。外部Actionはcommit SHAで固定し、Dependabotが更新を提案します。WorkerをデプロイするGitHub Actions Workflowは置かず、同じ`main`更新から二重にデプロイしないようにします。
 
@@ -78,16 +78,16 @@ GitHub Actionsは起動元refに含まれるWorkflowを実行するため、`v*`
 
 Workers Buildsは次の値で設定します。
 
-| 設定                               | 値                                  |
-| ---------------------------------- | ----------------------------------- |
-| Repository                         | `dorayaki4369/currency-lens`        |
-| Production branch                  | `main`                              |
-| Builds for non-production branches | 無効                                |
-| Root directory                     | リポジトリ直下                      |
-| Build command                      | 空欄                                |
-| Deploy command                     | `pnpm --filter @cl/server deploy`   |
-| Build variable `NODE_VERSION`      | `24.11.1`                           |
-| Build variable `PNPM_VERSION`      | `11.13.0`                           |
+| 設定                               | 値                                |
+| ---------------------------------- | --------------------------------- |
+| Repository                         | `dorayaki4369/currency-lens`      |
+| Production branch                  | `main`                            |
+| Builds for non-production branches | 無効                              |
+| Root directory                     | リポジトリ直下                    |
+| Build command                      | 空欄                              |
+| Deploy command                     | `pnpm --filter @cl/server deploy` |
+| Build variable `NODE_VERSION`      | `24.11.1`                         |
+| Build variable `PNPM_VERSION`      | `11.13.0`                         |
 
 Cloudflareの既定Node.jsとpnpmはリポジトリの`engines`より古いため、Build variablesでリポジトリの`package.json`と同じversionへ固定します。deploy commandがWorkerのコンパイルも行うため、Build commandではモノリポ全体をビルドしません。品質検査は`main`へmergeする前の必須check `CI / quality`が担います。これにより、Workerデプロイへ不要なブラウザ拡張機能の`API_ENDPOINT`をCloudflareへ重複登録せずに済みます。
 

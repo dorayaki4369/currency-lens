@@ -9,6 +9,9 @@
 
 一人開発では self approval ができないため、required approval は0件にします。
 Pull Request と CI は必須のままです。
+`develop` の必須 status check は head branch の最新化を要求し、`main` では要求しません。
+昇格時の merge commit は `main` だけに作られて `develop` が履歴上古くなるため、`main` でも最新化を要求すると次の昇格が停止します。
+`main` 向け Pull Request の CI は GitHub の merge branch を検査し、head branch guard により取り込み元を同じリポジトリの `develop` へ限定します。
 
 ## Worker
 

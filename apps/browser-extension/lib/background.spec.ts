@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RATE_REFRESH_ALARM_NAME, RATE_REFRESH_PERIOD_MINUTES } from "./rate-refresh";
 
-const TEST_RATE_ENDPOINT = "https://cl.dryk.net/latest";
+const TEST_RATE_ENDPOINT = "https://cl.dryk.net/v1/latest";
 
 interface BackgroundListeners {
   installed?: () => void;

@@ -78,7 +78,7 @@ API_ENDPOINT=http://localhost:8787
 OPEN_EXCHANGE_RATE_APP_ID=your-app-id
 ```
 
-`API_ENDPOINT`はレートAPIのベースURLです。開発版と配布版は同じ変数名を使い、拡張機能が`/latest`を付けて接続します。ローカル開発では`.env`、GitHub Actionsによるストア提出用ビルドではRepository variableから値を渡します。
+`API_ENDPOINT`はレートAPIのベースURLです。開発版と配布版は同じ変数名を使い、拡張機能が`/v1/latest`を付けて接続します。ローカル開発では`.env`、GitHub Actionsによるストア提出用ビルドではRepository variableから値を渡します。
 
 ブラウザ拡張機能だけを起動する場合は、対象ブラウザに合わせて次のいずれかを実行します。
 

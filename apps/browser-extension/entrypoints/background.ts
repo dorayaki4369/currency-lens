@@ -24,7 +24,7 @@ import {
   setExchangeRateCache,
 } from "../lib/storage";
 
-const RATE_ENDPOINT = new URL("latest", `${import.meta.env.API_ENDPOINT}/`).href;
+const RATE_ENDPOINT = new URL("v1/latest", `${import.meta.env.API_ENDPOINT}/`).href;
 let activeRateRefresh: Promise<void> | null = null;
 
 export default defineBackground(() => {

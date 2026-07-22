@@ -34,7 +34,7 @@ Chrome Web StoreとFirefox Add-onsの公開ページは次のとおりです。
 
 このリポジトリはpnpm workspaceによるモノリポです。タスク実行、整形、lint、型検査、テストにはVite+を使い、各アプリのビルドはWXTとWranglerが担当します。
 
-- Node.js 24
+- Node.js 24.11.1
 - pnpm 11.13.0
 - TypeScript 7
 - Vite+
@@ -42,7 +42,7 @@ Chrome Web StoreとFirefox Add-onsの公開ページは次のとおりです。
 - Cloudflare Workers、Hono、R2
 - Zod 4、Vitest 4
 
-Voltaを使う場合は、リポジトリの`package.json`に記載したNode.jsとpnpmのバージョンが選ばれます。
+Node.jsのバージョンは`.node-version`を正本とします。Volta用の`package.json`も同じ値に保ち、pnpmは`packageManager`とVolta設定で固定します。
 
 ### 構成
 

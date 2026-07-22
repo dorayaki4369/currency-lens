@@ -78,16 +78,16 @@ GitHub Actionsは起動元refに含まれるWorkflowを実行するため、`v*`
 
 Workers Buildsは次の値で設定します。
 
-| 設定                              | 値                                  |
-| --------------------------------- | ----------------------------------- |
-| Repository                        | `dorayaki4369/currency-lens`        |
-| Production branch                 | `main`                              |
+| 設定                               | 値                                  |
+| ---------------------------------- | ----------------------------------- |
+| Repository                         | `dorayaki4369/currency-lens`        |
+| Production branch                  | `main`                              |
 | Builds for non-production branches | 無効                                |
-| Root directory                    | リポジトリ直下                      |
-| Build command                     | 空欄                                |
-| Deploy command                    | `pnpm --filter @cl/server deploy`   |
-| Build variable `NODE_VERSION`     | `24.11.1`                           |
-| Build variable `PNPM_VERSION`     | `11.13.0`                           |
+| Root directory                     | リポジトリ直下                      |
+| Build command                      | 空欄                                |
+| Deploy command                     | `pnpm --filter @cl/server deploy`   |
+| Build variable `NODE_VERSION`      | `24.11.1`                           |
+| Build variable `PNPM_VERSION`      | `11.13.0`                           |
 
 Cloudflareの既定Node.jsとpnpmはリポジトリの`engines`より古いため、Build variablesでリポジトリの`package.json`と同じversionへ固定します。deploy commandがWorkerのコンパイルも行うため、Build commandではモノリポ全体をビルドしません。品質検査は`main`へmergeする前の必須check `CI / quality`が担います。これにより、Workerデプロイへ不要なブラウザ拡張機能の`API_ENDPOINT`をCloudflareへ重複登録せずに済みます。
 

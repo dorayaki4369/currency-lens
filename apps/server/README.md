@@ -70,4 +70,4 @@ pnpm srv typegen
 
 ## 外部設定とデプロイ
 
-R2 Bucketの作成、Open Exchange Ratesのsecret登録、Custom Domainの設定、Cloudflare API tokenの発行は外部作業です。Workerのデプロイは`main`更新後のGitHub Actionsを正規経路とし、初回設定と障害対応以外でローカルから本番デプロイしません。必要な設定と確認順は[デプロイとストア公開](../../docs/deployment.md)にまとめています。
+R2 Bucketの作成、Open Exchange Ratesのsecret登録、Custom Domainの設定、CloudflareとGitHubの接続は外部作業です。Workerのデプロイは`main`更新後のCloudflare Workers Buildsを正規経路とし、初回設定と障害対応以外でローカルから本番デプロイしません。必要な設定と確認順は[デプロイとストア公開](../../docs/deployment.md)にまとめています。

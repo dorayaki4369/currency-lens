@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: browser-stores
+  group: browser-extension-publishing
   cancel-in-progress: false
 
 env:
@@ -121,8 +121,6 @@ jobs:
     needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment:
-      name: browser-stores
     env:
       API_ENDPOINT: ${{ vars.API_ENDPOINT }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' }}
@@ -140,6 +138,38 @@ jobs:
           blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) -print -quit)"
           if [[ -n "$blocked_path" ]]; then
             echo "::error title=Environment file in checkout::$blocked_path must not be present in the repository."
+            exit 1
+          fi
+
+      - name: Require repository publishing secrets
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
+          FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+          FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+        run: |
+          required_credentials=(
+            CHROME_EXTENSION_ID
+            CHROME_CLIENT_ID
+            CHROME_CLIENT_SECRET
+            CHROME_REFRESH_TOKEN
+            FIREFOX_EXTENSION_ID
+            FIREFOX_JWT_ISSUER
+            FIREFOX_JWT_SECRET
+          )
+
+          missing_credentials=0
+          for credential_name in "${required_credentials[@]}"; do
+            if [[ -z "${!credential_name:-}" ]]; then
+              echo "::error title=Missing repository secret::Configure the repository Actions secret $credential_name."
+              missing_credentials=1
+            fi
+          done
+
+          if (( missing_credentials != 0 )); then
             exit 1
           fi
 
@@ -276,28 +306,6 @@ jobs:
           chrome_archives=(.output/*-chrome.zip)
           firefox_archives=(.output/*-firefox.zip)
           source_archives=(.output/*-sources.zip)
-
-          required_credentials=(
-            CHROME_EXTENSION_ID
-            CHROME_CLIENT_ID
-            CHROME_CLIENT_SECRET
-            CHROME_REFRESH_TOKEN
-            FIREFOX_EXTENSION_ID
-            FIREFOX_JWT_ISSUER
-            FIREFOX_JWT_SECRET
-          )
-
-          missing_credentials=0
-          for credential_name in "${required_credentials[@]}"; do
-            if [[ -z "${!credential_name:-}" ]]; then
-              echo "::error title=Missing store credential::$credential_name is not configured in the browser-stores environment."
-              missing_credentials=1
-            fi
-          done
-
-          if (( missing_credentials != 0 )); then
-            exit 1
-          fi
 
           submit_arguments=(
             submit

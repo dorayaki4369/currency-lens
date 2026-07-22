@@ -31,14 +31,16 @@ Cloudflare の check がない、失敗した、timeout した、または公開
 v1 の `base`、`rates`、`timestamp` は後方互換に保ちます。
 項目追加を含む破壊的変更は `/v2/latest` のような新しい route へ分け、旧 route の廃止は配布済み拡張機能の利用状況を確認してから人間が判断します。
 
-Chrome Web Store secrets:
+次の値は GitHub Actions の Repository secrets に登録します。
+
+Chrome Web Store:
 
 - `CHROME_EXTENSION_ID`
 - `CHROME_CLIENT_ID`
 - `CHROME_CLIENT_SECRET`
 - `CHROME_REFRESH_TOKEN`
 
-Firefox Add-ons secrets:
+Firefox Add-ons:
 
 - `FIREFOX_EXTENSION_ID`
 - `FIREFOX_JWT_ISSUER`

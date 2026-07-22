@@ -12,7 +12,7 @@ Pull Request と CI は必須のままです。
 
 ## Worker
 
-`main` 更新で Cloudflare Workers Builds が `pnpm --filter @cl/server deploy` を実行します。
+`main` 更新で Cloudflare Workers Builds が `pnpm --filter @cl/server run deploy` を実行します。
 GitHub Actions からは Worker をデプロイせず、`CLOUDFLARE_ACCOUNT_ID` と `CLOUDFLARE_API_TOKEN` を GitHub secrets に置きません。
 Cloudflare の production branch は `main`、root directory はリポジトリ直下、build command は空、deploy command は上記コマンドとします。
 Node.js はリポジトリ直下の `.node-version` から検出させ、Build variable は `PNPM_VERSION=11.13.0` だけを設定します。

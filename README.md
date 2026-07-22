@@ -101,7 +101,7 @@ pnpm srv dev
 
 AI Agentは`.env`、`.env.*`、`.dev.vars`、`.dev.vars.*`を絶対に読み取りません。検索、内容表示、差分確認、コピー元としての参照も禁止です。Agentがローカル起動を必要とする場合は、環境ファイルを読まずに`API_ENDPOINT=http://localhost:8787`を渡す`pnpm dev:agent`を使います。このモードではOpen Exchange Ratesのsecretを渡さないため、空のローカルR2を自動初期化できません。
 
-Cloudflare Worker、R2 Bucket、Custom Domain、Chrome Web Store、Firefox Add-onsの初回設定は、リポジトリ内のコードだけでは完了しない外部作業です。[デプロイとストア公開](docs/deployment.md)に従い、Cloudflareの管理画面とGitHub Environmentで設定してください。
+Cloudflare Worker、R2 Bucket、Custom Domain、Chrome Web Store、Firefox Add-onsの初回設定は、リポジトリ内のコードだけでは完了しない外部作業です。[デプロイとストア公開](docs/deployment.md)に従い、Cloudflareの管理画面とGitHub ActionsのRepository variable／secretsで設定してください。
 
 ## 開発コマンド
 

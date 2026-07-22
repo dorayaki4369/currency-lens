@@ -15,6 +15,7 @@ Pull Request と CI は必須のままです。
 `main` 更新で Cloudflare Workers Builds が `pnpm --filter @cl/server deploy` を実行します。
 GitHub Actions からは Worker をデプロイせず、`CLOUDFLARE_ACCOUNT_ID` と `CLOUDFLARE_API_TOKEN` を GitHub secrets に置きません。
 Cloudflare の production branch は `main`、root directory はリポジトリ直下、build command は空、deploy command は上記コマンドとします。
+Build variables は `NODE_VERSION=24.11.1` と `PNPM_VERSION=11.13.0` とし、リポジトリの `package.json` と揃えます。
 `OPEN_EXCHANGE_RATE_APP_ID` は Cloudflare Worker secret を正本とし、Wrangler の `secrets.required` で存在を検査します。
 R2 bucket、custom domain、GitHub 連携は初回だけ人間が確認・作成します。
 

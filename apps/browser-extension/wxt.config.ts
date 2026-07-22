@@ -49,7 +49,8 @@ export function createManifest(
 
   return {
     name: "Currency Lens",
-    description: "Convert selected prices into your favorite currencies without leaving the page.",
+    description:
+      "Convert selected prices into your favorite currencies without leaving the page.",
     permissions: ["storage", "alarms"],
     host_permissions: [createApiHostPermission(apiEndpoint)],
     browser_specific_settings: {

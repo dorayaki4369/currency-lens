@@ -86,12 +86,12 @@ Workers Buildsは次の値で設定します。
 | Root directory                     | リポジトリ直下                    |
 | Build command                      | 空欄                              |
 | Deploy command                     | `pnpm --filter @cl/server deploy` |
-| Build variable `NODE_VERSION`      | `24.11.1`                         |
+| Node.js version file               | `.node-version`                   |
 | Build variable `PNPM_VERSION`      | `11.13.0`                         |
 
-Cloudflareの既定Node.jsとpnpmはリポジトリの`engines`より古いため、Build variablesでリポジトリの`package.json`と同じversionへ固定します。deploy commandがWorkerのコンパイルも行うため、Build commandではモノリポ全体をビルドしません。品質検査は`main`へmergeする前の必須check `CI / quality`が担います。これにより、Workerデプロイへ不要なブラウザ拡張機能の`API_ENDPOINT`をCloudflareへ重複登録せずに済みます。
+Cloudflareの既定Node.jsとpnpmはリポジトリの`engines`より古いため、Node.jsはリポジトリ直下の`.node-version`から検出させ、pnpmだけBuild variableで固定します。deploy commandがWorkerのコンパイルも行うため、Build commandではモノリポ全体をビルドしません。品質検査は`main`へmergeする前の必須check `CI / quality`が担います。これにより、Workerデプロイへ不要なブラウザ拡張機能の`API_ENDPOINT`をCloudflareへ重複登録せずに済みます。
 
-接続後はCloudflareがproduction build用のAPI tokenとGitHub checkを管理し、`main`へのpushを検知してデプロイします。初回デプロイが成功した後、必要ならBuild watch pathsに`apps/server/*`、`packages/oxr/*`、`package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`tsconfig.base.json`を含め、拡張機能だけの変更による再デプロイを省けます。
+接続後はCloudflareがproduction build用のAPI tokenとGitHub checkを管理し、`main`へのpushを検知してデプロイします。初回デプロイが成功した後、必要ならBuild watch pathsに`apps/server/*`、`packages/oxr/*`、`.node-version`、`package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`tsconfig.base.json`を含め、拡張機能だけの変更による再デプロイを省けます。
 
 `OPEN_EXCHANGE_RATE_APP_ID`の値はGitHub ActionsやWorkers Buildsのbuild variableへ渡しません。Wrangler設定の`secrets.required`がWorker側にsecretがあることを検証し、通常のデプロイでは既存値を維持します。
 

@@ -78,7 +78,7 @@ API_ENDPOINT=http://localhost:8787
 OPEN_EXCHANGE_RATE_APP_ID=your-app-id
 ```
 
-`API_ENDPOINT`はレートAPIのベースURLです。開発版と配布版は同じ変数名を使い、拡張機能が`/latest`を付けて接続します。ローカル開発では`.env`、GitHub Actionsの本番ビルドではRepository variableから値を渡します。
+`API_ENDPOINT`はレートAPIのベースURLです。開発版と配布版は同じ変数名を使い、拡張機能が`/latest`を付けて接続します。ローカル開発では`.env`、GitHub Actionsによるストア提出用ビルドではRepository variableから値を渡します。
 
 ブラウザ拡張機能だけを起動する場合は、対象ブラウザに合わせて次のいずれかを実行します。
 
@@ -101,7 +101,7 @@ pnpm srv dev
 
 AI Agentは`.env`、`.env.*`、`.dev.vars`、`.dev.vars.*`を絶対に読み取りません。検索、内容表示、差分確認、コピー元としての参照も禁止です。Agentがローカル起動を必要とする場合は、環境ファイルを読まずに`API_ENDPOINT=http://localhost:8787`を渡す`pnpm dev:agent`を使います。このモードではOpen Exchange Ratesのsecretを渡さないため、空のローカルR2を自動初期化できません。
 
-Cloudflare Worker、R2 Bucket、Custom Domain、Chrome Web Store、Firefox Add-onsの初回設定は、リポジトリ内のコードだけでは完了しない外部作業です。[デプロイとストア公開](docs/deployment.md)に従い、各サービスの管理画面とGitHub Environmentで設定してください。
+Cloudflare Worker、R2 Bucket、Custom Domain、Chrome Web Store、Firefox Add-onsの初回設定は、リポジトリ内のコードだけでは完了しない外部作業です。[デプロイとストア公開](docs/deployment.md)に従い、Cloudflareの管理画面とGitHub Environmentで設定してください。
 
 ## 開発コマンド
 
@@ -118,7 +118,7 @@ Cloudflare Worker、R2 Bucket、Custom Domain、Chrome Web Store、Firefox Add-o
 | `pnpm build`         | 全workspaceをビルドする                              |
 | `pnpm validate`      | 品質検査、テスト、ビルドをまとめて実行する           |
 
-`pnpm build`と`pnpm validate`は環境ファイルを読みません。ローカルで実行するときは、`API_ENDPOINT`をprocess environmentへ明示的に渡してください。GitHub Actionsでは、CIは既知の本番URL、Workerデプロイとストア公開はRepository variableを使います。
+`pnpm build`と`pnpm validate`は環境ファイルを読みません。ローカルで実行するときは、`API_ENDPOINT`をprocess environmentへ明示的に渡してください。GitHub Actionsでは、CIは既知の本番URL、ストア提出用ビルドはRepository variableを使います。WorkerのデプロイはCloudflare Workers Buildsが担当し、`API_ENDPOINT`を必要としません。
 
 Chrome版とFirefox版を個別にビルドする場合は、次のコマンドを使います。
 
@@ -131,4 +131,4 @@ pnpm ext build:firefox
 
 通常の開発は`develop`へPull Requestを作成し、リリース時は`develop`から`main`へのPull Requestで昇格させます。`main`へ直接変更を入れる運用は想定していません。
 
-`develop`または`main`へのpushとPull Requestでは、GitHub Actionsがformat、lint、型検査、テスト、ビルドを実行します。`main`が更新されて検証を通過するとWorkerを自動デプロイします。ブラウザ拡張機能は安定版GitHub Releaseを起点にChrome Web StoreとFirefox Add-onsへ提出します。
+`develop`または`main`へのpushとPull Requestでは、GitHub Actionsがformat、lint、型検査、テスト、ビルドを実行します。必須CIを通って`main`が更新されると、Cloudflare Workers BuildsがWorkerを自動デプロイします。ブラウザ拡張機能は安定版GitHub Releaseを起点にChrome Web StoreとFirefox Add-onsへ提出します。

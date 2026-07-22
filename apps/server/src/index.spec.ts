@@ -15,7 +15,20 @@ function createDependencies() {
   };
 }
 
-describe("GET /latest", () => {
+describe("latest rates API", () => {
+  it("serves the current v1 route and preserves the legacy route", async () => {
+    const app = createApp(createDependencies());
+
+    const [currentResponse, legacyResponse] = await Promise.all([
+      app.request("/v1/latest", {}, createBindings()),
+      app.request("/latest", {}, createBindings()),
+    ]);
+
+    expect(currentResponse.status).toBe(200);
+    expect(legacyResponse.status).toBe(200);
+    await expect(currentResponse.json()).resolves.toEqual(await legacyResponse.json());
+  });
+
   it("returns the validated R2 snapshot and its source timestamp", async () => {
     const dependencies = createDependencies();
     const app = createApp(dependencies);

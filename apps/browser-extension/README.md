@@ -16,7 +16,7 @@ Content Scriptは選択テキストから通貨記号または通貨コードと
 
 お気に入り通貨は最大5件で、`browser.storage.sync`に保存します。記号の解釈、テーマ、通貨アイコンとコードの表示設定も同じ設定データに含まれます。保存済み設定が古い形式なら移行し、検証できない場合は既定値へ戻します。
 
-為替レートはBackground ScriptだけがCurrency Lens Workerの`GET /latest`から取得し、Zodで検証して`browser.storage.local`へ保存します。インストール時、ブラウザ起動時、Background Scriptの初期化時に不足または古いレートを更新し、その後は1時間ごとのalarmで再取得します。
+為替レートはBackground ScriptだけがCurrency Lens Workerの`GET /v1/latest`から取得し、Zodで検証して`browser.storage.local`へ保存します。インストール時、ブラウザ起動時、Background Scriptの初期化時に不足または古いレートを更新し、その後は1時間ごとのalarmで再取得します。
 
 更新に失敗しても、最後に検証できたキャッシュは削除しません。提供元時刻から24時間を超えたレートで換算した場合は、結果と設定画面に古いレートであることを表示します。まだ有効なキャッシュが一度もない場合は換算できません。特定の通貨ペアだけレートがない場合は、その組み合わせだけを利用不可として返します。
 
@@ -53,7 +53,7 @@ Firefoxで確認する場合は次のコマンドを使います。
 pnpm ext dev:firefox
 ```
 
-WXTが生成する開発版をブラウザへ読み込んで、通常のHTTPまたはHTTPSページでテキスト選択、アイコン、換算結果、設定保存を確認してください。開発版と配布用ビルドは同じ`API_ENDPOINT`をベースURLとして使い、`/latest`へ接続します。配布時の値はGitHub ActionsのRepository variableから渡します。
+WXTが生成する開発版をブラウザへ読み込んで、通常のHTTPまたはHTTPSページでテキスト選択、アイコン、換算結果、設定保存を確認してください。開発版と配布用ビルドは同じ`API_ENDPOINT`をベースURLとして使い、`/v1/latest`へ接続します。配布時の値はGitHub ActionsのRepository variableから渡します。
 
 AI Agentが起動する場合は、環境ファイルを読まない`pnpm ext dev:agent`または`pnpm ext dev:firefox:agent`を使います。
 

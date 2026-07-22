@@ -8,9 +8,9 @@
 
 1時間ごとのCron TriggerがOpen Exchange Ratesを呼び出し、レスポンスをZodで検証します。検証に通ったデータは、提供元の時刻を名前に含むアーカイブと`latest.json`の両方へ保存します。ログにレート本体やsecretは出さず、保存先、件数、提供元時刻などのメタデータだけを残します。
 
-`GET /latest`はR2の`latest.json`を読み、再度検証してから`base`、`rates`、`timestamp`を返します。`timestamp`はWorkerが取得した時刻ではなく、Open Exchange Ratesが返した提供元時刻です。CORSで許可するのはChrome・Firefox拡張機能のoriginとGETだけです。
+`GET /v1/latest`はR2の`latest.json`を読み、再度検証してから`base`、`rates`、`timestamp`を返します。旧版拡張機能向けの`GET /latest`も同じv1契約を返します。`timestamp`はWorkerが取得した時刻ではなく、Open Exchange Ratesが返した提供元時刻です。CORSで許可するのはChrome・Firefox拡張機能のoriginとGETだけです。
 
-R2が空で、`OPEN_EXCHANGE_RATE_APP_ID`が設定されている場合は、最初の`GET /latest`がOpen Exchange Ratesから取得してR2を初期化します。同時に複数の初回リクエストが来ても、同じWorkerインスタンス内では1回の取得にまとめます。
+R2が空で、`OPEN_EXCHANGE_RATE_APP_ID`が設定されている場合は、最初のレートAPIリクエストがOpen Exchange Ratesから取得してR2を初期化します。同時に複数の初回リクエストが来ても、同じWorkerインスタンス内では1回の取得にまとめます。
 
 R2のデータが壊れている場合、secretがない場合、Open Exchange Ratesへの接続またはR2への保存に失敗した場合は`503`を返します。壊れたR2データを初回取得で上書きすることはありません。
 
@@ -37,7 +37,7 @@ pnpm srv dev
 Wranglerは`http://localhost:8787`でWorkerを起動します。現在のレート配信は次のリクエストで確認できます。
 
 ```bash
-curl --fail-with-body http://localhost:8787/latest
+curl --fail-with-body http://localhost:8787/v1/latest
 ```
 
 `--test-scheduled`を有効にしているため、ローカルのCron Triggerは次のリクエストで実行できます。

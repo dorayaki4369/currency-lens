@@ -19,6 +19,10 @@ Node.js はリポジトリ直下の `.node-version` から検出させ、Build v
 `OPEN_EXCHANGE_RATE_APP_ID` は Cloudflare Worker secret を正本とし、Wrangler の `secrets.required` で存在を検査します。
 R2 bucket、custom domain、GitHub 連携は初回だけ人間が確認・作成します。
 Build watch paths は設定せず、`main` の全 commit に Cloudflare Check Run を作ります。
+Cloudflare 側の設定変更は過去の `main` push を再処理しません。
+既存 SHA に check がない場合は、設定を修正したうえで通常の Pull Request 経路から新しい `main` push を発生させ、その SHA の check 成功を確認します。
+Deploy Hook は build の起動に使えても、既存 SHA への GitHub Check Run の追加を前提にした復旧手段として扱いません。
+Deploy Hook URL は認証情報として扱い、リポジトリ、Issue、Pull Request、チャット、CI ログへ記録しません。
 
 ## ブラウザストア
 

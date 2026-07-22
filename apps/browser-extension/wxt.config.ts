@@ -18,6 +18,7 @@ export default defineConfig({
     sourcesRoot: repositoryRoot,
     excludeSources: ["**/*"],
     includeSources: [
+      ".node-version",
       "package.json",
       "pnpm-lock.yaml",
       "pnpm-workspace.yaml",

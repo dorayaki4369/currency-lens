@@ -12,10 +12,12 @@ Pull Request と CI は必須のままです。
 
 ## Worker
 
-`main` 更新で production environment の deploy workflow が動きます。
-必要な GitHub Environment secrets は `CLOUDFLARE_ACCOUNT_ID` と `CLOUDFLARE_API_TOKEN` です。
+`main` 更新で Cloudflare Workers Builds が `pnpm --filter @cl/server run deploy` を実行します。
+GitHub Actions からは Worker をデプロイせず、`CLOUDFLARE_ACCOUNT_ID` と `CLOUDFLARE_API_TOKEN` を GitHub secrets に置きません。
+Cloudflare の production branch は `main`、root directory はリポジトリ直下、build command は空、deploy command は上記コマンドとします。
+Node.js はリポジトリ直下の `.node-version` から検出させ、Build variable は `PNPM_VERSION=11.13.0` だけを設定します。
 `OPEN_EXCHANGE_RATE_APP_ID` は Cloudflare Worker secret を正本とし、Wrangler の `secrets.required` で存在を検査します。
-R2 bucket と custom domain は初回だけ人間が確認・作成します。
+R2 bucket、custom domain、GitHub 連携は初回だけ人間が確認・作成します。
 
 ## ブラウザストア
 

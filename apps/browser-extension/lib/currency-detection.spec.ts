@@ -20,6 +20,26 @@ describe("parseMoneyAmount", () => {
     expect(parseMoneyAmount("1,23,456", { pageLocale: "en-US" })).toBeNull();
     expect(parseMoneyAmount("12 34,56", { pageLocale: "fr-FR" })).toBeNull();
   });
+
+  it("rejects non-money text, mixed grouping, and numeric overflow", () => {
+    expect(parseMoneyAmount("12 dollars")).toBeNull();
+    expect(parseMoneyAmount("1 234,567.89")).toBeNull();
+    expect(parseMoneyAmount("9".repeat(400))).toBeNull();
+  });
+
+  it("infers unambiguous decimals and conventional three-digit grouping", () => {
+    expect(parseMoneyAmount("0.5")).toBe(0.5);
+    expect(parseMoneyAmount("1234.56")).toBe(1_234.56);
+    expect(parseMoneyAmount("1,234")).toBe(1_234);
+    expect(parseMoneyAmount("1,234,567")).toBe(1_234_567);
+    expect(parseMoneyAmount("1,234", { pageLocale: "en-US" })).toBe(1_234);
+  });
+
+  it("ignores invalid locale hints and tries the next locale", () => {
+    expect(
+      parseMoneyAmount("1,25", { pageLocale: "not_a_locale", browserLocale: "de-DE" }),
+    ).toBe(1.25);
+  });
 });
 
 describe("detectCurrencies", () => {
@@ -88,6 +108,18 @@ describe("detectCurrencies", () => {
     ).toEqual([]);
   });
 
+  it("accepts an amount at the start and rejects word-adjacent amount endings", () => {
+    expect(detectCurrencies("100 USD")[0]).toMatchObject({
+      amount: 100,
+      currencyCode: "USD",
+    });
+    expect(detectCurrencies("USD 100items")).toEqual([]);
+  });
+
+  it("rejects zero-valued detections", () => {
+    expect(detectCurrencies("USD 0; 0 EUR")).toEqual([]);
+  });
+
   it("uses page and browser regions to resolve ambiguous symbols", () => {
     expect(
       detectCurrencies("$1,234.56", { pageLocale: "en-CA", browserLocale: "en-US" })[0]
@@ -97,6 +129,12 @@ describe("detectCurrencies", () => {
       detectCurrencies("$1,234.56", { pageLocale: "en", browserLocale: "en-AU" })[0]
         ?.currencyCode,
     ).toBe("AUD");
+  });
+
+  it("ignores invalid locale tags when resolving an ambiguous symbol", () => {
+    expect(detectCurrencies("$10", { pageLocale: "not_a_locale" })[0]?.currencyCode).toBe(
+      "USD",
+    );
   });
 
   it("gives a valid symbol override precedence over locale inference", () => {

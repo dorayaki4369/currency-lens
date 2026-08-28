@@ -39,8 +39,18 @@ describe("WXT API endpoint configuration", () => {
     });
   });
 
+  it("ships localized manifest metadata with English as the fallback", () => {
+    expect(createManifest(PRODUCTION_ENV, PRODUCTION_API_ENDPOINT)).toMatchObject({
+      default_locale: "en",
+      description: "__MSG_extensionDescription__",
+      name: "__MSG_extensionName__",
+    });
+  });
+
   it("rejects missing or unsafe API endpoints for every build mode", () => {
     expect(() => resolveApiEndpoint(undefined)).toThrow("API_ENDPOINT is required");
+    expect(() => resolveApiEndpoint(" ")).toThrow("API_ENDPOINT is required");
+    expect(() => resolveApiEndpoint("not a URL")).toThrow("must be an absolute URL");
     expect(() => resolveApiEndpoint("http://example.com")).toThrow(
       "must use HTTPS or HTTP on a loopback host",
     );
@@ -49,6 +59,9 @@ describe("WXT API endpoint configuration", () => {
     );
     expect(() => resolveApiEndpoint("https://example.com?source=invalid")).toThrow(
       "must not contain query parameters",
+    );
+    expect(() => resolveApiEndpoint("https://example.com#invalid")).toThrow(
+      "must not contain a fragment",
     );
   });
 });

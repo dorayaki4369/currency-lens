@@ -1,22 +1,29 @@
 import type { CSSProperties, MouseEvent } from "react";
+import { translate, type UiLocale } from "../../../lib/i18n";
 
 interface FloatingIconProps {
   readonly floatingStyles: CSSProperties;
+  readonly locale: UiLocale;
   readonly onClick: () => void;
-  readonly setFloating: (element: HTMLElement | null) => void;
+  readonly setFloating: (element: HTMLButtonElement | null) => void;
 }
 
 /** Renders the compact aperture control beside a detected selection. */
-export function FloatingIcon({ floatingStyles, onClick, setFloating }: FloatingIconProps) {
+export function FloatingIcon({
+  floatingStyles,
+  locale,
+  onClick,
+  setFloating,
+}: FloatingIconProps) {
   return (
     <button
-      aria-label="Convert selected currencies"
+      aria-label={translate(locale, "convertSelection")}
       className="cl-lens-trigger"
       onClick={onClick}
       onMouseDown={preservePageSelection}
       ref={setFloating}
       style={floatingStyles}
-      title="Open Currency Lens"
+      title={translate(locale, "openApp")}
       type="button"
     >
       <span aria-hidden="true" className="cl-aperture cl-aperture--small">

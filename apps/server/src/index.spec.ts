@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OxrLatestResponse } from "@cl/oxr/schema";
 import { createApp } from "./index";
 import { createBindings, createR2Object, createRatesSnapshot } from "../test/fixtures";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 /** Creates replaceable Worker dependencies with observable defaults. */
 function createDependencies() {
@@ -146,6 +150,39 @@ describe("latest rates API", () => {
     expect(dependencies.logError).toHaveBeenCalledWith(
       "Failed to read the latest exchange rates from R2",
       { name: "Error", message: "invalid persisted payload" },
+    );
+  });
+
+  it("logs an unknown failure without exposing the rejected value", async () => {
+    const dependencies = createDependencies();
+    dependencies.getLatestRates.mockRejectedValueOnce("sensitive failure value");
+    const app = createApp(dependencies);
+
+    const response = await app.request("/latest", {}, createBindings());
+
+    expect(response.status).toBe(503);
+    expect(dependencies.logError).toHaveBeenCalledWith(
+      "Failed to read the latest exchange rates from R2",
+      { name: "UnknownError" },
+    );
+  });
+
+  it("uses the default logger when the R2 boundary throws", async () => {
+    const persistedFailure = new Error("R2 unavailable");
+    const get = vi.fn(async () => Promise.reject(persistedFailure));
+    const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const app = createApp();
+
+    const response = await app.request(
+      "/latest",
+      {},
+      createBindings({ bucket: { get } as unknown as R2Bucket }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(logError).toHaveBeenCalledWith(
+      "Failed to read the latest exchange rates from R2",
+      { name: "Error", message: "R2 unavailable" },
     );
   });
 

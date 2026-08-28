@@ -16,7 +16,7 @@ const favoriteCurrenciesSchema = z
   .max(MAX_FAVORITE_CURRENCIES)
   .refine(
     (codes) => new Set(codes).size === codes.length,
-    "Favorite currencies must be unique",
+    "Conversion target currencies must be unique",
   );
 
 const symbolOverridesSchema = z
@@ -41,6 +41,12 @@ export interface CurrencySymbolDefinition {
   readonly currencyCodes: readonly CurrencyCode[];
 }
 
+export interface AmbiguousCurrencySymbolGroup {
+  readonly tokens: readonly string[];
+  readonly defaultCurrency: CurrencyCode;
+  readonly currencyCodes: readonly CurrencyCode[];
+}
+
 export interface CurrencyMetadata {
   readonly code: CurrencyCode;
   readonly countries: readonly string[];
@@ -52,15 +58,16 @@ const symbolDefinitions = buildSymbolDefinitions();
 const symbolDefinitionByToken = new Map(
   symbolDefinitions.map((definition) => [definition.token, definition]),
 );
+const ambiguousSymbolGroups = buildAmbiguousSymbolGroups();
 
 /** Returns whether a string is a currency supported by this extension. */
 export function isKnownCurrencyCode(code: string): code is CurrencyCode {
   return currencyCodeSet.has(code);
 }
 
-/** Returns immutable metadata for a supported currency. */
-export function getCurrencyMetadata(code: CurrencyCode): CurrencyMetadata | undefined {
-  return currencies.find((currency) => currency.code === code);
+/** Returns immutable metadata for a code from the exhaustive bundled currency union. */
+export function getCurrencyMetadata(code: CurrencyCode): CurrencyMetadata {
+  return currencies.find((currency) => currency.code === code)!;
 }
 
 /** Returns every supported currency code for constructing detection patterns. */
@@ -78,6 +85,11 @@ export function getCurrencySymbolDefinition(
   token: string,
 ): CurrencySymbolDefinition | undefined {
   return symbolDefinitionByToken.get(token);
+}
+
+/** Returns every configurable symbol family that can resolve to multiple currencies. */
+export function getAmbiguousCurrencySymbolGroups(): readonly AmbiguousCurrencySymbolGroup[] {
+  return ambiguousSymbolGroups;
 }
 
 /** Builds a normalized symbol table and merges duplicate source entries. */
@@ -120,6 +132,58 @@ function buildSymbolDefinitions(): CurrencySymbolDefinition[] {
     result.push({ token, ...definition });
   }
   return result.toSorted((left, right) => right.token.length - left.token.length);
+}
+
+/** Connects overlapping source aliases into one configurable ambiguous-symbol family. */
+function buildAmbiguousSymbolGroups(): AmbiguousCurrencySymbolGroup[] {
+  const tokenFamilies: Set<string>[] = [];
+
+  for (const symbol of symbols) {
+    const tokens = [...new Set([symbol.symbol, ...symbol.alternatives])].filter((token) =>
+      symbolDefinitionByToken.has(token),
+    );
+    const overlappingFamilies = tokenFamilies.filter((family) =>
+      tokens.some((token) => family.has(token)),
+    );
+    if (overlappingFamilies.length === 0) {
+      tokenFamilies.push(new Set(tokens));
+      continue;
+    }
+
+    // The preceding length check establishes this family for TypeScript and runtime callers.
+    const primaryFamily = overlappingFamilies[0]!;
+    for (const token of tokens) {
+      primaryFamily.add(token);
+    }
+    for (const family of overlappingFamilies.slice(1)) {
+      for (const token of family) {
+        primaryFamily.add(token);
+      }
+      tokenFamilies.splice(tokenFamilies.indexOf(family), 1);
+    }
+  }
+
+  const groups: AmbiguousCurrencySymbolGroup[] = [];
+  for (const tokenFamily of tokenFamilies) {
+    const tokens = [...tokenFamily];
+    // Families only contain tokens retained in symbolDefinitionByToken above.
+    const definitions = tokens.map((token) => symbolDefinitionByToken.get(token)!);
+    const currencyCodes = [
+      ...new Set(definitions.flatMap((definition) => definition.currencyCodes)),
+    ];
+    const defaultCurrency = definitions[0]?.defaultCurrency;
+    if (currencyCodes.length <= 1 || defaultCurrency === undefined) {
+      continue;
+    }
+
+    groups.push({
+      tokens,
+      defaultCurrency,
+      currencyCodes,
+    });
+  }
+
+  return groups.toSorted((left, right) => left.tokens[0]!.localeCompare(right.tokens[0]!));
 }
 
 /** Ensures overrides refer to known symbols and one of each symbol's candidate currencies. */

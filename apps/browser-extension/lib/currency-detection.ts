@@ -48,7 +48,7 @@ interface CandidateDetection extends DetectedCurrency {
 const detectionPatterns = buildDetectionPatterns();
 
 /**
- * Detects at most three monetary amounts in source order.
+ * Detects at most three monetary amounts in source order for pure parsing callers.
  * Locale hints only influence ambiguous separators and symbols; the function has no browser-state dependency.
  */
 export function detectCurrencies(
@@ -232,25 +232,13 @@ function isCurrencyEndBoundary(text: string, end: number): boolean {
 /** Rejects an amount whose beginning is a trailing fragment of another number. */
 function isAmountStartBoundary(text: string, start: number): boolean {
   const previous = text[start - 1];
-  if (previous === undefined) {
-    return true;
-  }
-  if (WORD_CHARACTER_PATTERN.test(previous)) {
-    return false;
-  }
-  return !/[.,]/u.test(previous) || !/\d/u.test(text[start - 2] ?? "");
+  return previous === undefined || !WORD_CHARACTER_PATTERN.test(previous);
 }
 
 /** Rejects an amount whose end is a leading fragment of another number or word. */
 function isAmountEndBoundary(text: string, end: number): boolean {
   const next = text[end];
-  if (next === undefined) {
-    return true;
-  }
-  if (WORD_CHARACTER_PATTERN.test(next)) {
-    return false;
-  }
-  return !/[.,]/u.test(next) || !/\d/u.test(text[end + 1] ?? "");
+  return next === undefined || !WORD_CHARACTER_PATTERN.test(next);
 }
 
 /** Resolves an explicit code or a locale-sensitive symbol to a supported currency. */
@@ -263,10 +251,8 @@ function resolveCurrencyToken(
     return getCurrencyCodes().find((currencyCode) => currencyCode === token);
   }
 
-  const definition = getCurrencySymbolDefinition(token);
-  if (definition === undefined) {
-    return undefined;
-  }
+  // Symbol patterns are built exclusively from this table, so every match has a definition.
+  const definition = getCurrencySymbolDefinition(token)!;
 
   const override = options.symbolOverrides?.[token];
   if (override !== undefined && definition.currencyCodes.includes(override)) {
@@ -274,9 +260,8 @@ function resolveCurrencyToken(
   }
 
   for (const region of getLocaleRegions(options)) {
-    const localeCurrency = definition.currencyCodes.find(
-      (currencyCode) =>
-        getCurrencyMetadata(currencyCode)?.countries.includes(region) === true,
+    const localeCurrency = definition.currencyCodes.find((currencyCode) =>
+      getCurrencyMetadata(currencyCode).countries.includes(region),
     );
     if (localeCurrency !== undefined) {
       return localeCurrency;
@@ -350,7 +335,7 @@ function determineDecimalSeparator(
 
   const count = separator === "." ? dotCount : commaCount;
   if (count > 1) {
-    return normalizeGroupedInteger(amountText, separator) === null ? undefined : null;
+    return normalizeGroupedInteger(amountText) === null ? undefined : null;
   }
 
   const [integerPart = "", fractionPart = ""] = amountText.split(separator);
@@ -360,10 +345,7 @@ function determineDecimalSeparator(
   if (preferred?.decimal === separator) {
     return separator;
   }
-  if (
-    preferred?.group === separator &&
-    normalizeGroupedInteger(amountText, separator) !== null
-  ) {
+  if (preferred?.group === separator && normalizeGroupedInteger(amountText) !== null) {
     return null;
   }
   if (integerPart === "0") {
@@ -386,13 +368,6 @@ function normalizeGroupedNumber(
   const integerPart = decimalIndex >= 0 ? amountText.slice(0, decimalIndex) : amountText;
   const fractionPart = decimalIndex >= 0 ? amountText.slice(decimalIndex + 1) : undefined;
 
-  if (decimalSeparator !== null && countCharacter(amountText, decimalSeparator) !== 1) {
-    return null;
-  }
-  if (fractionPart !== undefined && !/^\d+$/u.test(fractionPart)) {
-    return null;
-  }
-
   const normalizedInteger = normalizeGroupedInteger(integerPart);
   if (normalizedInteger === null) {
     return null;
@@ -404,10 +379,7 @@ function normalizeGroupedNumber(
 }
 
 /** Validates one consistent thousands separator and removes it from an integer. */
-function normalizeGroupedInteger(
-  integerPart: string,
-  expectedSeparator?: string,
-): string | null {
+function normalizeGroupedInteger(integerPart: string): string | null {
   if (/^\d+$/u.test(integerPart)) {
     return integerPart;
   }
@@ -417,14 +389,7 @@ function normalizeGroupedInteger(
     return null;
   }
 
-  const separator = separators[0];
-  if (
-    separator === undefined ||
-    separator.length === 0 ||
-    (expectedSeparator !== undefined && separator !== expectedSeparator)
-  ) {
-    return null;
-  }
+  const separator = separators[0]!;
 
   const groupedPattern = new RegExp(
     `^\\d{1,3}(?:${escapeRegularExpression(separator)}\\d{3})+$`,

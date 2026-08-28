@@ -25,7 +25,8 @@ Agent がローカル開発タスクを起動するときは、環境ファイ�
 
 - 金額文字列の解析、曖昧な通貨記号、換算、storage、runtime message は `apps/browser-extension/lib/` が所有します。
 - 選択操作と換算カードは `apps/browser-extension/entrypoints/content/` が所有します。
-- お気に入りや記号の既定値を管理する画面は `apps/browser-extension/entrypoints/popup/` が所有します。
+- 換算先通貨と表示設定は `apps/browser-extension/entrypoints/popup/` が所有します。
+- 曖昧な通貨記号の解釈と対応通貨一覧は `apps/browser-extension/entrypoints/options/` が所有します。
 - Open Exchange Rates との通信契約は `packages/oxr/` が所有します。
 - 公開レート API、R2、定期更新は `apps/server/` が所有します。
 - 通貨コード、記号、表示桁は `packages/currency/` が正本です。
@@ -39,7 +40,7 @@ Agent がローカル開発タスクを起動するときは、環境ファイ�
 次の不変条件を保ちます。
 
 - 選択テキストはローカル解析だけに使い、Worker へ送信しません。
-- 一度に検出する金額は出現順で最大3件です。
+- 検出処理は金額候補を出現順に返し、画面と Background Script へ渡すのは先頭1件だけです。
 - お気に入りは重複なしで最大5通貨です。
 - レート取得に失敗しても最後の正常値を消しません。
 - source timestamp、取得時刻、stale 状態を混同しません。
@@ -47,7 +48,7 @@ Agent がローカル開発タスクを起動するときは、環境ファイ�
 - Chrome と Firefox の両方で使える WebExtensions API を優先します。
 
 UI を変更するときは frontend-design と browser Skill も使います。
-popup と換算カードを実ブラウザで開き、スクリーンショットを撮って少なくとも1回は見た目を批評してから完了します。
+popup、Options、換算カードを実ブラウザで開き、スクリーンショットを撮って少なくとも1回は見た目を批評してから完了します。
 
 ## 検証する
 

@@ -21,27 +21,24 @@ const INITIAL_STATE: ConversionState = {
   error: null,
 };
 
-/** Owns the single validated batch request used by the in-page lens. */
+/** Owns the validated single-amount request used by the in-page lens. */
 export function useConversion() {
   const [state, setState] = useState<ConversionState>(INITIAL_STATE);
   const requestGeneration = useRef(0);
 
   const convert = useCallback(
     async (
-      detectedCurrencies: readonly DetectedCurrency[],
+      detectedCurrency: DetectedCurrency | null,
       targetCurrencies: readonly CurrencyCode[],
     ) => {
       const generation = requestGeneration.current + 1;
       requestGeneration.current = generation;
 
-      if (detectedCurrencies.length === 0 || targetCurrencies.length === 0) {
+      if (detectedCurrency === null || targetCurrencies.length === 0) {
         setState({
           data: null,
           loading: false,
-          error:
-            targetCurrencies.length === 0
-              ? "Add at least one target currency in Currency Lens settings."
-              : null,
+          error: targetCurrencies.length === 0 ? "MISSING_CONVERSION_TARGET" : null,
         });
         return;
       }
@@ -52,10 +49,12 @@ export function useConversion() {
         const response = await sendMessage({
           type: messageTypes.CONVERT_CURRENCIES,
           payload: {
-            amounts: detectedCurrencies.map(({ amount, currencyCode }) => ({
-              amount,
-              currencyCode,
-            })),
+            amounts: [
+              {
+                amount: detectedCurrency.amount,
+                currencyCode: detectedCurrency.currencyCode,
+              },
+            ],
             targetCurrencies: [...targetCurrencies],
           },
         });

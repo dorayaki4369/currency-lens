@@ -38,8 +38,7 @@ export type WorkerDeploymentState =
   | { readonly status: "pending"; readonly message: string }
   | {
       readonly status: "success";
-      readonly checkRunId: number;
-      readonly detailsUrl: string | null;
+      readonly checkRun: GithubCheckRun;
     }
   | { readonly status: "failure"; readonly message: string };
 
@@ -88,11 +87,7 @@ export async function waitForWorkerDeployment(
     const state = evaluateWorkerDeployment(checkRuns);
 
     if (state.status === "success") {
-      const matchingCheck = checkRuns.find((checkRun) => checkRun.id === state.checkRunId);
-      if (!matchingCheck) {
-        throw new Error("The successful Cloudflare check could not be recovered.");
-      }
-      return matchingCheck;
+      return state.checkRun;
     }
     if (state.status === "failure") {
       throw new Error(state.message);
@@ -140,8 +135,7 @@ export function evaluateWorkerDeployment(
   if (latestCheck.conclusion === "success") {
     return {
       status: "success",
-      checkRunId: latestCheck.id,
-      detailsUrl: latestCheck.details_url,
+      checkRun: latestCheck,
     };
   }
 
@@ -240,14 +234,31 @@ function validateDeploymentOptions(
   if (options.githubToken.trim() === "") {
     throw new Error("GITHUB_TOKEN is required to read Cloudflare check runs.");
   }
-  if ((options.timeoutMs ?? DEFAULT_DEPLOYMENT_TIMEOUT_MS) < 0) {
-    throw new RangeError("Deployment timeout must not be negative.");
+  validateNonNegativeSafeInteger(
+    options.timeoutMs ?? DEFAULT_DEPLOYMENT_TIMEOUT_MS,
+    "Deployment timeout",
+  );
+  validatePositiveSafeInteger(
+    options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
+    "Deployment poll interval",
+  );
+  validatePositiveSafeInteger(
+    options.requestTimeoutMs ?? API_REQUEST_TIMEOUT_MS,
+    "Checks API request timeout",
+  );
+}
+
+/** Rejects invalid duration values while allowing an immediate zero timeout. */
+function validateNonNegativeSafeInteger(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError(`${name} must be a non-negative safe integer.`);
   }
-  if ((options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS) <= 0) {
-    throw new RangeError("Deployment poll interval must be positive.");
-  }
-  if ((options.requestTimeoutMs ?? API_REQUEST_TIMEOUT_MS) <= 0) {
-    throw new RangeError("Checks API request timeout must be positive.");
+}
+
+/** Rejects invalid interval values before passing them to timer APIs. */
+function validatePositiveSafeInteger(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new RangeError(`${name} must be a positive safe integer.`);
   }
 }
 

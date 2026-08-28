@@ -1,9 +1,13 @@
 import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DetectedCurrency } from "../../lib/currency-detection";
 import type { Config } from "../../lib/currency";
+import { getUiLocale } from "../../lib/i18n";
 import { messageTypes, sendMessage } from "../../lib/messages";
-import { ConversionPopup } from "./components/ConversionPopup";
+import {
+  ConversionPopup,
+  type ConversionDismissReason,
+} from "./components/ConversionPopup";
 import { FloatingIcon } from "./components/FloatingIcon";
 import { useConversion } from "./hooks/useConversion";
 import { useCurrencyDetection } from "./hooks/useCurrencyDetection";
@@ -15,11 +19,14 @@ const FLOATING_PADDING = 12;
 export default function App() {
   const [config, setConfig] = useState<Config | null>(null);
   const [showPopup, setShowPopup] = useState(false);
-  const [activeDetections, setActiveDetections] = useState<readonly DetectedCurrency[]>([]);
+  const [activeDetection, setActiveDetection] = useState<DetectedCurrency | null>(null);
+  const triggerReference = useRef<HTMLButtonElement | null>(null);
+  const shouldRestoreTriggerFocus = useRef(false);
   const selection = useSelection();
   const { convert, data, error, loading, reset } = useConversion();
 
   const browserLocale = browser.i18n.getUILanguage();
+  const uiLocale = getUiLocale(browserLocale);
   const pageLocale = document.documentElement.lang || browserLocale;
   const detectionOptions = useMemo(
     () => ({
@@ -46,23 +53,34 @@ export default function App() {
   });
 
   useEffect(() => {
+    let active = true;
+    let loadGeneration = 0;
     const loadConfig = async () => {
+      const generation = loadGeneration + 1;
+      loadGeneration = generation;
       try {
         const response = await sendMessage({ type: messageTypes.GET_CONFIG });
-        if (response.success) {
+        if (active && generation === loadGeneration && response.success) {
           setConfig(response.data);
         }
       } catch {
-        setConfig(null);
+        if (active && generation === loadGeneration) {
+          setConfig(null);
+        }
       }
     };
-    const handleStorageChange = () => {
-      void loadConfig();
+    const handleStorageChange: Parameters<
+      typeof browser.storage.onChanged.addListener
+    >[0] = (changes, areaName) => {
+      if (areaName === "sync" && Object.hasOwn(changes, "config")) {
+        void loadConfig();
+      }
     };
 
     void loadConfig();
     browser.storage.onChanged.addListener(handleStorageChange);
     return () => {
+      active = false;
       browser.storage.onChanged.removeListener(handleStorageChange);
     };
   }, []);
@@ -78,42 +96,80 @@ export default function App() {
     });
   }, [refs, selection?.rect]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    shouldRestoreTriggerFocus.current = false;
     setShowPopup(false);
-    setActiveDetections([]);
+    setActiveDetection(null);
     reset();
   }, [reset, selection?.text]);
 
-  const handleClose = useCallback(() => {
-    setShowPopup(false);
-    setActiveDetections([]);
-    reset();
-  }, [reset]);
+  useEffect(() => {
+    if (!showPopup && shouldRestoreTriggerFocus.current) {
+      triggerReference.current?.focus();
+      shouldRestoreTriggerFocus.current = false;
+    }
+  }, [showPopup]);
 
-  const handleOpen = useCallback(() => {
-    setActiveDetections(detections);
+  useEffect(() => {
+    if (!showPopup || activeDetection === null || config === null) {
+      return;
+    }
+    void convert(activeDetection, config.favorites);
+  }, [activeDetection, config, convert, showPopup]);
+
+  useEffect(() => {
+    if (showPopup) {
+      setActiveDetection(detections[0] ?? null);
+    }
+  }, [detections, showPopup]);
+
+  const handleClose = useCallback(
+    (reason: ConversionDismissReason) => {
+      shouldRestoreTriggerFocus.current = reason !== "outside-pointer";
+      setShowPopup(false);
+      setActiveDetection(null);
+      reset();
+    },
+    [reset],
+  );
+
+  const handleOpen = useCallback((detection: DetectedCurrency) => {
+    shouldRestoreTriggerFocus.current = true;
+    setActiveDetection(detection);
     setShowPopup(true);
-    void convert(detections, config?.favorites ?? []);
-  }, [config?.favorites, convert, detections]);
+  }, []);
 
-  const showTrigger = !showPopup && detections.length > 0 && selection?.rect !== undefined;
+  const handleSetTrigger = useCallback(
+    (element: HTMLButtonElement | null) => {
+      triggerReference.current = element;
+      refs.setFloating(element);
+    },
+    [refs],
+  );
+
+  const triggerDetection =
+    config !== null && !showPopup && selection?.rect !== undefined
+      ? detections[0]
+      : undefined;
   const theme = config?.theme ?? "system";
 
   return (
     <div className={`cl-root cl-theme-${theme}`}>
-      {showTrigger ? (
+      {triggerDetection !== undefined ? (
         <FloatingIcon
           floatingStyles={floatingStyles}
-          onClick={handleOpen}
-          setFloating={refs.setFloating}
+          locale={uiLocale}
+          onClick={() => handleOpen(triggerDetection)}
+          setFloating={handleSetTrigger}
         />
       ) : null}
       <ConversionPopup
         data={data}
-        detections={activeDetections}
+        detection={activeDetection}
         error={error}
         floatingStyles={floatingStyles}
         loading={loading}
+        locale={uiLocale}
         onClose={handleClose}
         setFloating={refs.setFloating}
         showCurrencyCode={config?.showCurrencyCode ?? true}

@@ -1,18 +1,34 @@
 import type { CurrencyCode } from "@cl/currency";
 import { currencies } from "@cl/currency";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  type DragEvent as ReactDragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  getAmbiguousCurrencySymbolGroups,
   getCurrencyMetadata,
-  getCurrencySymbolDefinition,
   isKnownCurrencyCode,
   MAX_FAVORITE_CURRENCIES,
   type Config,
 } from "../../lib/currency";
+import {
+  getCurrencyDisplayName,
+  getRegionDisplayNames,
+  getUiLocale,
+  translate,
+  type UiLocale,
+} from "../../lib/i18n";
 import { messageTypes, sendMessage, type GetRatesResponse } from "../../lib/messages";
+import { ChevronRight, GripVertical, SlidersHorizontal, Trash2 } from "../shared/Icons";
+import { useConfigSettings } from "../shared/useConfigSettings";
 
 type RatesData = Extract<GetRatesResponse, { success: true }>["data"];
 
-const AMBIGUOUS_SYMBOLS = ["$", "¥", "£"] as const;
 const PRIORITY_CURRENCIES: readonly CurrencyCode[] = [
   "USD",
   "EUR",
@@ -26,6 +42,7 @@ const PRIORITY_CURRENCIES: readonly CurrencyCode[] = [
 
 export interface PopupPreviewData {
   readonly config: Config;
+  readonly locale?: UiLocale | undefined;
   readonly rates: RatesData;
 }
 
@@ -33,75 +50,42 @@ interface AppProps {
   readonly preview?: PopupPreviewData;
 }
 
-/** Renders the extension control panel and persists validated user preferences. */
+type DropPlacement = "after" | "before";
+
+interface DropTarget {
+  readonly currencyCode: CurrencyCode;
+  readonly placement: DropPlacement;
+}
+
+/** Renders a compact control panel whose validated settings save immediately. */
 function App({ preview }: AppProps) {
-  const [savedConfig, setSavedConfig] = useState<Config | null>(preview?.config ?? null);
-  const [draft, setDraft] = useState<Config | null>(preview?.config ?? null);
+  const locale = preview?.locale ?? getUiLocale();
+  const { config, error, loading, saveState, updateConfig } = useConfigSettings({
+    previewConfig: preview?.config,
+  });
   const [rates, setRates] = useState<RatesData | null>(preview?.rates ?? null);
-  const [loading, setLoading] = useState(preview === undefined);
   const [ratesLoading, setRatesLoading] = useState(preview === undefined);
-  const [error, setError] = useState<string | null>(null);
-  const [ratesError, setRatesError] = useState<string | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState("");
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
   const loadRates = useCallback(async () => {
-    if (preview) {
+    if (preview !== undefined) {
       setRates(preview.rates);
       return;
     }
     setRatesLoading(true);
-    setRatesError(null);
     try {
       const response = await sendMessage({ type: messageTypes.GET_RATES });
-      if (response.success) {
-        setRates(response.data);
-      } else {
-        setRatesError(response.error);
-      }
-    } catch (caughtError: unknown) {
-      setRatesError(getErrorMessage(caughtError, "Couldn’t load exchange rates."));
+      setRates(response.success ? response.data : null);
+    } catch {
+      setRates(null);
     } finally {
       setRatesLoading(false);
     }
   }, [preview]);
 
   useEffect(() => {
-    if (preview) {
-      return undefined;
-    }
-
-    let active = true;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const response = await sendMessage({ type: messageTypes.GET_CONFIG });
-        if (!active) {
-          return;
-        }
-        if (response.success) {
-          setSavedConfig(response.data);
-          setDraft(response.data);
-        } else {
-          setError(response.error);
-        }
-      } catch (caughtError: unknown) {
-        if (active) {
-          setError(getErrorMessage(caughtError, "Couldn’t load your settings."));
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void load();
     void loadRates();
-    return () => {
-      active = false;
-    };
-  }, [loadRates, preview]);
+  }, [loadRates]);
 
   const sortedCurrencies = useMemo(() => {
     const priority = new Map(PRIORITY_CURRENCIES.map((code, index) => [code, index]));
@@ -111,34 +95,17 @@ function App({ preview }: AppProps) {
       return leftPriority - rightPriority || left.code.localeCompare(right.code);
     });
   }, []);
-
-  const dirty = Boolean(
-    draft && savedConfig && JSON.stringify(draft) !== JSON.stringify(savedConfig),
-  );
-  const isSaving = saveState === "saving";
-
-  const updateDraft = useCallback(
-    (update: (current: Config) => Config) => {
-      if (isSaving) {
-        return;
-      }
-      setDraft((current) => (current ? update(current) : current));
-      setSaveState("idle");
-    },
-    [isSaving],
-  );
+  const favorites = config?.favorites ?? [];
 
   const handleAddFavorite = () => {
-    if (!draft || !isKnownCurrencyCode(selectedCurrency)) {
-      return;
-    }
     if (
-      draft.favorites.includes(selectedCurrency) ||
-      draft.favorites.length >= MAX_FAVORITE_CURRENCIES
+      !isKnownCurrencyCode(selectedCurrency) ||
+      favorites.includes(selectedCurrency) ||
+      favorites.length >= MAX_FAVORITE_CURRENCIES
     ) {
       return;
     }
-    updateDraft((current) => ({
+    updateConfig((current) => ({
       ...current,
       favorites: [...current.favorites, selectedCurrency],
     }));
@@ -146,380 +113,386 @@ function App({ preview }: AppProps) {
   };
 
   const handleRemoveFavorite = (currencyCode: CurrencyCode) => {
-    updateDraft((current) => ({
+    updateConfig((current) => ({
       ...current,
       favorites: current.favorites.filter((favorite) => favorite !== currencyCode),
     }));
   };
 
-  const handleMoveFavorite = (index: number, direction: -1 | 1) => {
-    updateDraft((current) => ({
+  const handleReorderFavorite = (
+    sourceCurrency: CurrencyCode,
+    targetCurrency: CurrencyCode,
+    placement: DropPlacement,
+  ) => {
+    updateConfig((current) => ({
       ...current,
-      favorites: moveItem(current.favorites, index, index + direction),
+      favorites: moveItemRelative(
+        current.favorites,
+        sourceCurrency,
+        targetCurrency,
+        placement,
+      ),
     }));
   };
 
-  const handleSymbolOverride = (symbol: string, value: string) => {
-    updateDraft((current) => {
-      const symbolOverrides = { ...current.symbolOverrides };
-      if (isKnownCurrencyCode(value)) {
-        symbolOverrides[symbol] = value;
-      } else {
-        delete symbolOverrides[symbol];
-      }
-      return { ...current, symbolOverrides };
-    });
-  };
-
-  const handleSave = async () => {
-    if (!draft || preview) {
+  const handleOpenSymbolSettings = async () => {
+    if (preview !== undefined) {
       return;
     }
-    setSaveState("saving");
-    setError(null);
-    try {
-      const response = await sendMessage({
-        type: messageTypes.SET_CONFIG,
-        payload: draft,
-      });
-      if (response.success) {
-        setSavedConfig(response.data);
-        setDraft(response.data);
-        setSaveState("saved");
-      } else {
-        setError(response.error);
-        setSaveState("idle");
-      }
-    } catch (caughtError: unknown) {
-      setError(getErrorMessage(caughtError, "Couldn’t save your settings."));
-      setSaveState("idle");
-    }
+    await browser.runtime.openOptionsPage();
+    window.close();
   };
 
-  const theme = draft?.theme ?? "system";
+  const theme = config?.theme ?? "system";
   return (
-    <main aria-busy={isSaving} className={`cl-popup cl-root cl-theme-${theme}`}>
+    <main aria-busy={loading} className={`cl-popup cl-root cl-theme-${theme}`}>
       <header className="cl-popup__hero">
-        <div className="cl-brand-lockup">
-          <span aria-hidden="true" className="cl-aperture">
-            <span className="cl-aperture__core" />
-          </span>
-          <div>
-            <p className="cl-eyebrow">Instant exchange view</p>
-            <h1>Currency Lens</h1>
-          </div>
-        </div>
-        <RateStatus loading={ratesLoading} rates={rates} />
+        <Brand locale={locale} />
+        <RateStatus loading={ratesLoading} locale={locale} rates={rates} />
       </header>
 
       {error !== null ? (
         <div className="cl-notice cl-notice--error" role="alert">
-          {error}
+          {translate(locale, "autoSaveError")}
         </div>
       ) : null}
 
-      {loading || !draft ? (
-        <PopupSkeleton />
-      ) : (
+      {loading ? <PopupSkeleton locale={locale} /> : null}
+      {!loading && config === null ? (
+        <p className="cl-empty-state">{translate(locale, "autoSaveError")}</p>
+      ) : null}
+      {!loading && config !== null ? (
         <>
-          <RatePulse
-            error={ratesError}
-            loading={ratesLoading}
-            onRetry={() => void loadRates()}
-            rates={rates}
-            targets={draft.favorites}
-          />
-
           <section className="cl-panel" aria-labelledby="targets-heading">
             <div className="cl-section-heading">
-              <div>
-                <p className="cl-eyebrow">Conversion targets</p>
-                <h2 id="targets-heading">Favorite currencies</h2>
-              </div>
+              <h2 id="targets-heading">{translate(locale, "targetsHeading")}</h2>
               <span className="cl-count-badge">
-                {draft.favorites.length}/{MAX_FAVORITE_CURRENCIES}
+                {translate(locale, "targetCount", {
+                  current: config.favorites.length,
+                  maximum: MAX_FAVORITE_CURRENCIES,
+                })}
               </span>
             </div>
-            <p className="cl-section-copy">
-              Every selected price is converted into each currency below, in this order.
-            </p>
+            <p className="cl-section-copy">{translate(locale, "targetDescription")}</p>
 
             <FavoriteList
-              disabled={isSaving}
-              favorites={draft.favorites}
-              onMove={handleMoveFavorite}
+              favorites={config.favorites}
+              locale={locale}
+              onReorder={handleReorderFavorite}
               onRemove={handleRemoveFavorite}
             />
 
             <div className="cl-add-currency">
               <label className="cl-field-label" htmlFor="currency-select">
-                Add a target
+                {translate(locale, "addTarget")}
               </label>
               <div className="cl-field-row">
                 <select
-                  disabled={isSaving || draft.favorites.length >= MAX_FAVORITE_CURRENCIES}
+                  disabled={config.favorites.length >= MAX_FAVORITE_CURRENCIES}
                   id="currency-select"
                   onChange={(event) => setSelectedCurrency(event.target.value)}
                   value={selectedCurrency}
                 >
-                  <option value="">Choose currency…</option>
+                  <option value="">{translate(locale, "targetChoose")}</option>
                   {sortedCurrencies.map((currency) => (
                     <option
-                      disabled={draft.favorites.includes(currency.code)}
+                      disabled={config.favorites.includes(currency.code)}
                       key={currency.code}
                       value={currency.code}
                     >
-                      {currency.code} · {currency.countries.join(", ")}
+                      {currency.code} · {getCurrencyDisplayName(currency.code, locale)}
                     </option>
                   ))}
                 </select>
                 <button
                   className="cl-button cl-button--secondary"
-                  disabled={isSaving || selectedCurrency.length === 0}
+                  disabled={selectedCurrency.length === 0}
                   onClick={handleAddFavorite}
                   type="button"
                 >
-                  Add
+                  {translate(locale, "add")}
                 </button>
               </div>
             </div>
           </section>
 
-          <section className="cl-panel" aria-labelledby="reading-heading">
+          <section className="cl-panel cl-panel--compact" aria-labelledby="symbols-heading">
             <div className="cl-section-heading">
               <div>
-                <p className="cl-eyebrow">Reading rules</p>
-                <h2 id="reading-heading">Ambiguous symbols</h2>
+                <h2 id="symbols-heading">
+                  {translate(locale, "conversionSettingsHeading")}
+                </h2>
+                <p className="cl-section-copy cl-section-copy--flush">
+                  {translate(locale, "ambiguousSummary", {
+                    count: getAmbiguousCurrencySymbolGroups().length,
+                  })}
+                </p>
               </div>
+              <SlidersHorizontal aria-hidden="true" className="cl-section-icon" />
             </div>
-            <p className="cl-section-copy">
-              Locale detection is automatic. Override the symbols you encounter most.
-            </p>
-            <div className="cl-symbol-grid">
-              {AMBIGUOUS_SYMBOLS.map((symbol) => (
-                <SymbolOverride
-                  disabled={isSaving}
-                  key={symbol}
-                  onChange={handleSymbolOverride}
-                  symbol={symbol}
-                  value={draft.symbolOverrides[symbol] ?? ""}
-                />
-              ))}
-            </div>
+            <button
+              className="cl-navigation-button"
+              onClick={() => void handleOpenSymbolSettings()}
+              type="button"
+            >
+              <span>{translate(locale, "conversionSettingsOpen")}</span>
+              <ChevronRight aria-hidden="true" />
+            </button>
           </section>
 
           <section className="cl-panel" aria-labelledby="display-heading">
             <div className="cl-section-heading">
-              <div>
-                <p className="cl-eyebrow">Interface</p>
-                <h2 id="display-heading">Display</h2>
-              </div>
+              <h2 id="display-heading">{translate(locale, "displayHeading")}</h2>
             </div>
+            <p className="cl-section-copy">{translate(locale, "displayDescription")}</p>
             <label className="cl-select-field">
-              <span>Theme</span>
+              <span>{translate(locale, "displayTheme")}</span>
               <select
-                disabled={isSaving}
                 onChange={(event) => {
                   const value = event.target.value;
                   if (value === "light" || value === "dark" || value === "system") {
-                    updateDraft((current) => ({ ...current, theme: value }));
+                    updateConfig((current) => ({ ...current, theme: value }));
                   }
                 }}
-                value={draft.theme}
+                value={config.theme}
               >
-                <option value="system">Follow system</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
+                <option value="system">{translate(locale, "displayThemeSystem")}</option>
+                <option value="light">{translate(locale, "displayThemeLight")}</option>
+                <option value="dark">{translate(locale, "displayThemeDark")}</option>
               </select>
             </label>
             <div className="cl-toggle-list">
               <Toggle
-                checked={draft.showCurrencyIcon}
-                disabled={isSaving}
-                label="Show currency symbols"
+                checked={config.showCurrencyIcon}
+                label={translate(locale, "displayToggleIcon")}
                 onChange={(checked) =>
-                  updateDraft((current) => ({
-                    ...current,
-                    showCurrencyIcon: checked,
-                  }))
+                  updateConfig((current) => ({ ...current, showCurrencyIcon: checked }))
                 }
               />
               <Toggle
-                checked={draft.showCurrencyCode}
-                disabled={isSaving}
-                label="Show ISO currency codes"
+                checked={config.showCurrencyCode}
+                label={translate(locale, "displayToggleCode")}
                 onChange={(checked) =>
-                  updateDraft((current) => ({
-                    ...current,
-                    showCurrencyCode: checked,
-                  }))
+                  updateConfig((current) => ({ ...current, showCurrencyCode: checked }))
                 }
               />
             </div>
           </section>
 
           <footer className="cl-popup__footer">
-            <p>Select a price on any page, then open the lens beside your selection.</p>
-            <button
-              className="cl-button cl-button--primary"
-              disabled={!dirty || saveState === "saving"}
-              onClick={() => void handleSave()}
-              type="button"
-            >
-              {getSaveButtonLabel(saveState, dirty)}
-            </button>
+            <p>{translate(locale, "popupDescription")}</p>
+            <AutoSaveStatus locale={locale} saveState={saveState} />
           </footer>
         </>
-      )}
+      ) : null}
     </main>
   );
 }
 
+function Brand({ locale }: { readonly locale: UiLocale }) {
+  return (
+    <div className="cl-brand-lockup">
+      <span aria-hidden="true" className="cl-aperture">
+        <span className="cl-aperture__core" />
+      </span>
+      <div>
+        <p className="cl-eyebrow">{translate(locale, "popupEyebrow")}</p>
+        <h1>{translate(locale, "appName")}</h1>
+      </div>
+    </div>
+  );
+}
+
 interface FavoriteListProps {
-  readonly disabled: boolean;
   readonly favorites: readonly CurrencyCode[];
-  readonly onMove: (index: number, direction: -1 | 1) => void;
+  readonly locale: UiLocale;
+  readonly onReorder: (
+    sourceCurrency: CurrencyCode,
+    targetCurrency: CurrencyCode,
+    placement: DropPlacement,
+  ) => void;
   readonly onRemove: (currencyCode: CurrencyCode) => void;
 }
 
-function FavoriteList({ disabled, favorites, onMove, onRemove }: FavoriteListProps) {
+/** Renders ordered targets with consistent library icons and localized metadata. */
+function FavoriteList({ favorites, locale, onReorder, onRemove }: FavoriteListProps) {
+  const draggedCurrency = useRef<CurrencyCode | null>(null);
+  const [draggingCurrency, setDraggingCurrency] = useState<CurrencyCode | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [reorderAnnouncement, setReorderAnnouncement] = useState("");
+
   if (favorites.length === 0) {
-    return <p className="cl-empty-state">Add a currency to activate conversions.</p>;
+    return <p className="cl-empty-state">{translate(locale, "targetEmpty")}</p>;
   }
-  return (
-    <ol className="cl-favorite-list">
-      {favorites.map((currencyCode, index) => (
-        <li className="cl-favorite-item" key={currencyCode}>
-          <span aria-hidden="true" className="cl-favorite-item__index">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <span className="cl-currency-mark">{getCurrencyMark(currencyCode)}</span>
-          <span className="cl-favorite-item__identity">
-            <strong>{currencyCode}</strong>
-            <small>{formatRegions(currencyCode)}</small>
-          </span>
-          <span className="cl-favorite-item__actions">
-            <button
-              aria-label={`Move ${currencyCode} up`}
-              className="cl-mini-button"
-              disabled={disabled || index === 0}
-              onClick={() => onMove(index, -1)}
-              type="button"
-            >
-              <ArrowIcon direction="up" />
-            </button>
-            <button
-              aria-label={`Move ${currencyCode} down`}
-              className="cl-mini-button"
-              disabled={disabled || index === favorites.length - 1}
-              onClick={() => onMove(index, 1)}
-              type="button"
-            >
-              <ArrowIcon direction="down" />
-            </button>
-            <button
-              aria-label={`Remove ${currencyCode}`}
-              className="cl-mini-button cl-mini-button--danger"
-              disabled={disabled}
-              onClick={() => onRemove(currencyCode)}
-              type="button"
-            >
-              <TrashIcon />
-            </button>
-          </span>
-        </li>
-      ))}
-    </ol>
-  );
-}
 
-interface RatePulseProps {
-  readonly error: string | null;
-  readonly loading: boolean;
-  readonly onRetry: () => void;
-  readonly rates: RatesData | null;
-  readonly targets: readonly CurrencyCode[];
-}
+  /** Clears transient drag feedback without changing the saved order. */
+  const finishDragging = () => {
+    draggedCurrency.current = null;
+    setDraggingCurrency(null);
+    setDropTarget(null);
+  };
 
-function RatePulse({ error, loading, onRetry, rates, targets }: RatePulseProps) {
-  return (
-    <section className="cl-rate-pulse" aria-labelledby="rate-pulse-heading">
-      <div className="cl-rate-pulse__heading">
-        <div>
-          <p className="cl-eyebrow">Rate pulse</p>
-          <h2 id="rate-pulse-heading">
-            {rates !== null ? `1 ${rates.base}` : "Latest reference rates"}
-          </h2>
-        </div>
-        {rates !== null ? <time>{formatTimestamp(rates.sourceTimestamp)}</time> : null}
-      </div>
-      {loading ? <span className="cl-rate-pulse__loading">Focusing rates…</span> : null}
-      {!loading && error !== null ? (
-        <div className="cl-inline-error" role="alert">
-          <span>{error}</span>
-          <button onClick={onRetry} type="button">
-            Retry
-          </button>
-        </div>
-      ) : null}
-      {!loading && error === null && rates !== null ? (
-        <div className="cl-rate-strip">
-          {targets.length === 0 ? (
-            <span className="cl-rate-strip__empty">Add targets to see the pulse.</span>
-          ) : (
-            targets.map((currencyCode) => (
-              <div className="cl-rate-tile" key={currencyCode}>
-                <span>{currencyCode}</span>
-                <strong>{formatRate(rates.rates[currencyCode])}</strong>
-              </div>
-            ))
-          )}
-        </div>
-      ) : null}
-    </section>
-  );
-}
+  /** Records the dragged code locally; Firefox requires some transfer data to start dragging. */
+  const handleDragStart = (
+    event: ReactDragEvent<HTMLButtonElement>,
+    currencyCode: CurrencyCode,
+  ) => {
+    draggedCurrency.current = currencyCode;
+    setDraggingCurrency(currencyCode);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", currencyCode);
+  };
 
-function SymbolOverride({
-  disabled,
-  onChange,
-  symbol,
-  value,
-}: {
-  readonly disabled: boolean;
-  readonly onChange: (symbol: string, value: string) => void;
-  readonly symbol: string;
-  readonly value: string;
-}) {
-  const definition = getCurrencySymbolDefinition(symbol);
+  /** Shows whether dropping will insert before or after the hovered row. */
+  const handleDragOver = (
+    event: ReactDragEvent<HTMLLIElement>,
+    currencyCode: CurrencyCode,
+  ) => {
+    const sourceCurrency = draggedCurrency.current;
+    if (sourceCurrency === null || sourceCurrency === currencyCode) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropTarget({
+      currencyCode,
+      placement: getDropPlacement(event),
+    });
+  };
+
+  /** Commits one immediate settings update after the pointer is dropped. */
+  const handleDrop = (
+    event: ReactDragEvent<HTMLLIElement>,
+    targetCurrency: CurrencyCode,
+  ) => {
+    event.preventDefault();
+    const sourceCurrency = draggedCurrency.current;
+    if (sourceCurrency === null || sourceCurrency === targetCurrency) {
+      finishDragging();
+      return;
+    }
+    const placement = getDropPlacement(event);
+    const nextFavorites = moveItemRelative(
+      favorites,
+      sourceCurrency,
+      targetCurrency,
+      placement,
+    );
+    if (!haveSameOrder(favorites, nextFavorites)) {
+      onReorder(sourceCurrency, targetCurrency, placement);
+      setReorderAnnouncement(
+        translate(locale, "reorderMoved", {
+          currency: sourceCurrency,
+          position: nextFavorites.indexOf(sourceCurrency) + 1,
+          total: nextFavorites.length,
+        }),
+      );
+    }
+    finishDragging();
+  };
+
+  /** Provides an equivalent precise reorder path for keyboard users. */
+  const handleReorderKey = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    currencyCode: CurrencyCode,
+    index: number,
+  ) => {
+    let direction: -1 | 1;
+    if (event.key === "ArrowUp") {
+      direction = -1;
+    } else if (event.key === "ArrowDown") {
+      direction = 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    const targetCurrency = favorites[index + direction];
+    if (targetCurrency === undefined) {
+      return;
+    }
+    onReorder(currencyCode, targetCurrency, direction === -1 ? "before" : "after");
+    setReorderAnnouncement(
+      translate(locale, "reorderMoved", {
+        currency: currencyCode,
+        position: index + direction + 1,
+        total: favorites.length,
+      }),
+    );
+  };
+
+  const instructionsId = "conversion-target-reorder-instructions";
   return (
-    <label className="cl-symbol-field">
-      <span className="cl-symbol-field__mark">{symbol}</span>
-      <select
-        aria-label={`Currency represented by ${symbol}`}
-        disabled={disabled}
-        onChange={(event) => onChange(symbol, event.target.value)}
-        value={value}
-      >
-        <option value="">Automatic</option>
-        {definition?.currencyCodes.map((currencyCode) => (
-          <option key={currencyCode} value={currencyCode}>
-            {currencyCode}
-          </option>
-        ))}
-      </select>
-    </label>
+    <>
+      <span className="cl-visually-hidden" id={instructionsId}>
+        {translate(locale, "reorderInstructions")}
+      </span>
+      <ol className="cl-favorite-list">
+        {favorites.map((currencyCode, index) => {
+          const metadata = getCurrencyMetadata(currencyCode);
+          return (
+            <li
+              className="cl-favorite-item"
+              data-dragging={draggingCurrency === currencyCode ? "true" : undefined}
+              data-drop-placement={
+                dropTarget?.currencyCode === currencyCode ? dropTarget.placement : undefined
+              }
+              key={currencyCode}
+              onDragOver={(event) => handleDragOver(event, currencyCode)}
+              onDrop={(event) => handleDrop(event, currencyCode)}
+            >
+              <button
+                aria-describedby={instructionsId}
+                aria-label={translate(locale, "reorderCurrency", {
+                  currency: currencyCode,
+                  position: index + 1,
+                  total: favorites.length,
+                })}
+                className="cl-drag-handle"
+                draggable="true"
+                onDragEnd={finishDragging}
+                onDragStart={(event) => handleDragStart(event, currencyCode)}
+                onKeyDown={(event) => handleReorderKey(event, currencyCode, index)}
+                type="button"
+              >
+                <GripVertical aria-hidden="true" />
+              </button>
+              <span className="cl-currency-mark">
+                {getCurrencyMark(currencyCode, locale)}
+              </span>
+              <span className="cl-favorite-item__identity">
+                <strong>{currencyCode}</strong>
+                <small>
+                  {getCurrencyDisplayName(currencyCode, locale)}
+                  {metadata.countries.length === 0
+                    ? ""
+                    : ` · ${getRegionDisplayNames(metadata.countries, locale)}`}
+                </small>
+              </span>
+              <button
+                aria-label={translate(locale, "removeCurrency", { currency: currencyCode })}
+                className="cl-mini-button cl-mini-button--danger"
+                onClick={() => onRemove(currencyCode)}
+                type="button"
+              >
+                <Trash2 aria-hidden="true" />
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <span aria-atomic="true" aria-live="polite" className="cl-visually-hidden">
+        {reorderAnnouncement}
+      </span>
+    </>
   );
 }
 
 function Toggle({
   checked,
-  disabled,
   label,
   onChange,
 }: {
   readonly checked: boolean;
-  readonly disabled: boolean;
   readonly label: string;
   readonly onChange: (checked: boolean) => void;
 }) {
@@ -528,7 +501,6 @@ function Toggle({
       <span>{label}</span>
       <input
         checked={checked}
-        disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
         type="checkbox"
       />
@@ -541,18 +513,20 @@ function Toggle({
 
 function RateStatus({
   loading,
+  locale,
   rates,
 }: {
   readonly loading: boolean;
+  readonly locale: UiLocale;
   readonly rates: RatesData | null;
 }) {
-  let label = "Offline";
+  let label = translate(locale, "rateOffline");
   if (loading) {
-    label = "Syncing";
+    label = translate(locale, "rateSyncing");
   } else if (rates?.isStale === true) {
-    label = "Last known";
+    label = translate(locale, "rateLastKnown");
   } else if (rates !== null) {
-    label = "Rates ready";
+    label = translate(locale, "rateReady");
   }
   return (
     <span className={`cl-status ${rates?.isStale === true ? "cl-status--stale" : ""}`}>
@@ -562,9 +536,31 @@ function RateStatus({
   );
 }
 
-function PopupSkeleton() {
+function AutoSaveStatus({
+  locale,
+  saveState,
+}: {
+  readonly locale: UiLocale;
+  readonly saveState: "error" | "idle" | "saved" | "saving";
+}) {
+  if (saveState === "error") {
+    return null;
+  }
   return (
-    <div aria-label="Loading Currency Lens" className="cl-popup-skeleton" role="status">
+    <span aria-live="polite" className="cl-auto-save-status">
+      <span className="cl-live-dot" />
+      {translate(locale, saveState === "saving" ? "saveSaving" : "saveSaved")}
+    </span>
+  );
+}
+
+function PopupSkeleton({ locale }: { readonly locale: UiLocale }) {
+  return (
+    <div
+      aria-label={translate(locale, "loadingApp")}
+      className="cl-popup-skeleton"
+      role="status"
+    >
       <span />
       <span />
       <span />
@@ -572,53 +568,38 @@ function PopupSkeleton() {
   );
 }
 
-function moveItem(
+/** Inserts one target before or after another while preserving an immutable list. */
+function moveItemRelative(
   items: readonly CurrencyCode[],
-  fromIndex: number,
-  toIndex: number,
+  sourceCurrency: CurrencyCode,
+  targetCurrency: CurrencyCode,
+  placement: DropPlacement,
 ): CurrencyCode[] {
-  if (toIndex < 0 || toIndex >= items.length) {
-    return [...items];
-  }
-  const nextItems = [...items];
-  const [item] = nextItems.splice(fromIndex, 1);
-  if (item === undefined) {
-    return nextItems;
-  }
-  nextItems.splice(toIndex, 0, item);
+  const nextItems = items.filter((item) => item !== sourceCurrency);
+  const targetIndex = nextItems.indexOf(targetCurrency);
+  nextItems.splice(targetIndex + (placement === "after" ? 1 : 0), 0, sourceCurrency);
   return nextItems;
 }
 
-function formatRate(value: string | undefined): string {
-  if (value === undefined || value.length === 0) {
-    return "—";
-  }
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) {
-    return "—";
-  }
-  return new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: numericValue < 0.01 ? 6 : numericValue < 1 ? 4 : 2,
-  }).format(numericValue);
+/** Calculates the insertion edge from the pointer's vertical position within a row. */
+function getDropPlacement(event: ReactDragEvent<HTMLLIElement>): DropPlacement {
+  const bounds = event.currentTarget.getBoundingClientRect();
+  return event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
 }
 
-function formatTimestamp(timestamp: number): string {
-  return new Intl.DateTimeFormat(undefined, {
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-  }).format(timestamp);
+/** Compares two currency orders without treating a copied array as a change. */
+function haveSameOrder(
+  left: readonly CurrencyCode[],
+  right: readonly CurrencyCode[],
+): boolean {
+  return left.every((item, index) => item === right[index]);
 }
 
-function formatRegions(currencyCode: CurrencyCode): string {
-  return getCurrencyMetadata(currencyCode)?.countries.slice(0, 3).join(" · ") ?? "Global";
-}
-
-function getCurrencyMark(currencyCode: CurrencyCode): string {
+/** Produces a locale-aware currency glyph without external country flags. */
+function getCurrencyMark(currencyCode: CurrencyCode, locale: UiLocale): string {
   try {
     return (
-      new Intl.NumberFormat(undefined, {
+      new Intl.NumberFormat(locale, {
         currency: currencyCode,
         currencyDisplay: "narrowSymbol",
         style: "currency",
@@ -629,40 +610,6 @@ function getCurrencyMark(currencyCode: CurrencyCode): string {
   } catch {
     return currencyCode.slice(0, 1);
   }
-}
-
-function getSaveButtonLabel(
-  saveState: "idle" | "saving" | "saved",
-  dirty: boolean,
-): string {
-  if (saveState === "saving") {
-    return "Saving…";
-  }
-  if (saveState === "saved" && !dirty) {
-    return "Saved";
-  }
-  return dirty ? "Save changes" : "Up to date";
-}
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-function ArrowIcon({ direction }: { readonly direction: "up" | "down" }) {
-  const path = direction === "up" ? "m5 12 5-5 5 5" : "m5 8 5 5 5-5";
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20">
-      <path d={path} />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20">
-      <path d="M6.5 6.5v8m3.5-8v8m3.5-8v8M5 4.5h10M8 4.5V3h4v1.5M6 4.5l.6 12h6.8l.6-12" />
-    </svg>
-  );
 }
 
 export default App;

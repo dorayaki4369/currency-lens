@@ -205,7 +205,7 @@ describe("currency interpretation options", () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
-  it("shows a load failure and keeps the skeleton while configuration is absent", async () => {
+  it("shows a terminal load failure after removing the loading skeleton", async () => {
     vi.stubGlobal("browser", {
       i18n: { getUILanguage: () => "en-US" },
       runtime: {
@@ -219,7 +219,9 @@ describe("currency interpretation options", () => {
     expect((await screen.findByRole("alert")).textContent).toBe(
       "Couldn’t save your settings.",
     );
-    expect(screen.getByRole("status", { name: "Loading Currency Lens" })).toBeDefined();
+    await waitFor(() =>
+      expect(screen.queryByRole("status", { name: "Loading Currency Lens" })).toBeNull(),
+    );
   });
 
   it("hides the save status after an immediate persistence failure", async () => {

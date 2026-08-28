@@ -4,6 +4,8 @@ import { messageTypes, sendMessage } from "../../lib/messages";
 
 export type ConfigSaveState = "idle" | "saving" | "saved" | "error";
 
+const CONFIG_STORAGE_KEY = "config";
+
 interface ConfigSettingsOptions {
   readonly previewConfig?: Config | undefined;
 }
@@ -21,6 +23,8 @@ export function useConfigSettings(options: ConfigSettingsOptions = {}) {
   const lastPersistedConfig = useRef<Config | null>(previewConfig ?? null);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const latestRevision = useRef(0);
+  const synchronizedRevision = useRef(0);
+  const localWritesAwaitingStorageEvent = useRef(new Map<number, string>());
 
   useEffect(() => {
     if (previewConfig !== undefined) {
@@ -28,11 +32,49 @@ export function useConfigSettings(options: ConfigSettingsOptions = {}) {
     }
 
     let active = true;
+    const applySynchronizedConfig = (
+      nextConfig: Config,
+      localRevision: number | undefined,
+    ) => {
+      lastPersistedConfig.current = nextConfig;
+      setLoading(false);
+      if (localRevision !== undefined && localRevision < latestRevision.current) {
+        return;
+      }
+      configReference.current = nextConfig;
+      setConfig(nextConfig);
+      setError(null);
+      setSaveState((current) => (current === "saving" ? current : "saved"));
+    };
+    const handleStorageChange: Parameters<
+      typeof browser.storage.onChanged.addListener
+    >[0] = (changes, areaName) => {
+      if (!active || areaName !== "sync" || !Object.hasOwn(changes, CONFIG_STORAGE_KEY)) {
+        return;
+      }
+
+      const candidate: unknown = changes[CONFIG_STORAGE_KEY]?.newValue;
+      const parsed = configSchema.safeParse(candidate);
+      if (!parsed.success) {
+        return;
+      }
+
+      synchronizedRevision.current += 1;
+      const serializedConfig = serializeConfig(parsed.data);
+      const localWrite = [...localWritesAwaitingStorageEvent.current].find(
+        ([, fingerprint]) => fingerprint === serializedConfig,
+      );
+      if (localWrite !== undefined) {
+        localWritesAwaitingStorageEvent.current.delete(localWrite[0]);
+      }
+      applySynchronizedConfig(parsed.data, localWrite?.[0]);
+    };
     const load = async () => {
+      const initialSynchronizedRevision = synchronizedRevision.current;
       setLoading(true);
       try {
         const response = await sendMessage({ type: messageTypes.GET_CONFIG });
-        if (!active) {
+        if (!active || initialSynchronizedRevision !== synchronizedRevision.current) {
           return;
         }
         if (response.success) {
@@ -43,7 +85,7 @@ export function useConfigSettings(options: ConfigSettingsOptions = {}) {
           setError(response.error);
         }
       } catch (caughtError: unknown) {
-        if (active) {
+        if (active && initialSynchronizedRevision === synchronizedRevision.current) {
           setError(toErrorMessage(caughtError));
         }
       } finally {
@@ -53,9 +95,12 @@ export function useConfigSettings(options: ConfigSettingsOptions = {}) {
       }
     };
 
+    const storageChanges = browser.storage?.onChanged;
+    storageChanges?.addListener(handleStorageChange);
     void load();
     return () => {
       active = false;
+      storageChanges?.removeListener(handleStorageChange);
     };
   }, [previewConfig]);
 
@@ -68,6 +113,8 @@ export function useConfigSettings(options: ConfigSettingsOptions = {}) {
 
       const revision = latestRevision.current + 1;
       latestRevision.current = revision;
+      const synchronizedRevisionAtSave = synchronizedRevision.current;
+      localWritesAwaitingStorageEvent.current.set(revision, serializeConfig(nextConfig));
       setSaveState("saving");
       setError(null);
 
@@ -79,10 +126,16 @@ export function useConfigSettings(options: ConfigSettingsOptions = {}) {
         if (!response.success) {
           throw new Error(response.error);
         }
-        lastPersistedConfig.current = response.data;
+        const hasNewerSynchronizedConfig =
+          synchronizedRevisionAtSave !== synchronizedRevision.current;
+        if (!hasNewerSynchronizedConfig) {
+          lastPersistedConfig.current = response.data;
+        }
         if (revision === latestRevision.current) {
-          configReference.current = response.data;
-          setConfig(response.data);
+          if (!hasNewerSynchronizedConfig) {
+            configReference.current = response.data;
+            setConfig(response.data);
+          }
           setSaveState("saved");
         }
         return undefined;
@@ -90,6 +143,7 @@ export function useConfigSettings(options: ConfigSettingsOptions = {}) {
 
       saveQueue.current = save.catch(() => undefined);
       void save.catch((caughtError: unknown) => {
+        localWritesAwaitingStorageEvent.current.delete(revision);
         if (revision === latestRevision.current) {
           configReference.current = lastPersistedConfig.current;
           setConfig(lastPersistedConfig.current);
@@ -121,4 +175,9 @@ export function useConfigSettings(options: ConfigSettingsOptions = {}) {
 /** Converts an unknown persistence failure to a safe local message. */
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Settings could not be saved.";
+}
+
+/** Creates the stable fingerprint used to match a storage event to a local write. */
+function serializeConfig(config: Config): string {
+  return JSON.stringify(config);
 }

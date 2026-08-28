@@ -45,7 +45,7 @@ describe("useConfigSettings", () => {
       }
       return Promise.resolve({ data: { ...CONFIG, theme: "dark" }, success: true });
     });
-    vi.stubGlobal("browser", { runtime: { sendMessage } });
+    stubBrowserBoundary(sendMessage);
     const { result } = renderHook(() => useConfigSettings());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -66,7 +66,7 @@ describe("useConfigSettings", () => {
     const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>(() =>
       Promise.resolve({ error: "Configuration unavailable", success: false }),
     );
-    vi.stubGlobal("browser", { runtime: { sendMessage } });
+    stubBrowserBoundary(sendMessage);
     const { result } = renderHook(() => useConfigSettings());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -83,11 +83,7 @@ describe("useConfigSettings", () => {
     [new Error("Browser disconnected"), "Browser disconnected"],
     ["offline", "Settings could not be saved."],
   ])("normalizes a thrown load failure", async (failure, expectedMessage) => {
-    vi.stubGlobal("browser", {
-      runtime: {
-        sendMessage: vi.fn<() => Promise<unknown>>(() => Promise.reject(failure)),
-      },
-    });
+    stubBrowserBoundary(vi.fn<() => Promise<unknown>>(() => Promise.reject(failure)));
     const { result } = renderHook(() => useConfigSettings());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -98,14 +94,12 @@ describe("useConfigSettings", () => {
   it("ignores a successful load from a cleaned-up strict-mode effect", async () => {
     const staleLoad = Promise.withResolvers<unknown>();
     const currentLoad = Promise.withResolvers<unknown>();
-    vi.stubGlobal("browser", {
-      runtime: {
-        sendMessage: vi
-          .fn<() => Promise<unknown>>()
-          .mockImplementationOnce(() => staleLoad.promise)
-          .mockImplementationOnce(() => currentLoad.promise),
-      },
-    });
+    stubBrowserBoundary(
+      vi
+        .fn<() => Promise<unknown>>()
+        .mockImplementationOnce(() => staleLoad.promise)
+        .mockImplementationOnce(() => currentLoad.promise),
+    );
     const { result } = renderHook(() => useConfigSettings(), { wrapper: StrictMode });
 
     await act(async () => {
@@ -126,14 +120,12 @@ describe("useConfigSettings", () => {
   it("ignores a rejected load from a cleaned-up strict-mode effect", async () => {
     const staleLoad = Promise.withResolvers<unknown>();
     const currentLoad = Promise.withResolvers<unknown>();
-    vi.stubGlobal("browser", {
-      runtime: {
-        sendMessage: vi
-          .fn<() => Promise<unknown>>()
-          .mockImplementationOnce(() => staleLoad.promise)
-          .mockImplementationOnce(() => currentLoad.promise),
-      },
-    });
+    stubBrowserBoundary(
+      vi
+        .fn<() => Promise<unknown>>()
+        .mockImplementationOnce(() => staleLoad.promise)
+        .mockImplementationOnce(() => currentLoad.promise),
+    );
     const { result } = renderHook(() => useConfigSettings(), { wrapper: StrictMode });
 
     await act(async () => {
@@ -162,7 +154,7 @@ describe("useConfigSettings", () => {
       saveIndex += 1;
       return saveIndex === 1 ? firstSave.promise : secondSave.promise;
     });
-    vi.stubGlobal("browser", { runtime: { sendMessage } });
+    stubBrowserBoundary(sendMessage);
     const { result } = renderHook(() => useConfigSettings());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -203,7 +195,7 @@ describe("useConfigSettings", () => {
       saveIndex += 1;
       return saveIndex === 1 ? firstSave.promise : secondSave.promise;
     });
-    vi.stubGlobal("browser", { runtime: { sendMessage } });
+    stubBrowserBoundary(sendMessage);
     const { result } = renderHook(() => useConfigSettings());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -240,7 +232,7 @@ describe("useConfigSettings", () => {
       }
       return Promise.reject("offline");
     });
-    vi.stubGlobal("browser", { runtime: { sendMessage } });
+    stubBrowserBoundary(sendMessage);
     const { result } = renderHook(() => useConfigSettings());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -252,7 +244,250 @@ describe("useConfigSettings", () => {
     expect(result.current.config).toEqual(CONFIG);
     expect(result.current.error).toBe("Settings could not be saved.");
   });
+
+  it("uses a validated synchronized change as the base of the next save", async () => {
+    const synchronizedConfig: Config = {
+      ...CONFIG,
+      favorites: ["CAD", "CHF"],
+      showCurrencyIcon: false,
+    };
+    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) => {
+      if (readMessageType(message) === "GET_CONFIG") {
+        return Promise.resolve({ data: CONFIG, success: true });
+      }
+      return Promise.resolve({
+        data: { ...synchronizedConfig, theme: "dark" },
+        success: true,
+      });
+    });
+    const storage = stubBrowserBoundary(sendMessage);
+    const { result } = renderHook(() => useConfigSettings());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      storage.emitConfigChange(synchronizedConfig);
+    });
+    expect(result.current.config).toEqual(synchronizedConfig);
+
+    act(() => {
+      result.current.updateConfig((current) => ({ ...current, theme: "dark" }));
+    });
+    await waitFor(() => expect(result.current.saveState).toBe("saved"));
+
+    expect(sendMessage).toHaveBeenLastCalledWith({
+      payload: { ...synchronizedConfig, theme: "dark" },
+      type: "SET_CONFIG",
+    });
+  });
+
+  it("keeps a synchronized change that arrives before the initial load completes", async () => {
+    const staleLoad = Promise.withResolvers<unknown>();
+    const synchronizedConfig: Config = { ...CONFIG, theme: "dark" };
+    const storage = stubBrowserBoundary(
+      vi.fn<() => Promise<unknown>>(() => staleLoad.promise),
+    );
+    const { result } = renderHook(() => useConfigSettings());
+
+    act(() => {
+      storage.emitConfigChange(synchronizedConfig);
+    });
+    expect(result.current.config).toEqual(synchronizedConfig);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      staleLoad.resolve({ data: CONFIG, success: true });
+      await staleLoad.promise;
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.config).toEqual(synchronizedConfig);
+  });
+
+  it("does not let an earlier local storage event replace a newer optimistic update", async () => {
+    const firstSave = Promise.withResolvers<unknown>();
+    const secondSave = Promise.withResolvers<unknown>();
+    const thirdSave = Promise.withResolvers<unknown>();
+    const firstConfig: Config = { ...CONFIG, theme: "dark" };
+    const secondConfig: Config = { ...firstConfig, showCurrencyCode: false };
+    const thirdConfig: Config = { ...secondConfig, showCurrencyIcon: false };
+    let saveIndex = 0;
+    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) => {
+      if (readMessageType(message) === "GET_CONFIG") {
+        return Promise.resolve({ data: CONFIG, success: true });
+      }
+      saveIndex += 1;
+      if (saveIndex === 1) {
+        return firstSave.promise;
+      }
+      return saveIndex === 2 ? secondSave.promise : thirdSave.promise;
+    });
+    const storage = stubBrowserBoundary(sendMessage);
+    const { result } = renderHook(() => useConfigSettings());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.updateConfig(() => firstConfig);
+      result.current.updateConfig(() => secondConfig);
+    });
+    act(() => {
+      storage.emitConfigChange(firstConfig);
+    });
+
+    expect(result.current.config).toEqual(secondConfig);
+    act(() => {
+      result.current.updateConfig((current) => ({ ...current, showCurrencyIcon: false }));
+    });
+    expect(result.current.config).toEqual(thirdConfig);
+
+    await act(async () => {
+      firstSave.resolve({ data: firstConfig, success: true });
+      await firstSave.promise;
+    });
+    await waitFor(() => expect(saveIndex).toBe(2));
+    act(() => {
+      storage.emitConfigChange(secondConfig);
+    });
+    expect(result.current.config).toEqual(thirdConfig);
+    await act(async () => {
+      secondSave.resolve({ data: secondConfig, success: true });
+      await secondSave.promise;
+    });
+    await waitFor(() => expect(saveIndex).toBe(3));
+    act(() => {
+      storage.emitConfigChange(thirdConfig);
+    });
+    await act(async () => {
+      thirdSave.resolve({ data: thirdConfig, success: true });
+      await thirdSave.promise;
+    });
+    await waitFor(() => expect(result.current.saveState).toBe("saved"));
+
+    expect(sendMessage).toHaveBeenLastCalledWith({
+      payload: thirdConfig,
+      type: "SET_CONFIG",
+    });
+  });
+
+  it("ignores invalid or non-sync storage changes", async () => {
+    const sendMessage = vi.fn<() => Promise<unknown>>(() =>
+      Promise.resolve({ data: CONFIG, success: true }),
+    );
+    const storage = stubBrowserBoundary(sendMessage);
+    const { result } = renderHook(() => useConfigSettings());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      storage.emitConfigChange({ ...CONFIG, favorites: ["UNKNOWN"] });
+      storage.emitConfigChange({ ...CONFIG, theme: "dark" }, "local");
+    });
+
+    expect(result.current.config).toEqual(CONFIG);
+  });
+
+  it("rolls back a failed save to the latest synchronized configuration", async () => {
+    const rejectedSave = Promise.withResolvers<unknown>();
+    const synchronizedConfig: Config = { ...CONFIG, showCurrencyCode: false };
+    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) =>
+      readMessageType(message) === "GET_CONFIG"
+        ? Promise.resolve({ data: CONFIG, success: true })
+        : rejectedSave.promise,
+    );
+    const storage = stubBrowserBoundary(sendMessage);
+    const { result } = renderHook(() => useConfigSettings());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.updateConfig((current) => ({ ...current, theme: "dark" }));
+    });
+    await waitFor(() => expect(result.current.saveState).toBe("saving"));
+    act(() => {
+      storage.emitConfigChange(synchronizedConfig);
+    });
+
+    await act(async () => {
+      rejectedSave.reject(new Error("Save rejected"));
+      await rejectedSave.promise.catch(() => undefined);
+    });
+    await waitFor(() => expect(result.current.saveState).toBe("error"));
+
+    expect(result.current.config).toEqual(synchronizedConfig);
+    expect(result.current.error).toBe("Save rejected");
+  });
+
+  it("keeps newer synchronized data after an in-flight save succeeds", async () => {
+    const pendingSave = Promise.withResolvers<unknown>();
+    const localConfig: Config = { ...CONFIG, theme: "dark" };
+    const synchronizedConfig: Config = { ...CONFIG, showCurrencyCode: false };
+    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) =>
+      readMessageType(message) === "GET_CONFIG"
+        ? Promise.resolve({ data: CONFIG, success: true })
+        : pendingSave.promise,
+    );
+    const storage = stubBrowserBoundary(sendMessage);
+    const { result } = renderHook(() => useConfigSettings());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.updateConfig(() => localConfig);
+    });
+    await waitFor(() => expect(result.current.saveState).toBe("saving"));
+    act(() => {
+      storage.emitConfigChange(synchronizedConfig);
+    });
+
+    await act(async () => {
+      pendingSave.resolve({ data: localConfig, success: true });
+      await pendingSave.promise;
+    });
+    await waitFor(() => expect(result.current.saveState).toBe("saved"));
+
+    expect(result.current.config).toEqual(synchronizedConfig);
+  });
+
+  it("removes the storage listener on cleanup", async () => {
+    const storage = stubBrowserBoundary(
+      vi.fn<() => Promise<unknown>>(() => Promise.resolve({ data: CONFIG, success: true })),
+    );
+    const { unmount } = renderHook(() => useConfigSettings());
+    await waitFor(() => expect(storage.addListener).toHaveBeenCalledOnce());
+    const listener = storage.addListener.mock.calls[0]?.[0];
+
+    unmount();
+
+    expect(listener).toBeDefined();
+    expect(storage.removeListener).toHaveBeenCalledWith(listener);
+  });
 });
+
+type StorageChangeListener = Parameters<typeof browser.storage.onChanged.addListener>[0];
+
+/** Installs the runtime and synchronized-storage boundaries used by the hook. */
+function stubBrowserBoundary(sendMessage: (message: unknown) => Promise<unknown>) {
+  const listeners = new Set<StorageChangeListener>();
+  const addListener = vi.fn<(listener: StorageChangeListener) => void>((listener) => {
+    listeners.add(listener);
+  });
+  const removeListener = vi.fn<(listener: StorageChangeListener) => void>((listener) => {
+    listeners.delete(listener);
+  });
+  vi.stubGlobal("browser", {
+    runtime: { sendMessage },
+    storage: { onChanged: { addListener, removeListener } },
+  });
+
+  return {
+    addListener,
+    emitConfigChange(
+      newValue: unknown,
+      areaName: Parameters<StorageChangeListener>[1] = "sync",
+    ): void {
+      for (const listener of listeners) {
+        listener({ config: { newValue } }, areaName);
+      }
+    },
+    removeListener,
+  };
+}
 
 /** Reads only the message discriminant used by the browser boundary mock. */
 function readMessageType(message: unknown): unknown {

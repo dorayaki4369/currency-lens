@@ -81,7 +81,7 @@ function App({ preview }: AppProps) {
         </div>
       ) : null}
 
-      {loading || config === null ? <OptionsSkeleton locale={locale} /> : null}
+      {loading ? <OptionsSkeleton locale={locale} /> : null}
       {!loading && config !== null ? (
         <div className="cl-options__layout">
           <section className="cl-options-panel" aria-labelledby="ambiguous-heading">

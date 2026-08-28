@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Config } from "../lib/currency";
 import { messageTypes, type Message } from "../lib/messages";
@@ -35,6 +35,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
   document.body.replaceChildren();
   document.documentElement.lang = "";
 });
@@ -97,7 +98,12 @@ describe("content selection-to-conversion flow", () => {
     render(<App />);
 
     currentSelection = selectionWith("The total is $10 today.", new DOMRect(4, 8, 80, 20));
-    document.dispatchEvent(new Event("selectionchange"));
+    vi.useFakeTimers();
+    act(() => {
+      document.dispatchEvent(new Event("selectionchange"));
+      vi.advanceTimersByTime(180);
+    });
+    vi.useRealTimers();
 
     const trigger = await screen.findByRole(
       "button",

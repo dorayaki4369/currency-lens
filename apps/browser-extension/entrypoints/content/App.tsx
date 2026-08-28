@@ -1,5 +1,5 @@
 import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react-dom";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DetectedCurrency } from "../../lib/currency-detection";
 import type { Config } from "../../lib/currency";
 import { getUiLocale } from "../../lib/i18n";
@@ -96,7 +96,7 @@ export default function App() {
     });
   }, [refs, selection?.rect]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     shouldRestoreTriggerFocus.current = false;
     setShowPopup(false);
     setActiveDetection(null);

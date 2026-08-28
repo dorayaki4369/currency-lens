@@ -10,7 +10,7 @@ flowchart LR
     CS -->|金額・通貨コード・換算先| BG[Background Script\n検証・換算・更新]
     PU[Extension Popup\n設定・レート状態] <--> BG
     BG <--> BS[(Browser Storage)]
-    BG -->|GET /latest| WK[Cloudflare Worker]
+    BG -->|GET /v1/latest| WK[Cloudflare Worker]
     WK <--> R2[(Cloudflare R2)]
     WK -->|latest.json| OXR[Open Exchange Rates]
 ```
@@ -19,14 +19,15 @@ R2は公開しません。Content ScriptとPopupからの外部通信、レー�
 
 ## コンポーネント
 
-| コンポーネント       | 責務                                                                                    |
-| -------------------- | --------------------------------------------------------------------------------------- |
-| Content Script       | 選択範囲の監視、最大3件の金額検出、Background Scriptへの依頼、Shadow DOM内のUI表示      |
-| Background Script    | メッセージの検証、最大5件の換算先との一括換算、レート更新、設定とキャッシュへのアクセス |
-| Extension Popup      | お気に入り通貨などの設定、レートの提供元時刻と古さの表示                                |
-| Currency Lens Worker | `GET /latest`、R2データの検証、空のR2の初期化、Cron Triggerによるレート更新             |
-| `packages/currency`  | 拡張機能が検出・設定・表示できる通貨コード、記号、表示桁数のメタデータ                  |
-| `packages/oxr`       | Open Exchange RatesのHTTPクライアント、timeoutとエラー分類、レスポンス検証              |
+| コンポーネント       | 責務                                                                                            |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| Content Script       | 選択範囲の監視、金額候補の検出、先頭1件の換算依頼、Shadow DOM内のUI表示                         |
+| Background Script    | メッセージの検証、最大5件の換算先との一括換算、レート更新、設定とキャッシュへのアクセス         |
+| Extension Popup      | 換算先通貨などの即時保存、レートの提供元時刻と古さの表示                                        |
+| Extension Options    | 曖昧な通貨記号の解釈と、収録済みの全対応通貨の表示                                              |
+| Currency Lens Worker | `GET /v1/latest`と旧`GET /latest`、R2データの検証、空のR2の初期化、Cron Triggerによるレート更新 |
+| `packages/currency`  | 拡張機能が検出・設定・表示できる通貨コード、記号、表示桁数のメタデータ                          |
+| `packages/oxr`       | Open Exchange RatesのHTTPクライアント、timeoutとエラー分類、レスポンス検証                      |
 
 ## データの正本
 
@@ -36,7 +37,7 @@ R2は公開しません。Content ScriptとPopupからの外部通信、レー�
 | 配信中の最新スナップショット     | R2の`latest.json`                       | Workerが読み出すたびに検証する                  |
 | 過去のスナップショット           | R2の提供元時刻別オブジェクト            | `latest.json`より先に保存する                   |
 | 拡張機能が最後に利用できたレート | `browser.storage.local`                 | 更新失敗や古さだけでは削除しない                |
-| お気に入り通貨などのユーザー設定 | `browser.storage.sync`                  | 読み書き時に検証し、旧形式は移行する            |
+| 換算先通貨などのユーザー設定     | `browser.storage.sync`                  | 読み書き時に検証し、旧形式は移行する            |
 | 検出・表示に対応する通貨         | `packages/currency`                     | OXR側の未知コードをUIの対応通貨へ自動追加しない |
 | プロセス間メッセージの形         | `lib/messages.ts`のZodスキーマ          | 送信前と受信後の両方で検証する                  |
 
@@ -47,9 +48,9 @@ R2は公開しません。Content ScriptとPopupからの外部通信、レー�
 ### 選択から換算まで
 
 1. Content Scriptが通常のWebページで選択テキストを受け取ります。
-2. 通貨コード、通貨記号、数値の区切りをページとブラウザのロケールも使って解析し、先頭から最大3件を検出します。
-3. Content Scriptは選択テキスト全体を送らず、検出した金額と通貨コード、お気に入りの換算先通貨だけをBackground Scriptへ渡します。
-4. Background Scriptがメッセージを検証し、最後に成功したキャッシュを使って最大3金額×5通貨を換算します。
+2. 通貨コード、通貨記号、数値の区切りをページとブラウザのロケールも使って解析し、選択範囲内の金額候補を出現順に検出します。
+3. Content Scriptは選択テキスト全体を送らず、先頭の金額1件と通貨コード、設定済みの換算先通貨だけをBackground Scriptへ渡します。
+4. Background Scriptがメッセージを検証し、最後に成功したキャッシュを使って1金額×最大5通貨を換算します。
 5. 結果ごとの成否とレート時刻、古さ、警告をContent Scriptへ返し、Shadow DOM内へ表示します。
 
 選択文字列はブラウザから出ません。換算結果と元の表記を対応付けて表示する場合も、文字列をBackground ScriptやWorkerへ渡す必要はありません。
@@ -57,22 +58,22 @@ R2は公開しません。Content ScriptとPopupからの外部通信、レー�
 ### 拡張機能のレート更新
 
 1. インストール、ブラウザ起動、Background Script初期化の各時点で、1時間ごとのalarmが存在することを確認します。
-2. キャッシュがない、または提供元時刻から24時間を超えている場合に`GET /latest`を呼びます。インストール時とブラウザ起動時は、キャッシュの年齢にかかわらず更新を試みます。
+2. キャッシュがない、または提供元時刻から24時間を超えている場合に`GET /v1/latest`を呼びます。インストール時とブラウザ起動時は、キャッシュの年齢にかかわらず更新を試みます。
 3. WorkerレスポンスをZodで検証し、すべて通った場合だけ`browser.storage.local`のキャッシュを置き換えます。
 4. 以後はalarmが1時間ごとに更新を試みます。
 
 更新成功時だけキャッシュを置き換えます。失敗時は最後に成功した値を維持し、24時間を超えても換算を続けながら、利用者へ古いレートであることを示します。
 
-WXTは、開発と配布の両方で検証済みの`API_ENDPOINT`をベースURLとし、そのホスト権限をmanifestへ生成します。Background ScriptはベースURLへ`/latest`を付けてレートを取得します。ローカル開発では`.env`、配布用ビルドではGitHub ActionsのRepository variableから同じ変数名へ値を渡します。
+WXTは、開発と配布の両方で検証済みの`API_ENDPOINT`をベースURLとし、そのホスト権限をmanifestへ生成します。Background ScriptはベースURLへ`/v1/latest`を付けてレートを取得します。ローカル開発では`.env`、配布用ビルドではGitHub ActionsのRepository variableから同じ変数名へ値を渡します。
 
 ### Workerの更新と配信
 
 1. 1時間ごとのCron Triggerが`packages/oxr`を通してOpen Exchange Ratesの`latest.json`を取得します。
 2. HTTP成功、JSON、通貨コード、正の有限レート、base、提供元時刻を検証します。OXRが追加する未知の通貨コードは、形式と値が妥当なら受け入れます。
 3. R2へ提供元時刻別のアーカイブを書き、その後で`latest.json`を更新します。
-4. `GET /latest`はR2の`latest.json`を改めて検証し、拡張機能に必要な`base`、`rates`、`timestamp`だけを返します。
+4. `GET /v1/latest`と旧`GET /latest`はR2の`latest.json`を改めて検証し、拡張機能に必要な`base`、`rates`、`timestamp`だけを返します。
 
-書き込み順は固定です。R2が空でWorker secretが存在するときは、最初の`GET /latest`が手順1から3を実行して初期データを作り、同じWorkerインスタンスで重なった初回リクエストは1回の取得へまとめます。
+書き込み順は固定です。R2が空でWorker secretが存在するときは、最初のレートAPIリクエストが手順1から3を実行して初期データを作り、同じWorkerインスタンスで重なった初回リクエストは1回の取得へまとめます。
 
 ## 信頼境界
 
@@ -123,9 +124,15 @@ Open Exchange RatesのApp IDはWorker secretです。拡張機能、R2オブジ�
 
 WorkerはOXRが追加した未知の通貨コードを形式と値で検証して保持しますが、拡張機能の検出と設定は`packages/currency`に収録した通貨だけを扱うため、上流APIの拡張で配信を止めず、UIへ出す通貨はメタデータを追加してから有効にできます。
 
-### 件数を3金額×5通貨に制限する
+### 配布済み拡張機能のAPI契約を維持する
 
-長い選択範囲から無制限に結果を作ると、誤検出と表示量が増えます。上限は15件です。入力とメッセージの両方で件数を検証します。
+拡張機能はストア審査と利用者の更新を経るため、Workerと同時には切り替わりません。`/v1/latest`と、移行前の拡張機能が使う`/latest`は、`base`、`rates`、`timestamp`だけを持つ同じstrict schemaとして維持します。トップレベル項目の追加を含む形の変更は既存クライアントにとって破壊的なので、`/v2/latest`のような新しいrouteへ分けます。
+
+GitHub Releaseからストアへ提出する前に、release tagと同じcommitのCloudflareデプロイ成功を待ち、公開中の現行routeと旧routeを、そのcommitから配布するクライアントのZod schemaで検証します。旧routeを廃止する時期は自動で決めず、対応する配布済み拡張機能が利用されなくなったことを確認したうえで人間が判断します。
+
+### 表示対象を1金額×5通貨に制限する
+
+複数の価格を一枚のカードへ混在させると、利用者が選んだ価格と換算先の対応が分かりにくくなります。純粋な検出処理は候補を出現順に返しますが、Content Scriptの境界で先頭1件だけを選び、メッセージ契約も1金額×最大5通貨に制限します。
 
 ### UIをShadow DOMへ隔離する
 

@@ -4,9 +4,9 @@ import {
   MAX_FAVORITE_CURRENCIES,
   currencyCodeSchema,
   getCurrencyMetadata,
-} from "./currency";
+} from "./currency.ts";
 
-export const MAX_CONVERSION_AMOUNTS = 3;
+export const MAX_CONVERSION_AMOUNTS = 1;
 export const RATE_STALE_AFTER_MS = 24 * 60 * 60 * 1_000;
 
 const MAX_CRYPTO_FRACTION_DIGITS = 8;
@@ -162,7 +162,7 @@ export function getRateSnapshot(
   };
 }
 
-/** Converts up to three amounts into up to five targets while retaining unavailable pairs. */
+/** Converts one amount into up to five targets while retaining unavailable pairs. */
 export function convertCurrencyBatch(
   cache: ExchangeRateCache,
   amounts: readonly ConversionAmount[],
@@ -187,10 +187,6 @@ export function formatCurrencyAmount(
   }
 
   const metadata = getCurrencyMetadata(currencyCode);
-  if (!metadata) {
-    throw new RangeError(`Unsupported currency: ${currencyCode}`);
-  }
-
   const fractionDigits = Math.min(
     metadata.minorUnit ?? MAX_CRYPTO_FRACTION_DIGITS,
     MAX_CRYPTO_FRACTION_DIGITS,
@@ -255,7 +251,7 @@ function validateConversionBatch(
   targetCurrencies: readonly CurrencyCode[],
 ): void {
   if (amounts.length > MAX_CONVERSION_AMOUNTS) {
-    throw new RangeError(`At most ${MAX_CONVERSION_AMOUNTS} amounts can be converted`);
+    throw new RangeError("At most 1 amount can be converted");
   }
   if (targetCurrencies.length > MAX_FAVORITE_CURRENCIES) {
     throw new RangeError(`At most ${MAX_FAVORITE_CURRENCIES} targets can be converted`);
@@ -302,8 +298,5 @@ function validateUnitBaseRate(
 
 /** Removes insignificant fractional zeros from crypto-like display values. */
 function trimTrailingFractionZeros(value: string): string {
-  if (!value.includes(".")) {
-    return value;
-  }
   return value.replace(/(?:\.0+|(?<fraction>\.\d*?[1-9])0+)$/u, "$<fraction>");
 }

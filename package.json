@@ -2,7 +2,7 @@
   "name": "currency-lens",
   "version": "0.1.0",
   "private": true,
-  "description": "A browser extension for converting the currency to your favorite currency.",
+  "description": "A browser extension for converting selected prices into configured target currencies.",
   "license": "MIT",
   "author": {
     "name": "Ryuya Hirayama",
@@ -24,7 +24,7 @@
     "test": "vp test --run",
     "test:coverage": "vp test --run --coverage",
     "typecheck": "vp check --no-fmt --no-lint",
-    "validate": "vp check && vp test --run && vp run -r build"
+    "validate": "vp check && vp test --run --coverage && vp run -r build"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",

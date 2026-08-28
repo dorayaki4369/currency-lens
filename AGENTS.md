@@ -5,7 +5,7 @@
 
 ## プロダクト
 
-Currency Lens は、Web ページ上で選択した金額を、ユーザーのお気に入り通貨へその場で換算する Chrome／Firefox 拡張機能です。
+Currency Lens は、Web ページ上で選択した金額を、ユーザーが設定した換算先通貨へその場で換算する Chrome／Firefox 拡張機能です。
 選択後に小さな Lens ボタンを表示し、クリックすると元のページを書き換えずに換算カードを開きます。
 為替レートは Cloudflare Worker が Open Exchange Rates から取得し、R2 に保存します。
 
@@ -25,7 +25,7 @@ Currency Lens は、Web ページ上で選択した金額を、ユーザーの�
 Agent は、ファイル名が `.env`、`.env.*`、`.dev.vars`、`.dev.vars.*` に一致するファイルを、場所や目的を問わず絶対に読みません。
 `cat`、`sed`、`rg`、シェル展開、IDE、サブプロセス、テスト、ビルド、Wrangler などを経由した間接読み取りも禁止します。
 Agent は、これらのファイルを作成、編集、コピー、名前変更、削除、表示、ログ出力しません。
-必要な変数名は `README.md` と `docs/` だけから確認し、値は GitHub Environments、Cloudflare secrets、ブラウザストアの secrets で管理します。
+必要な変数名は `README.md` と `docs/` だけから確認し、共有環境の値は GitHub Actions の Repository variables／secrets または Cloudflare Worker secrets で管理します。
 コマンドが `.env*` または `.dev.vars*` を暗黙に読む可能性がある場合は実行せず、明示的に読み込まない経路へ直します。
 サブエージェントへ作業を委譲するときも、この禁止事項を必ず伝えます。
 
@@ -41,9 +41,10 @@ Agent は、これらのファイルを作成、編集、コピー、名前変�
 - `pnpm lint`: Oxlint の厳格ルールを実行します。
 - `pnpm typecheck`: TypeScript 7 で型検査します。
 - `pnpm test`: Vitest を一度実行します。
+- `pnpm test:coverage`: 未 import の本体コードと React コンポーネントを含め、Statements、Branches、Functions、Lines がファイルごとに100%であることを検証します。
 - `pnpm build`: process environment の `API_ENDPOINT`を使い、全ワークスペースを依存順にビルドします。環境ファイルは読みません。
 - `pnpm check`: format、lint、typecheck をまとめて確認します。
-- `pnpm validate`: format、lint、typecheck、test、build を一通り確認します。build用の`API_ENDPOINT`が必要です。
+- `pnpm validate`: format、lint、typecheck、カバレッジ、build を一通り確認します。build用の`API_ENDPOINT`が必要です。
 
 依存を変更したら `pnpm install --frozen-lockfile=false` で lockfile を同期します。Agentは完了前に`API_ENDPOINT=https://cl.dryk.net pnpm validate`を実行します。
 
@@ -59,7 +60,7 @@ Agent は、これらのファイルを作成、編集、コピー、名前変�
 拡張機能の Content Script UI は Shadow DOM 内へ描画し、ホストページへ CSS を漏らしません。
 選択テキストはローカルだけで解析し、サーバーへ送信しません。
 通常の Web ページだけを MVP 対象とし、PDF、canvas、フォーム入力、ブラウザ内部ページ、クロスオリジン iframe は対象外です。
-お気に入りは最大5通貨、1回の選択から検出する金額は最大3件です。
+換算先は最大5通貨です。検出処理は候補を出現順に返し、画面とBackground Scriptへ渡すのは選択範囲の先頭1件だけです。
 
 ## テストと画面確認
 
@@ -73,8 +74,11 @@ UI を変更したら popup と換算カードのスクリーンショットを�
 通常の作業は `feature/*` から `develop` への Pull Request で行います。
 `main` へは `develop` からの Pull Request だけを許可し、必須 CI を通します。
 feature Pull Request は squash、`develop` から `main` への昇格は merge commit を使います。
-`main` 更新時に Worker を自動デプロイし、`v*` の GitHub Release 公開時に Chrome Web Store と Firefox Add-ons へ提出します。
-初回のストア掲載、Cloudflare／ストア credentials、GitHub Environment の設定は人間が行います。
+`main` 更新時に Cloudflare Workers Builds から Worker を自動デプロイし、`v*` の GitHub Release 公開時に Chrome Web Store と Firefox Add-ons へ提出します。
+ストア提出前に、release tag と同じ commit の Cloudflare Check Run 成功を待ち、公開中の `/v1/latest` と旧 `/latest` を配布版クライアントの Zod schema で検証します。
+現行の v1 契約は後方互換に保ち、項目の追加を含む破壊的変更は `/v2/latest` のような新しい versioned route へ分けます。
+旧 route の廃止は、対応する拡張機能が利用されなくなったことを確認したうえで人間が別途判断します。
+初回のストア掲載、Cloudflare の Git 連携と Worker secret、ストア credentials、GitHub Actions の Repository variable／secrets の設定は人間が行います。
 
 ## 文書同期
 

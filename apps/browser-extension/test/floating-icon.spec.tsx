@@ -14,12 +14,13 @@ describe("FloatingIcon", () => {
     render(
       <FloatingIcon
         floatingStyles={{}}
+        locale="en"
         onClick={onClick}
         setFloating={vi.fn<(element: HTMLElement | null) => void>()}
       />,
     );
     const trigger = screen.getByRole("button", {
-      name: "Convert selected currencies",
+      name: "Convert selected price",
     });
 
     expect(fireEvent.mouseDown(trigger)).toBe(false);

@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { fetchLatestRate } from "@cl/oxr";
 import { scheduledHandler } from "./scheduler";
@@ -71,7 +71,8 @@ export function createApp(dependencies: LatestRatesDependencies = defaultDepende
     }),
   );
 
-  app.get("/latest", async (c) => {
+  /** Serves the stable v1 contract on both its versioned and legacy routes. */
+  const serveLatestRates = async (c: Context<{ Bindings: CloudflareBindings }>) => {
     let data: Awaited<ReturnType<typeof getLatestOxrResponse>>;
 
     try {
@@ -106,7 +107,10 @@ export function createApp(dependencies: LatestRatesDependencies = defaultDepende
       timestamp: data.timestamp,
       base: data.base,
     });
-  });
+  };
+
+  app.get("/v1/latest", serveLatestRates);
+  app.get("/latest", serveLatestRates);
 
   return app;
 }

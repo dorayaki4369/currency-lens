@@ -17,13 +17,13 @@ beforeEach(() => {
 });
 
 describe("message schemas", () => {
-  it("accepts the complete three-by-five request boundary", () => {
-    const request = createConversionRequest(3, ["USD", "EUR", "JPY", "GBP", "CAD"]);
+  it("accepts the complete one-by-five request boundary", () => {
+    const request = createConversionRequest(1, ["USD", "EUR", "JPY", "GBP", "CAD"]);
     expect(convertCurrenciesRequestSchema.safeParse(request).success).toBe(true);
   });
 
-  it("rejects more than three source amounts", () => {
-    const request = createConversionRequest(4, ["EUR"]);
+  it("rejects more than one source amount", () => {
+    const request = createConversionRequest(2, ["EUR"]);
     expect(convertCurrenciesRequestSchema.safeParse(request).success).toBe(false);
   });
 
@@ -44,6 +44,47 @@ describe("message schemas", () => {
         data: { favorites: ["USD"] },
       }),
     ).toThrow();
+  });
+
+  it("selects the response contract for every supported request type", () => {
+    const config = getDefaultConfig();
+    const rateMetadata = {
+      base: "USD",
+      sourceTimestamp: 1_700_000_000_000,
+      fetchedAt: 1_700_000_005_000,
+      isStale: false,
+      warnings: [],
+    };
+
+    expect(
+      parseMessageResponse(messageTypes.SET_CONFIG, { success: true, data: config }),
+    ).toEqual({ success: true, data: config });
+    expect(
+      parseMessageResponse(messageTypes.CONVERT_CURRENCIES, {
+        success: true,
+        data: {
+          ...rateMetadata,
+          results: [
+            {
+              status: "converted",
+              sourceIndex: 0,
+              amount: 1,
+              fromCurrency: "USD",
+              toCurrency: "EUR",
+              convertedAmount: "0.90",
+              rate: "0.9",
+              fractionDigits: 2,
+            },
+          ],
+        },
+      }),
+    ).toMatchObject({ success: true, data: { results: [{ status: "converted" }] } });
+    expect(
+      parseMessageResponse(messageTypes.GET_RATES, {
+        success: true,
+        data: { ...rateMetadata, rates: { USD: "1", EUR: "0.9" } },
+      }),
+    ).toMatchObject({ success: true, data: { rates: { USD: "1", EUR: "0.9" } } });
   });
 });
 
@@ -79,5 +120,25 @@ describe("sendMessage", () => {
       data: { rates: "not-a-record" },
     });
     await expect(sendMessage({ type: messageTypes.GET_RATES })).rejects.toThrow();
+  });
+
+  it("validates outbound configuration and conversion requests", async () => {
+    const config = getDefaultConfig();
+    runtimeSendMessage
+      .mockResolvedValueOnce({ success: true, data: config })
+      .mockResolvedValueOnce({ success: false, error: "rates unavailable" });
+
+    await expect(
+      sendMessage({ type: messageTypes.SET_CONFIG, payload: config }),
+    ).resolves.toEqual({ success: true, data: config });
+    await expect(
+      sendMessage({
+        type: messageTypes.CONVERT_CURRENCIES,
+        payload: {
+          amounts: [{ amount: 10, currencyCode: "USD" }],
+          targetCurrencies: ["EUR"],
+        },
+      }),
+    ).resolves.toEqual({ success: false, error: "rates unavailable" });
   });
 });

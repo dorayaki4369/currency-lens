@@ -19,7 +19,6 @@ concurrency:
 
 env:
   API_ENDPOINT: "https://cl.dryk.net"
-  NODE_VERSION: "24"
   PNPM_VERSION: "11.13.0"
 
 jobs:
@@ -60,7 +59,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: .node-version
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -77,7 +76,7 @@ jobs:
         run: pnpm typecheck
 
       - name: Test
-        run: pnpm test
+        run: pnpm test:coverage
 
       - name: Build
         run: pnpm build

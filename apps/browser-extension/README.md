@@ -1,12 +1,12 @@
 # Currency Lensブラウザ拡張機能
 
-`apps/browser-extension`は、通常のWebページで選択した金額をお気に入り通貨へ換算するChrome・Firefox向け拡張機能です。WXT、React、Shadow DOM向けのプレーンCSSで構築しています。
+`apps/browser-extension`は、通常のWebページで選択した金額を設定済みの換算先通貨へ換算するChrome・Firefox向け拡張機能です。WXT、React、Shadow DOM向けのプレーンCSSで構築しています。
 
 共通のセットアップと品質検査は[ルートREADME](../../README.md)、Workerを含むデータフローは[アーキテクチャ](../../docs/architecture.md)を参照してください。
 
 ## 利用時の動作
 
-Content Scriptは選択テキストから通貨記号または通貨コードと金額をローカルで検出します。1回の選択で扱うのは先頭から最大3件です。アイコンを押すと、検出した金額を最大5件のお気に入り通貨へ換算します。結果は最大15件です。
+Content Scriptは選択テキストから通貨記号または通貨コードと金額をローカルで検出します。アイコンを押すと、選択範囲で最初に検出した金額だけを、設定した最大5件の換算先通貨へ換算します。
 
 対象は通常のWebページです。UIはShadow DOM内へ描画するため、WebページのCSSが換算結果へ入り込むことも、Currency Lensのスタイルがページへ漏れることもありません。ブラウザの設定画面や拡張機能ストアなど、Content Scriptを実行できないページは対象外です。
 
@@ -14,9 +14,11 @@ Content Scriptは選択テキストから通貨記号または通貨コードと
 
 ## 設定と為替レート
 
-お気に入り通貨は最大5件で、`browser.storage.sync`に保存します。記号の解釈、テーマ、通貨アイコンとコードの表示設定も同じ設定データに含まれます。保存済み設定が古い形式なら移行し、検証できない場合は既定値へ戻します。
+換算先通貨は最大5件で、ドラッグハンドルまたはキーボードの上下矢印キーで表示順を変更できます。操作のたびに`browser.storage.sync`へ自動保存します。Popupは収録済みの全通貨を候補として表示し、曖昧な通貨記号の一覧と解釈は専用のOptionsページで設定します。記号の解釈、テーマ、通貨アイコンとコードの表示設定も同じ設定データに含まれます。保存済み設定が古い形式なら移行し、検証できない場合は既定値へ戻します。
 
-為替レートはBackground ScriptだけがCurrency Lens Workerの`GET /latest`から取得し、Zodで検証して`browser.storage.local`へ保存します。インストール時、ブラウザ起動時、Background Scriptの初期化時に不足または古いレートを更新し、その後は1時間ごとのalarmで再取得します。
+UIとmanifestの表示名・説明は英語と日本語に対応し、ブラウザのUI言語に合わせて切り替えます。通貨名と地域名はブラウザの`Intl.DisplayNames`を使って同じ言語で表示します。
+
+為替レートはBackground ScriptだけがCurrency Lens Workerの`GET /v1/latest`から取得し、Zodで検証して`browser.storage.local`へ保存します。インストール時、ブラウザ起動時、Background Scriptの初期化時に不足または古いレートを更新し、その後は1時間ごとのalarmで再取得します。
 
 更新に失敗しても、最後に検証できたキャッシュは削除しません。提供元時刻から24時間を超えたレートで換算した場合は、結果と設定画面に古いレートであることを表示します。まだ有効なキャッシュが一度もない場合は換算できません。特定の通貨ペアだけレートがない場合は、その組み合わせだけを利用不可として返します。
 
@@ -26,7 +28,8 @@ Content Scriptは選択テキストから通貨記号または通貨コードと
 | --------------------------- | -------------------------------------------------------------- |
 | `entrypoints/content`       | 選択範囲の監視、ローカルでの金額検出、Shadow DOM内のUI表示     |
 | `entrypoints/background.ts` | メッセージ検証、設定とレートの管理、換算、定期更新             |
-| `entrypoints/popup`         | お気に入り通貨などの設定、レート時刻と警告の表示               |
+| `entrypoints/popup`         | 換算先通貨などの設定、レート時刻と警告の表示                   |
+| `entrypoints/options`       | 曖昧な記号の解釈と対応通貨一覧                                 |
 | `lib/currency-detection.ts` | 通貨コード・記号・数値表記の検出                               |
 | `lib/messages.ts`           | Content Script、Popup、Background Script間の実行時検証付き契約 |
 | `lib/rates.ts`              | Workerレスポンスの検証、鮮度判定、換算と表示桁数               |
@@ -53,7 +56,7 @@ Firefoxで確認する場合は次のコマンドを使います。
 pnpm ext dev:firefox
 ```
 
-WXTが生成する開発版をブラウザへ読み込んで、通常のHTTPまたはHTTPSページでテキスト選択、アイコン、換算結果、設定保存を確認してください。開発版と配布用ビルドは同じ`API_ENDPOINT`をベースURLとして使い、`/latest`へ接続します。配布時の値はGitHub ActionsのRepository variableから渡します。
+WXTが生成する開発版をブラウザへ読み込んで、通常のHTTPまたはHTTPSページでテキスト選択、アイコン、換算結果、設定保存を確認してください。開発版と配布用ビルドは同じ`API_ENDPOINT`をベースURLとして使い、`/v1/latest`へ接続します。配布時の値はGitHub ActionsのRepository variableから渡します。
 
 AI Agentが起動する場合は、環境ファイルを読まない`pnpm ext dev:agent`または`pnpm ext dev:firefox:agent`を使います。
 

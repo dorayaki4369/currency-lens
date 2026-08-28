@@ -33,6 +33,7 @@ export default defineConfig({
       "apps/browser-extension/assets/**",
       "apps/browser-extension/entrypoints/**",
       "apps/browser-extension/lib/**",
+      "apps/browser-extension/public/**",
       "packages/currency/package.json",
       "packages/currency/tsconfig.json",
       "packages/currency/src/**",
@@ -48,9 +49,9 @@ export function createManifest(
   const apiEndpoint = resolveApiEndpoint(configuredApiEndpoint);
 
   return {
-    name: "Currency Lens",
-    description:
-      "Convert selected prices into your favorite currencies without leaving the page.",
+    name: "__MSG_extensionName__",
+    description: "__MSG_extensionDescription__",
+    default_locale: "en",
     permissions: ["storage", "alarms"],
     host_permissions: [createApiHostPermission(apiEndpoint)],
     browser_specific_settings: {

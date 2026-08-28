@@ -1,10 +1,11 @@
 import {
+  convertCurrenciesRequestSchema,
   convertCurrenciesResponseSchema,
   getConfigResponseSchema,
   getRatesResponseSchema,
   messageSchema,
-  messageTypes,
   parseMessageResponse,
+  setConfigRequestSchema,
   setConfigResponseSchema,
   type ConvertCurrenciesRequest,
   type Message,
@@ -81,20 +82,22 @@ export async function handleMessage(message: unknown): Promise<MessageResponse> 
   }
 }
 
-/** Routes a validated message using its discriminant. */
+type MessageHandlerByType = Record<
+  Message["type"],
+  (message: Message) => Promise<MessageResponse>
+>;
+
+const messageHandlerByType = {
+  CONVERT_CURRENCIES: (message) =>
+    handleConvertCurrencies(convertCurrenciesRequestSchema.parse(message)),
+  GET_CONFIG: () => handleGetConfig(),
+  GET_RATES: () => handleGetRates(),
+  SET_CONFIG: (message) => handleSetConfig(setConfigRequestSchema.parse(message).payload),
+} satisfies MessageHandlerByType;
+
+/** Routes a validated message through an exhaustive discriminant-to-handler table. */
 function dispatchMessage(message: Message): Promise<MessageResponse> {
-  switch (message.type) {
-    case messageTypes.GET_CONFIG:
-      return handleGetConfig();
-    case messageTypes.SET_CONFIG:
-      return handleSetConfig(message.payload);
-    case messageTypes.CONVERT_CURRENCIES:
-      return handleConvertCurrencies(message);
-    case messageTypes.GET_RATES:
-      return handleGetRates();
-    default:
-      return assertNever(message);
-  }
+  return messageHandlerByType[message.type](message);
 }
 
 /** Returns runtime-validated user configuration. */
@@ -189,9 +192,4 @@ function runBackgroundTask(task: Promise<void>, context: string): void {
 /** Converts an unknown failure into a safe response message. */
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected background error";
-}
-
-/** Makes message routing exhaustive as new request variants are introduced. */
-function assertNever(message: never): never {
-  throw new Error(`Unhandled message: ${JSON.stringify(message)}`);
 }

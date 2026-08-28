@@ -130,6 +130,13 @@ export type MessageResponse =
   | ConvertCurrenciesResponse
   | GetRatesResponse;
 
+const responseSchemaByMessageType: Record<Message["type"], z.ZodType<MessageResponse>> = {
+  [messageTypes.CONVERT_CURRENCIES]: convertCurrenciesResponseSchema,
+  [messageTypes.GET_CONFIG]: getConfigResponseSchema,
+  [messageTypes.GET_RATES]: getRatesResponseSchema,
+  [messageTypes.SET_CONFIG]: setConfigResponseSchema,
+};
+
 /** Sends a validated request and validates the corresponding background response. */
 export function sendMessage(message: GetConfigRequest): Promise<GetConfigResponse>;
 export function sendMessage(message: SetConfigRequest): Promise<SetConfigResponse>;
@@ -148,21 +155,5 @@ export function parseMessageResponse(
   messageType: Message["type"],
   response: unknown,
 ): MessageResponse {
-  switch (messageType) {
-    case messageTypes.GET_CONFIG:
-      return getConfigResponseSchema.parse(response);
-    case messageTypes.SET_CONFIG:
-      return setConfigResponseSchema.parse(response);
-    case messageTypes.CONVERT_CURRENCIES:
-      return convertCurrenciesResponseSchema.parse(response);
-    case messageTypes.GET_RATES:
-      return getRatesResponseSchema.parse(response);
-    default:
-      return assertNever(messageType);
-  }
-}
-
-/** Makes response-schema routing exhaustive as new request variants are introduced. */
-function assertNever(_messageType: never): never {
-  throw new Error("Unhandled message type");
+  return responseSchemaByMessageType[messageType].parse(response);
 }

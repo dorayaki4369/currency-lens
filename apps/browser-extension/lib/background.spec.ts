@@ -120,6 +120,108 @@ describe("background lifecycle", () => {
     });
     expect(fetchRates).not.toHaveBeenCalled();
   });
+
+  it("routes configuration writes and returns retained rate snapshots", async () => {
+    const fetchRates = vi.fn(() => Promise.resolve(createRateResponse()));
+    const harness = installBrowserHarness(fetchRates);
+    const { handleMessage } = await import("../entrypoints/background");
+    const config = {
+      favorites: ["USD"],
+      symbolOverrides: {},
+      theme: "dark",
+      showCurrencyIcon: false,
+      showCurrencyCode: true,
+    };
+
+    await expect(handleMessage({ type: "SET_CONFIG", payload: config })).resolves.toEqual({
+      success: true,
+      data: config,
+    });
+    expect(harness.syncSet).toHaveBeenCalledWith({ config });
+    await expect(handleMessage({ type: "GET_RATES" })).resolves.toMatchObject({
+      success: true,
+      data: {
+        base: "USD",
+        isStale: false,
+        rates: { USD: "1", EUR: "0.9" },
+      },
+    });
+  });
+
+  it("reports unavailable rates before the first refresh completes", async () => {
+    const fetchRates = vi.fn(() => new Promise<Response>(() => undefined));
+    installBrowserHarness(fetchRates, {});
+    const { handleMessage } = await import("../entrypoints/background");
+
+    await expect(
+      handleMessage({
+        type: "CONVERT_CURRENCIES",
+        payload: {
+          amounts: [{ amount: 10, currencyCode: "USD" }],
+          targetCurrencies: ["EUR"],
+        },
+      }),
+    ).resolves.toEqual({ success: false, error: "Exchange rates are not available yet." });
+    await expect(handleMessage({ type: "GET_RATES" })).resolves.toEqual({
+      success: false,
+      error: "Exchange rates are not available yet.",
+    });
+  });
+
+  it("turns expected and unknown storage failures into safe message errors", async () => {
+    const harness = installBrowserHarness(() => Promise.resolve(createRateResponse()));
+    const { handleMessage } = await import("../entrypoints/background");
+    const request = {
+      type: "SET_CONFIG",
+      payload: {
+        favorites: ["USD"],
+        symbolOverrides: {},
+        theme: "system",
+        showCurrencyIcon: true,
+        showCurrencyCode: true,
+      },
+    };
+
+    harness.syncSet.mockRejectedValueOnce(new Error("storage offline"));
+    await expect(handleMessage(request)).resolves.toEqual({
+      success: false,
+      error: "storage offline",
+    });
+
+    harness.syncSet.mockRejectedValueOnce("storage offline");
+    await expect(handleMessage(request)).resolves.toEqual({
+      success: false,
+      error: "Unexpected background error",
+    });
+  });
+
+  it("responds through the listener catch boundary if error serialization fails", async () => {
+    const harness = installBrowserHarness(() => Promise.resolve(createRateResponse()));
+    const sendResponse = vi.fn();
+    await import("../entrypoints/background");
+    harness.syncSet.mockRejectedValueOnce(new Error(""));
+
+    expect(
+      harness.listeners.message?.(
+        {
+          type: "SET_CONFIG",
+          payload: {
+            favorites: ["USD"],
+            symbolOverrides: {},
+            theme: "system",
+            showCurrencyIcon: true,
+            showCurrencyCode: true,
+          },
+        },
+        {},
+        sendResponse,
+      ),
+    ).toBe(true);
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalledOnce());
+    expect(sendResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, error: expect.any(String) }),
+    );
+  });
 });
 
 /** Installs a minimal WebExtension environment and exposes its observable boundaries. */
@@ -140,6 +242,7 @@ function installBrowserHarness(
     localState = { ...localState, ...values };
     return Promise.resolve();
   });
+  const syncSet = vi.fn(() => Promise.resolve());
 
   vi.stubGlobal("fetch", fetchImplementation);
   vi.stubGlobal("browser", {
@@ -172,7 +275,7 @@ function installBrowserHarness(
     storage: {
       sync: {
         get: vi.fn(() => Promise.resolve({})),
-        set: vi.fn(() => Promise.resolve()),
+        set: syncSet,
       },
       local: {
         get: localGet,
@@ -191,6 +294,7 @@ function installBrowserHarness(
     alarmGet,
     localGet,
     localSet,
+    syncSet,
     readLocalState: () => localState,
   };
 }

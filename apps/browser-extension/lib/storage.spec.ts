@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { currencyCodeSchema } from "./currency";
 import { createExchangeRateCache } from "./rates";
-import { getConfig, getDefaultConfig, getExchangeRateCache, setConfig } from "./storage";
+import {
+  clearExchangeRateCache,
+  getConfig,
+  getDefaultConfig,
+  getExchangeRateCache,
+  setConfig,
+  setExchangeRateCache,
+} from "./storage";
 
 let syncState: Record<string, unknown>;
 let localState: Record<string, unknown>;
@@ -32,6 +39,13 @@ beforeEach(() => {
 });
 
 describe("configuration storage", () => {
+  it("returns a current stored configuration unchanged", async () => {
+    const config = { ...getDefaultConfig(), theme: "dark" as const };
+    syncState["config"] = config;
+
+    await expect(getConfig()).resolves.toEqual(config);
+  });
+
   it("returns a fresh default when stored data fails runtime validation", async () => {
     syncState["config"] = { favorites: ["NOT_A_CURRENCY"] };
     await expect(getConfig()).resolves.toEqual(getDefaultConfig());
@@ -66,6 +80,25 @@ describe("configuration storage", () => {
     await expect(setConfig(invalidConfig)).rejects.toThrow();
     expect(syncStorage.set).not.toHaveBeenCalled();
   });
+
+  it("validates and persists a current configuration", async () => {
+    const config = { ...getDefaultConfig(), theme: "light" as const };
+
+    await expect(setConfig(config)).resolves.toBeUndefined();
+    expect(syncState["config"]).toEqual(config);
+  });
+
+  it("falls back when a legacy symbol mapping cannot satisfy current candidates", async () => {
+    syncState["config"] = {
+      favorites: ["USD"],
+      defaultConversions: { $: "JPY" },
+      theme: "system",
+      showCurrencyIcon: true,
+      showCurrencyCode: true,
+    };
+
+    await expect(getConfig()).resolves.toEqual(getDefaultConfig());
+  });
 });
 
 describe("rate storage", () => {
@@ -97,6 +130,19 @@ describe("rate storage", () => {
       sourceTimestamp: 1_700_000_000_000,
       fetchedAt: 1_700_000_000_000,
     });
+  });
+
+  it("validates replacement caches and clears them explicitly", async () => {
+    const cache = createExchangeRateCache(
+      { base: "USD", rates: { USD: "1", EUR: "0.9" }, timestamp: 1_700_000_000 },
+      1_700_000_005_000,
+    );
+
+    await expect(setExchangeRateCache(cache)).resolves.toBeUndefined();
+    expect(localState["exchangeRateCache"]).toEqual(cache);
+
+    await expect(clearExchangeRateCache()).resolves.toBeUndefined();
+    expect(localState).not.toHaveProperty("exchangeRateCache");
   });
 });
 

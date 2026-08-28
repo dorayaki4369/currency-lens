@@ -1,16 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CurrencyCode } from "@cl/currency";
 import { currencyCodeSchema } from "./currency";
 import {
   RATE_STALE_AFTER_MS,
   convertCurrencyBatch,
   createExchangeRateCache,
+  fetchExchangeRateCache,
   formatCurrencyAmount,
   getRateSnapshot,
+  isExchangeRateCacheStale,
 } from "./rates";
 
 const SOURCE_TIMESTAMP_SECONDS = 1_700_000_000;
 const SOURCE_TIMESTAMP_MS = SOURCE_TIMESTAMP_SECONDS * 1_000;
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("createExchangeRateCache", () => {
   it("validates API data and preserves source and fetch timestamps separately", () => {
@@ -59,6 +66,68 @@ describe("createExchangeRateCache", () => {
   });
 });
 
+describe("fetchExchangeRateCache", () => {
+  it("requests and validates a successful API response", async () => {
+    const fetchRates = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            base: "USD",
+            rates: { USD: "1", EUR: "0.9" },
+            timestamp: SOURCE_TIMESTAMP_SECONDS,
+          }),
+        ),
+      ),
+    );
+
+    await expect(
+      fetchExchangeRateCache("https://rates.example/v1/latest", fetchRates, 42),
+    ).resolves.toEqual({
+      base: "USD",
+      rates: { USD: "1", EUR: "0.9" },
+      sourceTimestamp: SOURCE_TIMESTAMP_MS,
+      fetchedAt: 42,
+    });
+    expect(fetchRates).toHaveBeenCalledWith(
+      new URL("https://rates.example/v1/latest"),
+      expect.objectContaining({ method: "GET", headers: { Accept: "application/json" } }),
+    );
+  });
+
+  it("rejects non-success responses before parsing their body", async () => {
+    const response = new Response("unavailable", { status: 503 });
+    const json = vi.spyOn(response, "json");
+
+    await expect(
+      fetchExchangeRateCache("https://rates.example/v1/latest", () =>
+        Promise.resolve(response),
+      ),
+    ).rejects.toThrow("HTTP 503");
+    expect(json).not.toHaveBeenCalled();
+  });
+
+  it("uses the global fetch implementation and current time by default", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-28T00:00:00Z"));
+    const fetchRates = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            base: "USD",
+            rates: { USD: "1" },
+            timestamp: SOURCE_TIMESTAMP_SECONDS,
+          }),
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchRates);
+
+    const cache = await fetchExchangeRateCache("https://rates.example/v1/latest");
+    expect(cache.fetchedAt).toBe(Date.now());
+    expect(fetchRates).toHaveBeenCalledOnce();
+  });
+});
+
 describe("getRateSnapshot", () => {
   it("warns only after source data exceeds 24 hours", () => {
     const cache = makeCache();
@@ -72,6 +141,13 @@ describe("getRateSnapshot", () => {
       isStale: true,
       warnings: [{ code: "RATES_STALE" }],
     });
+  });
+
+  it("checks freshness against the current time by default", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(SOURCE_TIMESTAMP_MS + RATE_STALE_AFTER_MS + 1);
+    expect(isExchangeRateCacheStale(makeCache())).toBe(true);
+    expect(getRateSnapshot(makeCache()).isStale).toBe(true);
   });
 });
 
@@ -130,21 +206,17 @@ describe("convertCurrencyBatch", () => {
     });
   });
 
-  it("supports the full three-by-five conversion limit", () => {
+  it("supports one source with the full five-target limit", () => {
     const results = convertCurrencyBatch(
       makeCache(),
-      [
-        { amount: 1, currencyCode: code("USD") },
-        { amount: 2, currencyCode: code("EUR") },
-        { amount: 3, currencyCode: code("JPY") },
-      ],
+      [{ amount: 1, currencyCode: code("USD") }],
       [code("USD"), code("EUR"), code("JPY"), code("KWD"), code("BTC")],
     );
 
-    expect(results).toHaveLength(15);
+    expect(results).toHaveLength(5);
     expect(results[0]).toMatchObject({ sourceIndex: 0, toCurrency: "USD" });
     expect(results[results.length - 1]).toMatchObject({
-      sourceIndex: 2,
+      sourceIndex: 0,
       toCurrency: "BTC",
     });
   });
@@ -156,12 +228,59 @@ describe("convertCurrencyBatch", () => {
         [
           { amount: 1, currencyCode: code("USD") },
           { amount: 2, currencyCode: code("USD") },
-          { amount: 3, currencyCode: code("USD") },
-          { amount: 4, currencyCode: code("USD") },
         ],
         [code("EUR")],
       ),
-    ).toThrow(/At most 3 amounts/u);
+    ).toThrow(/At most 1 amount/u);
+  });
+
+  it("rejects too many, duplicate, and invalid conversion inputs", () => {
+    expect(() =>
+      convertCurrencyBatch(
+        makeCache(),
+        [{ amount: 1, currencyCode: code("USD") }],
+        [code("USD"), code("EUR"), code("JPY"), code("KWD"), code("BTC"), code("ETH")],
+      ),
+    ).toThrow(/At most 5 targets/u);
+    expect(() =>
+      convertCurrencyBatch(
+        makeCache(),
+        [{ amount: 1, currencyCode: code("USD") }],
+        [code("EUR"), code("EUR")],
+      ),
+    ).toThrow(/unique/u);
+    expect(() =>
+      convertCurrencyBatch(
+        makeCache(),
+        [{ amount: Number.NaN, currencyCode: code("USD") }],
+        [code("EUR")],
+      ),
+    ).toThrow(/positive finite/u);
+    expect(() =>
+      convertCurrencyBatch(
+        makeCache(),
+        [{ amount: 0, currencyCode: code("USD") }],
+        [code("EUR")],
+      ),
+    ).toThrow(/positive finite/u);
+  });
+
+  it("treats invalid retained rate values as unavailable defensively", () => {
+    const invalidCache = {
+      ...makeCache(),
+      rates: { USD: "1", EUR: "Infinity", JPY: "0" },
+    } as ReturnType<typeof makeCache>;
+
+    expect(
+      convertCurrencyBatch(
+        invalidCache,
+        [{ amount: 1, currencyCode: code("USD") }],
+        [code("EUR"), code("JPY")],
+      ),
+    ).toEqual([
+      expect.objectContaining({ status: "unavailable", toCurrency: "EUR" }),
+      expect.objectContaining({ status: "unavailable", toCurrency: "JPY" }),
+    ]);
   });
 });
 
@@ -179,6 +298,33 @@ describe("formatCurrencyAmount", () => {
       value: "1.2",
       fractionDigits: 8,
     });
+    expect(formatCurrencyAmount(1.2, code("XAU"))).toEqual({
+      value: "1.20000000",
+      fractionDigits: 8,
+    });
+  });
+
+  it("rejects non-finite values", () => {
+    expect(() => formatCurrencyAmount(Number.POSITIVE_INFINITY, code("USD"))).toThrow(
+      /finite/u,
+    );
+  });
+
+  it("normalizes exponent rates while rejecting numeric overflow", () => {
+    expect(
+      createExchangeRateCache({
+        base: "USD",
+        rates: { USD: "1", EUR: "9e-1" },
+        timestamp: SOURCE_TIMESTAMP_SECONDS,
+      }).rates["EUR"],
+    ).toBe("9e-1");
+    expect(() =>
+      createExchangeRateCache({
+        base: "USD",
+        rates: { USD: "1", EUR: "1e9999" },
+        timestamp: SOURCE_TIMESTAMP_SECONDS,
+      }),
+    ).toThrow(/positive finite/u);
   });
 });
 

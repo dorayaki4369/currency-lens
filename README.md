@@ -5,8 +5,10 @@ Currency Lensは、Webページで選択した金額をお気に入りの通貨�
 ## できること
 
 - 通常のWebページで、通貨記号または通貨コードを含むテキストを選択して換算できます。
-- 1回の選択から最大3件の金額を検出し、最大5件のお気に入り通貨へまとめて換算します。結果は最大15件です。
-- `$`のように複数通貨で使われる記号は、ページやブラウザのロケールとユーザー設定を使って解釈します。
+- 選択範囲で最初に見つかった金額を、登録した最大5件の換算先通貨へ換算します。
+- `$`のように複数通貨で使われる記号は、ページやブラウザのロケールとユーザー設定を使って解釈します。曖昧な記号は専用設定ページへ一覧表示します。
+- `packages/currency`に収録した全通貨を換算先候補として表示し、換算先はドラッグで並べ替えられます。設定変更は操作のたびに自動保存します。
+- UIと拡張機能名・説明はブラウザ言語に合わせて日本語または英語で表示します。
 - 表示用UIはShadow DOM内に置き、閲覧中のページとCurrency Lensのスタイルが互いに影響しないようにします。
 - 為替レートの取得に失敗しても、最後に検証できたレートを残します。レートの提供時刻から24時間を超えた場合は、古いレートであることを画面に表示します。
 
@@ -17,10 +19,10 @@ Chrome Web StoreとFirefox Add-onsの公開ページは次のとおりです。
 
 ## 使い方
 
-1. 拡張機能の設定画面で、換算先にしたい通貨を最大5件登録します。
+1. 拡張機能の設定画面で、換算先にしたい通貨を最大5件登録し、ドラッグで表示順を整えます。変更は即時に保存されます。
 2. Webページ上で、`$19.99`や`1,200 JPY`のような金額を含むテキストを選択します。
 3. 選択範囲の近くに表示されるCurrency Lensのアイコンを押します。
-4. 検出した金額とお気に入り通貨の組み合わせを換算結果で確認します。
+4. 選択範囲で最初に検出した金額について、登録した換算先通貨の結果を確認します。
 
 ブラウザの設定画面、拡張機能ストアなど、ブラウザがContent Scriptの実行を禁止しているページでは動作しません。
 
@@ -114,9 +116,9 @@ Cloudflare Worker、R2 Bucket、Custom Domain、Chrome Web Store、Firefox Add-o
 | `pnpm lint`          | Vite+で静的解析する                                  |
 | `pnpm typecheck`     | TypeScript 7で型を検査する                           |
 | `pnpm test`          | Vitestのテストを実行する                             |
-| `pnpm test:coverage` | カバレッジを計測する                                 |
+| `pnpm test:coverage` | 全本体コードを対象にカバレッジ4指標100%を検証する    |
 | `pnpm build`         | 全workspaceをビルドする                              |
-| `pnpm validate`      | 品質検査、テスト、ビルドをまとめて実行する           |
+| `pnpm validate`      | 品質検査、カバレッジ検証、ビルドをまとめて実行する   |
 
 `pnpm build`と`pnpm validate`は環境ファイルを読みません。ローカルで実行するときは、`API_ENDPOINT`をprocess environmentへ明示的に渡してください。GitHub Actionsでは、CIは既知の本番URL、ストア提出用ビルドはRepository variableを使います。WorkerのデプロイはCloudflare Workers Buildsが担当し、`API_ENDPOINT`を必要としません。
 
@@ -131,4 +133,4 @@ pnpm ext build:firefox
 
 通常の開発は`develop`へPull Requestを作成し、リリース時は`develop`から`main`へのPull Requestで昇格させます。`main`へ直接変更を入れる運用は想定していません。
 
-`develop`または`main`へのpushとPull Requestでは、GitHub Actionsがformat、lint、型検査、テスト、ビルドを実行します。必須CIを通って`main`が更新されると、Cloudflare Workers BuildsがWorkerを自動デプロイします。ブラウザ拡張機能は安定版GitHub Releaseを起点にChrome Web StoreとFirefox Add-onsへ提出します。
+`develop`または`main`へのpushとPull Requestでは、GitHub Actionsがformat、lint、型検査、全4指標100%のカバレッジ検証、ビルドを実行します。必須CIを通って`main`が更新されると、Cloudflare Workers BuildsがWorkerを自動デプロイします。ブラウザ拡張機能は安定版GitHub Releaseを起点にChrome Web StoreとFirefox Add-onsへ提出します。

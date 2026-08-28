@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { currencies } from "@cl/currency";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PopupPreviewData } from "../entrypoints/popup/App";
@@ -138,7 +139,7 @@ describe("popup settings", () => {
     render(<App preview={PREVIEW} />);
 
     const select = screen.getByLabelText("Add a target");
-    expect(select.querySelectorAll("option")).toHaveLength(186);
+    expect(select.querySelectorAll("option")).toHaveLength(currencies.length + 1);
     fireEvent.change(select, { target: { value: "CAD" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 

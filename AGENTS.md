@@ -66,7 +66,7 @@ Agent は、これらのファイルを作成、編集、コピー、名前変�
 
 バグ修正では、可能なら修正前に失敗する再現テストを先に置きます。
 純粋ロジックは Vitest、React の状態と操作は DOM テスト、配置・見た目・ホストページへの CSS 影響は実ブラウザで確認します。
-UI を変更したら popup と換算カードのスクリーンショットを撮り、狭い幅、長い通貨名、loading、empty、error、success、キーボード操作、reduced motion を確認します。
+UI を変更したら popup、Options、換算カードのスクリーンショットを撮り、狭い幅、長い通貨名、loading、empty、error、success、キーボード操作、reduced motion を確認します。
 スクリーンショットや生成物へ秘密情報を含めません。
 
 ## Git とリリース

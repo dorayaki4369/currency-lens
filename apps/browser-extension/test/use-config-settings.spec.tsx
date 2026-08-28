@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useConfigSettings } from "../entrypoints/shared/useConfigSettings";
 import type { Config } from "../lib/currency";
@@ -94,36 +95,60 @@ describe("useConfigSettings", () => {
     expect(result.current.error).toBe(expectedMessage);
   });
 
-  it("does not update state after an in-flight load is unmounted", async () => {
-    const load = Promise.withResolvers<unknown>();
+  it("ignores a successful load from a cleaned-up strict-mode effect", async () => {
+    const staleLoad = Promise.withResolvers<unknown>();
+    const currentLoad = Promise.withResolvers<unknown>();
     vi.stubGlobal("browser", {
-      runtime: { sendMessage: vi.fn<() => Promise<unknown>>(() => load.promise) },
+      runtime: {
+        sendMessage: vi
+          .fn<() => Promise<unknown>>()
+          .mockImplementationOnce(() => staleLoad.promise)
+          .mockImplementationOnce(() => currentLoad.promise),
+      },
     });
-    const { unmount } = renderHook(() => useConfigSettings());
+    const { result } = renderHook(() => useConfigSettings(), { wrapper: StrictMode });
 
-    unmount();
     await act(async () => {
-      load.resolve({ data: CONFIG, success: true });
-      await load.promise;
+      currentLoad.resolve({ data: CONFIG, success: true });
+      await currentLoad.promise;
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      staleLoad.resolve({ data: { ...CONFIG, theme: "dark" }, success: true });
+      await staleLoad.promise;
     });
 
-    await expect(load.promise).resolves.toEqual({ data: CONFIG, success: true });
+    expect(result.current.config?.theme).toBe("light");
+    expect(result.current.error).toBeNull();
   });
 
-  it("does not report an in-flight load rejection after unmounting", async () => {
-    const load = Promise.withResolvers<unknown>();
+  it("ignores a rejected load from a cleaned-up strict-mode effect", async () => {
+    const staleLoad = Promise.withResolvers<unknown>();
+    const currentLoad = Promise.withResolvers<unknown>();
     vi.stubGlobal("browser", {
-      runtime: { sendMessage: vi.fn<() => Promise<unknown>>(() => load.promise) },
+      runtime: {
+        sendMessage: vi
+          .fn<() => Promise<unknown>>()
+          .mockImplementationOnce(() => staleLoad.promise)
+          .mockImplementationOnce(() => currentLoad.promise),
+      },
     });
-    const { unmount } = renderHook(() => useConfigSettings());
+    const { result } = renderHook(() => useConfigSettings(), { wrapper: StrictMode });
 
-    unmount();
     await act(async () => {
-      load.reject(new Error("Browser disconnected"));
-      await load.promise.catch(() => undefined);
+      currentLoad.resolve({ data: CONFIG, success: true });
+      await currentLoad.promise;
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      staleLoad.reject(new Error("Browser disconnected"));
+      await staleLoad.promise.catch(() => undefined);
     });
 
-    await expect(load.promise).rejects.toThrow("Browser disconnected");
+    expect(result.current.config).toEqual(CONFIG);
+    expect(result.current.error).toBeNull();
   });
 
   it("keeps only the latest successful queued save", async () => {

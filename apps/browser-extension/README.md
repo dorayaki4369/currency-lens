@@ -28,7 +28,7 @@ UIとmanifestの表示名・説明は英語と日本語に対応し、ブラウ�
 | --------------------------- | -------------------------------------------------------------- |
 | `entrypoints/content`       | 選択範囲の監視、ローカルでの金額検出、Shadow DOM内のUI表示     |
 | `entrypoints/background.ts` | メッセージ検証、設定とレートの管理、換算、定期更新             |
-| `entrypoints/popup`         | 換算先通貨などの設定、レート時刻と警告の表示                   |
+| `entrypoints/popup`         | 換算先通貨などの設定、レート状態と古さの表示                   |
 | `entrypoints/options`       | 曖昧な記号の解釈と対応通貨一覧                                 |
 | `lib/currency-detection.ts` | 通貨コード・記号・数値表記の検出                               |
 | `lib/messages.ts`           | Content Script、Popup、Background Script間の実行時検証付き契約 |

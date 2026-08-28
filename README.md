@@ -58,12 +58,13 @@ currency-lens/
 │   └── oxr/                # Open Exchange Ratesクライアントと検証スキーマ
 ├── docs/
 │   ├── architecture.md     # データフロー、正本、境界、失敗時の挙動
-│   └── deployment.md       # GitHub、Cloudflare、ストア公開の設定
+│   ├── deployment.md       # GitHub、Cloudflare、ストア公開の設定
+│   └── design-qa.md        # 実ブラウザでの画面確認と比較画像
 ├── vite.config.ts          # Vite+の共通設定
 └── pnpm-workspace.yaml
 ```
 
-実装上の責務とデータフローは[アーキテクチャ](docs/architecture.md)、外部サービスの初期設定と公開手順は[デプロイとストア公開](docs/deployment.md)を参照してください。
+実装上の責務とデータフローは[アーキテクチャ](docs/architecture.md)、外部サービスの初期設定と公開手順は[デプロイとストア公開](docs/deployment.md)、実ブラウザでの画面確認結果は[画面品質の確認記録](docs/design-qa.md)を参照してください。
 
 ## セットアップ
 

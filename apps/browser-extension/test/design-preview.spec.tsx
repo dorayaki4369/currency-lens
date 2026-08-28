@@ -30,6 +30,7 @@ beforeEach(() => {
 
 afterEach(() => {
   document.body.replaceChildren();
+  window.history.replaceState(null, "", "/");
 });
 
 describe("design preview entrypoints", () => {
@@ -53,6 +54,63 @@ describe("design preview entrypoints", () => {
     expect(callbacks).not.toBeNull();
     callbacks?.onClose();
     callbacks?.setFloating(null);
+  });
+
+  it.each([
+    [
+      "success",
+      {
+        data: expect.any(Object),
+        detection: expect.any(Object),
+        error: null,
+        loading: false,
+      },
+    ],
+    ["loading", { data: null, detection: expect.any(Object), error: null, loading: true }],
+    ["empty", { data: null, detection: null, error: null, loading: false }],
+    [
+      "error",
+      {
+        data: null,
+        detection: expect.any(Object),
+        error: "RATES_UNAVAILABLE",
+        loading: false,
+      },
+    ],
+  ] as const)("renders the conversion %s state", async (state, expectedProps) => {
+    window.history.replaceState(null, "", `/?state=${state}`);
+    appendRoot();
+
+    await importPreview("conversion");
+
+    expect(findConversionPreviewProps(reactRoot.render.mock.calls[0]?.[0])).toEqual(
+      expectedProps,
+    );
+  });
+
+  it("falls back to the success conversion state for an unknown query value", async () => {
+    window.history.replaceState(null, "", "/?state=unsupported");
+    appendRoot();
+
+    await importPreview("conversion");
+
+    expect(findConversionPreviewProps(reactRoot.render.mock.calls[0]?.[0])).toEqual({
+      data: expect.any(Object),
+      detection: expect.any(Object),
+      error: null,
+      loading: false,
+    });
+  });
+
+  it("enables the reduced-motion conversion preview", async () => {
+    window.history.replaceState(null, "", "/?state=loading&motion=reduce");
+    appendRoot();
+
+    await importPreview("conversion");
+
+    expect(findPreviewClassName(reactRoot.render.mock.calls[0]?.[0])).toContain(
+      "cl-preview-reduced-motion",
+    );
   });
 
   it.each(["conversion", "options", "popup"] as const)(
@@ -92,8 +150,40 @@ interface PreviewCallbacks {
 
 interface PreviewElementProps {
   readonly children?: ReactNode;
+  readonly className?: unknown;
+  readonly data?: unknown;
+  readonly detection?: unknown;
+  readonly error?: unknown;
+  readonly loading?: unknown;
   readonly onClose?: unknown;
   readonly setFloating?: unknown;
+}
+
+/** Finds the preview wrapper class list rendered around the conversion card. */
+function findPreviewClassName(node: ReactNode): string | null {
+  for (const child of Children.toArray(node)) {
+    if (!isValidElement<PreviewElementProps>(child)) {
+      continue;
+    }
+    if (
+      typeof child.props.className === "string" &&
+      child.props.className.includes("cl-preview-lens")
+    ) {
+      return child.props.className;
+    }
+    const nestedClassName = findPreviewClassName(child.props.children);
+    if (nestedClassName !== null) {
+      return nestedClassName;
+    }
+  }
+  return null;
+}
+
+interface ConversionPreviewProps {
+  readonly data: unknown;
+  readonly detection: unknown;
+  readonly error: unknown;
+  readonly loading: boolean;
 }
 
 /** Finds the callback props created inside the conversion preview JSX. */
@@ -109,6 +199,29 @@ function findPreviewCallbacks(node: ReactNode): PreviewCallbacks | null {
     const nestedCallbacks = findPreviewCallbacks(child.props.children);
     if (nestedCallbacks !== null) {
       return nestedCallbacks;
+    }
+  }
+  return null;
+}
+
+/** Finds the state props passed to the conversion card preview. */
+function findConversionPreviewProps(node: ReactNode): ConversionPreviewProps | null {
+  for (const child of Children.toArray(node)) {
+    if (!isValidElement<PreviewElementProps>(child)) {
+      continue;
+    }
+    const { data, detection, error, loading } = child.props;
+    if (
+      Object.hasOwn(child.props, "data") &&
+      Object.hasOwn(child.props, "detection") &&
+      Object.hasOwn(child.props, "error") &&
+      typeof loading === "boolean"
+    ) {
+      return { data, detection, error, loading };
+    }
+    const nestedProps = findConversionPreviewProps(child.props.children);
+    if (nestedProps !== null) {
+      return nestedProps;
     }
   }
   return null;

@@ -93,6 +93,15 @@ body {
   margin-top: 112px;
 }
 
+.cl-preview-reduced-motion *,
+.cl-preview-reduced-motion *::before,
+.cl-preview-reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+
 @media (max-width: 900px) {
   .cl-preview-page {
     grid-template-columns: 1fr;

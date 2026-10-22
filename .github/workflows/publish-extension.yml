@@ -39,7 +39,7 @@ jobs:
 
       - name: Reject environment files
         run: |
-          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) -print -quit)"
+          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) ! -name '*.example' -print -quit)"
           if [[ -n "$blocked_path" ]]; then
             echo "::error title=Environment file in checkout::$blocked_path must not be present in the repository."
             exit 1
@@ -135,7 +135,7 @@ jobs:
 
       - name: Reject environment files
         run: |
-          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) -print -quit)"
+          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) ! -name '*.example' -print -quit)"
           if [[ -n "$blocked_path" ]]; then
             echo "::error title=Environment file in checkout::$blocked_path must not be present in the repository."
             exit 1
@@ -188,21 +188,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check formatting
-        run: pnpm format:check
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Type-check
-        run: pnpm typecheck
+      - name: Check format, lint, and types
+        run: pnpm check
 
       - name: Test
         run: pnpm test
 
       - name: Build Chrome and Firefox packages
         run: |
-          pnpm --filter @cl/currency build
           pnpm --dir apps/browser-extension build
           pnpm --dir apps/browser-extension build:firefox
           pnpm --dir apps/browser-extension zip
@@ -251,7 +244,7 @@ jobs:
             pnpm-lock.yaml
             pnpm-workspace.yaml
             apps/browser-extension/package.json
-            apps/browser-extension/SOURCE_CODE_REVIEW.md
+            SOURCE_CODE_REVIEW.md
             packages/currency/package.json
           )
           for required_file in "${required_source_files[@]}"; do
@@ -264,7 +257,6 @@ jobs:
           (
             cd "$source_root"
             pnpm install --frozen-lockfile
-            pnpm --filter @cl/currency build
             pnpm --dir apps/browser-extension zip:firefox
           )
 

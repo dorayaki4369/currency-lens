@@ -2,10 +2,10 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 
 const run = vi.hoisted(() => vi.fn(async () => undefined));
 
-vi.mock("./run-wxt-without-env.ts", () => ({ runWxtCli: run }));
+vi.mock("@/scripts/run-wxt-without-env.ts", () => ({ runWxtCli: run }));
 
 const originalExitCode = process.exitCode;
-await import("./run-wxt-without-env.mjs");
+await import("@/scripts/run-wxt-without-env.mjs");
 
 afterAll(() => {
   process.exitCode = originalExitCode;

@@ -11,7 +11,7 @@ const wxtBin = join(packageRoot, "node_modules", "wxt", "bin", "wxt.mjs");
 const publishExtensionBin = fileURLToPath(
   import.meta.resolve("publish-browser-extension/cli"),
 );
-const localApiEndpointOption = "--use-local-api-endpoint";
+const LOCAL_API_ENDPOINT = "http://localhost:8787";
 const projectCommands = new Set(["build", "clean", "cleanup", "prepare", "zip"]);
 const publishCommands = new Set(["publish-extension", "submit"]);
 const forwardedSignals = ["SIGINT", "SIGTERM"] as const;
@@ -52,10 +52,8 @@ export async function runWxtWithoutEnv(
   const safeWorkingDirectory = await createTemporaryDirectory(
     join(tmpdir(), "currency-lens-wxt-"),
   );
-  const { useLocalApiEndpoint, userArguments } = parseUserArguments(rawUserArguments);
-  if (useLocalApiEndpoint) {
-    environment["API_ENDPOINT"] = "http://localhost:8787";
-  }
+  const userArguments = parseUserArguments(rawUserArguments);
+  applyLocalApiEndpointDefault(environment, userArguments);
 
   const command = createCommand(userArguments);
   const child = spawnChild(process.execPath, [command.bin, ...command.arguments], {
@@ -79,21 +77,24 @@ export async function runWxtWithoutEnv(
   }
 }
 
-/** Removes wrapper-only options before forwarding CLI arguments. */
-export function parseUserArguments(rawUserArguments: readonly string[]): {
-  readonly useLocalApiEndpoint: boolean;
-  readonly userArguments: readonly string[];
-} {
-  const useLocalApiEndpoint = rawUserArguments[0] === localApiEndpointOption;
-  const argumentsAfterOptions = useLocalApiEndpoint
-    ? rawUserArguments.slice(1)
-    : rawUserArguments;
-  const userArguments =
-    argumentsAfterOptions[0] === "--"
-      ? argumentsAfterOptions.slice(1)
-      : argumentsAfterOptions;
+/** Removes the package-manager argument delimiter before forwarding CLI arguments. */
+export function parseUserArguments(rawUserArguments: readonly string[]): readonly string[] {
+  return rawUserArguments[0] === "--" ? rawUserArguments.slice(1) : rawUserArguments;
+}
 
-  return { useLocalApiEndpoint, userArguments };
+/** Points local development at the local Worker when no endpoint is configured. */
+export function applyLocalApiEndpointDefault(
+  environment: Environment,
+  userArguments: readonly string[],
+): void {
+  const [command] = userArguments;
+  // WXT starts its development server when no subcommand is given.
+  const isLocalCommand =
+    command === undefined || command.startsWith("-") || command === "prepare";
+  const configuredEndpoint = environment["API_ENDPOINT"]?.trim();
+  if (isLocalCommand && (configuredEndpoint === undefined || configuredEndpoint === "")) {
+    environment["API_ENDPOINT"] = LOCAL_API_ENDPOINT;
+  }
 }
 
 /** Selects the dedicated publishing CLI without resolving project config. */

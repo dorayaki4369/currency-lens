@@ -28,8 +28,6 @@ export const configSchema = z
     favorites: favoriteCurrenciesSchema,
     symbolOverrides: symbolOverridesSchema,
     theme: z.enum(["light", "dark", "system"]),
-    showCurrencyIcon: z.boolean(),
-    showCurrencyCode: z.boolean(),
   })
   .strict();
 

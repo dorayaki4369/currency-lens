@@ -4,7 +4,7 @@ import {
   RATE_REFRESH_PERIOD_MINUTES,
   ensureRateRefreshAlarm,
   type AlarmScheduler,
-} from "./rate-refresh";
+} from "@/lib/rate-refresh";
 
 describe("ensureRateRefreshAlarm", () => {
   it("creates a missing periodic alarm", async () => {

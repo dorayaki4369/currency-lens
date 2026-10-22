@@ -1,15 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CurrencyCode } from "@cl/currency";
-import { currencyCodeSchema } from "./currency";
+import { currencyCodeSchema } from "@/lib/currency";
 import {
   RATE_STALE_AFTER_MS,
+  convertedResultSchema,
   convertCurrencyBatch,
   createExchangeRateCache,
   fetchExchangeRateCache,
   formatCurrencyAmount,
   getRateSnapshot,
   isExchangeRateCacheStale,
-} from "./rates";
+} from "@/lib/rates";
 
 const SOURCE_TIMESTAMP_SECONDS = 1_700_000_000;
 const SOURCE_TIMESTAMP_MS = SOURCE_TIMESTAMP_SECONDS * 1_000;
@@ -63,6 +64,33 @@ describe("createExchangeRateCache", () => {
         timestamp: SOURCE_TIMESTAMP_SECONDS,
       }),
     ).toThrow(/base currency rate/u);
+  });
+});
+
+describe("convertedResultSchema", () => {
+  it("rejects non-numeric converted values at the runtime-message boundary", () => {
+    const result = {
+      amount: 10,
+      convertedAmount: "15.25",
+      fractionDigits: 2,
+      fromCurrency: "USD",
+      rate: "1.525e0",
+      sourceIndex: 0,
+      status: "converted",
+      toCurrency: "EUR",
+    };
+
+    expect(convertedResultSchema.safeParse(result).success).toBe(true);
+    expect(
+      convertedResultSchema.safeParse({ ...result, convertedAmount: "not-a-number" })
+        .success,
+    ).toBe(false);
+    expect(
+      convertedResultSchema.safeParse({ ...result, convertedAmount: "1e9999" }).success,
+    ).toBe(false);
+    expect(convertedResultSchema.safeParse({ ...result, rate: "Infinity" }).success).toBe(
+      false,
+    );
   });
 });
 
@@ -129,18 +157,18 @@ describe("fetchExchangeRateCache", () => {
 });
 
 describe("getRateSnapshot", () => {
-  it("warns only after source data exceeds 24 hours", () => {
+  it("warns when source data reaches 24 hours old", () => {
     const cache = makeCache();
 
-    expect(getRateSnapshot(cache, SOURCE_TIMESTAMP_MS + RATE_STALE_AFTER_MS).isStale).toBe(
-      false,
+    expect(getRateSnapshot(cache, SOURCE_TIMESTAMP_MS + RATE_STALE_AFTER_MS)).toMatchObject(
+      {
+        isStale: true,
+        warnings: [{ code: "RATES_STALE" }],
+      },
     );
     expect(
-      getRateSnapshot(cache, SOURCE_TIMESTAMP_MS + RATE_STALE_AFTER_MS + 1),
-    ).toMatchObject({
-      isStale: true,
-      warnings: [{ code: "RATES_STALE" }],
-    });
+      getRateSnapshot(cache, SOURCE_TIMESTAMP_MS + RATE_STALE_AFTER_MS - 1).isStale,
+    ).toBe(false);
   });
 
   it("checks freshness against the current time by default", () => {

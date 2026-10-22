@@ -1,9 +1,33 @@
 import type { CurrencyCode } from "@cl/currency";
-import { useCallback, useEffect, useId, useRef, type CSSProperties } from "react";
-import { Clock3, X } from "../../shared/Icons";
-import type { DetectedCurrency } from "../../../lib/currency-detection";
-import { translate, type UiLocale } from "../../../lib/i18n";
-import type { ConversionResult } from "../../../lib/rates";
+import { CircleAlert, X } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+  type ReactNode,
+} from "react";
+import type { DetectedCurrency } from "@/lib/currency-detection";
+import type { CurrencyDropPlacement } from "@/lib/currency-order";
+import { translate, type UiLocale } from "@/lib/i18n";
+import type { ConversionResult } from "@/lib/rates";
+import {
+  ConversionEditor,
+  parseConversionSourceAmount,
+  type ConversionTargetEditing,
+} from "@/components/conversion/ConversionEditor";
+import { createConversionTargetAmounts } from "@/components/conversion/conversion-target-amounts";
+import { RateTimestamp } from "@/components/conversion/RateTimestamp";
+import { Stack } from "@/components/layout/Stack";
+import { IconButton } from "@/components/ui/icon-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface ConversionPopupData {
   readonly base: CurrencyCode;
@@ -15,6 +39,8 @@ export interface ConversionPopupData {
 
 export type ConversionDismissReason = "close-button" | "escape" | "outside-pointer";
 
+export type ConversionSource = DetectedCurrency;
+
 interface ConversionPopupProps {
   readonly data: ConversionPopupData | null;
   readonly detection: DetectedCurrency | null;
@@ -23,13 +49,22 @@ interface ConversionPopupProps {
   readonly loading: boolean;
   readonly locale: UiLocale;
   readonly onClose: (reason: ConversionDismissReason) => void;
+  readonly onReorderTarget?:
+    | ((
+        sourceCurrency: CurrencyCode,
+        targetCurrency: CurrencyCode,
+        placement: CurrencyDropPlacement,
+      ) => void)
+    | undefined;
+  readonly onSourceChange?: ((source: ConversionSource | null) => void) | undefined;
+  readonly settingsSaveFailed?: boolean | undefined;
   readonly setFloating: (element: HTMLElement | null) => void;
-  readonly showCurrencyCode: boolean;
-  readonly showCurrencyIcon: boolean;
+  readonly targetCurrencies?: readonly CurrencyCode[] | undefined;
+  readonly targetEditing?: ConversionTargetEditing | undefined;
   readonly visible: boolean;
 }
 
-/** Displays one selected monetary amount against the configured conversion targets. */
+/** Displays one selected amount in a native top-layer dialog containing a shadcn card. */
 export function ConversionPopup({
   data,
   detection,
@@ -38,78 +73,82 @@ export function ConversionPopup({
   loading,
   locale,
   onClose,
+  onReorderTarget,
+  onSourceChange,
+  settingsSaveFailed = false,
   setFloating,
-  showCurrencyCode,
-  showCurrencyIcon,
+  targetCurrencies,
+  targetEditing,
   visible,
 }: ConversionPopupProps) {
   const titleId = useId();
-  const popupReference = useRef<HTMLDivElement>(null);
-  const closeButtonReference = useRef<HTMLButtonElement>(null);
+  const popupReference = useRef<HTMLDialogElement>(null);
   const setReferences = useCallback(
-    (element: HTMLDivElement | null) => {
+    (element: HTMLDialogElement | null) => {
       popupReference.current = element;
       setFloating(element);
     },
     [setFloating],
   );
 
+  useTopLayerDialog(visible, popupReference);
   useDismissableLayer(visible, popupReference, onClose);
-
-  useEffect(() => {
-    if (visible) {
-      closeButtonReference.current?.focus();
-    }
-  }, [visible]);
 
   if (!visible) {
     return null;
   }
 
   return (
-    <section
+    <dialog
       aria-labelledby={titleId}
-      aria-live="polite"
-      className="cl-conversion-card"
+      className="inset-auto m-0 w-96 max-h-none max-w-[calc(100vw_-_--spacing(6))] overflow-visible border-0 bg-transparent p-0 text-inherit outline-none backdrop:bg-transparent"
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose("escape");
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose("escape");
+        }
+      }}
+      popover="manual"
       ref={setReferences}
-      role="dialog"
       style={floatingStyles}
+      tabIndex={-1}
     >
-      <header className="cl-conversion-card__header">
-        <div className="cl-brand-lockup cl-brand-lockup--compact">
-          <span aria-hidden="true" className="cl-aperture cl-aperture--tiny">
-            <span className="cl-aperture__core" />
-          </span>
-          <div>
-            <p className="cl-eyebrow">{translate(locale, "selectionFound")}</p>
-            <h2 className="cl-conversion-card__title" id={titleId}>
-              {translate(locale, "appName")}
-            </h2>
-          </div>
-        </div>
-        <button
-          aria-label={translate(locale, "closeApp")}
-          className="cl-icon-button"
+      <Card className="relative w-full bg-background shadow-lg" spacing="compact">
+        <h2 className="sr-only" id={titleId}>
+          {translate(locale, "conversionResult")}
+        </h2>
+        <IconButton
+          className="absolute top-2 right-2 z-10"
+          label={translate(locale, "closeApp")}
           onClick={() => onClose("close-button")}
-          ref={closeButtonReference}
+          size="icon-sm"
           type="button"
+          variant="ghost"
         >
           <X aria-hidden="true" />
-        </button>
-      </header>
+        </IconButton>
 
-      <div className="cl-conversion-card__body">
-        <ConversionCardBody
-          data={data}
-          detection={detection}
-          error={error}
-          loading={loading}
-          locale={locale}
-          showCurrencyCode={showCurrencyCode}
-          showCurrencyIcon={showCurrencyIcon}
-        />
-      </div>
-    </section>
+        <CardContent className="pt-6">
+          <ConversionCardBody
+            data={data}
+            detection={detection}
+            error={error}
+            loading={loading}
+            locale={locale}
+            onReorderTarget={onReorderTarget}
+            onSourceChange={onSourceChange}
+            settingsSaveFailed={settingsSaveFailed}
+            targetCurrencies={targetCurrencies}
+            targetEditing={targetEditing}
+          />
+        </CardContent>
+      </Card>
+    </dialog>
   );
 }
 
@@ -120,166 +159,280 @@ type ConversionCardBodyProps = Pick<
   | "error"
   | "loading"
   | "locale"
-  | "showCurrencyCode"
-  | "showCurrencyIcon"
+  | "onReorderTarget"
+  | "onSourceChange"
+  | "settingsSaveFailed"
+  | "targetCurrencies"
+  | "targetEditing"
 >;
 
-/** Selects exactly one mutually exclusive body state for the conversion card. */
+/** Selects exactly one mutually exclusive body state. */
 function ConversionCardBody({
   data,
   detection,
   error,
   loading,
   locale,
-  showCurrencyCode,
-  showCurrencyIcon,
+  onReorderTarget,
+  onSourceChange,
+  settingsSaveFailed = false,
+  targetCurrencies,
+  targetEditing,
 }: ConversionCardBodyProps) {
-  if (loading) {
-    return <ConversionSkeleton locale={locale} />;
-  }
-  if (error !== null) {
-    return <ErrorState error={error} locale={locale} />;
-  }
-  if (data === null || detection === null) {
-    return <p className="cl-empty-state">{translate(locale, "conversionEmpty")}</p>;
+  if (detection === null) {
+    if (loading) {
+      return <ConversionSkeleton locale={locale} />;
+    }
+    if (error !== null) {
+      return <ErrorState error={error} locale={locale} />;
+    }
+    return (
+      <p className="py-6 text-center text-sm text-muted-foreground">
+        {translate(locale, "conversionEmpty")}
+      </p>
+    );
   }
   return (
     <ConversionDetails
       data={data}
       detection={detection}
+      error={error}
+      loading={loading}
       locale={locale}
-      showCurrencyCode={showCurrencyCode}
-      showCurrencyIcon={showCurrencyIcon}
+      onReorderTarget={onReorderTarget}
+      onSourceChange={onSourceChange}
+      settingsSaveFailed={settingsSaveFailed}
+      targetCurrencies={targetCurrencies}
+      targetEditing={targetEditing}
     />
   );
 }
 
 interface ConversionDetailsProps {
-  readonly data: ConversionPopupData;
+  readonly data: ConversionPopupData | null;
   readonly detection: DetectedCurrency;
+  readonly error: string | null;
+  readonly loading: boolean;
   readonly locale: UiLocale;
-  readonly showCurrencyCode: boolean;
-  readonly showCurrencyIcon: boolean;
+  readonly onReorderTarget?: ConversionPopupProps["onReorderTarget"];
+  readonly onSourceChange?: ((source: ConversionSource | null) => void) | undefined;
+  readonly settingsSaveFailed: boolean;
+  readonly targetCurrencies?: readonly CurrencyCode[] | undefined;
+  readonly targetEditing?: ConversionTargetEditing | undefined;
 }
 
-/** Renders the single source amount and its ordered conversion-target results. */
+type RatePresentation = Pick<ConversionPopupData, "isStale" | "sourceTimestamp">;
+
+/** Renders the source amount and ordered conversion results. */
 function ConversionDetails({
   data,
   detection,
+  error,
+  loading,
   locale,
-  showCurrencyCode,
-  showCurrencyIcon,
+  onReorderTarget,
+  onSourceChange,
+  settingsSaveFailed,
+  targetCurrencies,
+  targetEditing,
 }: ConversionDetailsProps) {
-  const results = data.results.filter((result) => result.sourceIndex === 0);
-  const collidingCurrencyMarks = getCollidingCurrencyMarks(results, locale);
+  const [amountText, setAmountText] = useState(String(detection.amount));
+  const [currencyCode, setCurrencyCode] = useState(detection.currencyCode);
+  const lastRatePresentation = useRef<RatePresentation | null>(
+    data === null
+      ? null
+      : {
+          isStale: data.isStale,
+          sourceTimestamp: data.sourceTimestamp,
+        },
+  );
+  const sourceAmount = parseConversionSourceAmount(amountText);
+  const sourceIsValid = sourceAmount !== null;
+  const sourceResults = useMemo(
+    () => data?.results.filter((result) => result.sourceIndex === 0) ?? [],
+    [data],
+  );
+  const displayedTargetCurrencies = useMemo(
+    () => targetCurrencies ?? sourceResults.map((result) => result.toCurrency),
+    [sourceResults, targetCurrencies],
+  );
+  const targetAmounts = useMemo(
+    () =>
+      createConversionTargetAmounts({
+        currencyCodes: displayedTargetCurrencies,
+        loading:
+          targetCurrencies !== undefined && error === null && (loading || data === null),
+        locale,
+        results: sourceResults,
+        sourceIsValid,
+      }),
+    [
+      data,
+      displayedTargetCurrencies,
+      error,
+      loading,
+      locale,
+      sourceIsValid,
+      sourceResults,
+      targetCurrencies,
+    ],
+  );
+  const targetFallback = sourceIsValid
+    ? getConversionTargetFallback(
+        data,
+        error,
+        loading,
+        locale,
+        targetCurrencies === undefined,
+      )
+    : undefined;
+
+  useEffect(() => {
+    setAmountText(String(detection.amount));
+  }, [detection.amount]);
+
+  useEffect(() => {
+    setCurrencyCode(detection.currencyCode);
+  }, [detection.currencyCode]);
+
+  useEffect(() => {
+    if (data !== null) {
+      lastRatePresentation.current = {
+        isStale: data.isStale,
+        sourceTimestamp: data.sourceTimestamp,
+      };
+    }
+  }, [data]);
+
+  const ratePresentation = error === null ? (data ?? lastRatePresentation.current) : null;
+
+  const notifySourceChange = (nextAmountText: string, nextCurrency: CurrencyCode) => {
+    const nextAmount = parseConversionSourceAmount(nextAmountText);
+    onSourceChange?.(
+      nextAmount === null
+        ? null
+        : {
+            ...detection,
+            amount: nextAmount,
+            currencyCode: nextCurrency,
+          },
+    );
+  };
 
   return (
-    <div className="cl-conversion-content">
-      {data.isStale ? (
-        <div className="cl-notice cl-notice--warning" role="status">
-          <Clock3 aria-hidden="true" />
-          {translate(locale, "ratesStale")}
-        </div>
+    <Stack gap={3}>
+      {settingsSaveFailed ? (
+        <Alert role="alert" variant="destructive">
+          <CircleAlert aria-hidden="true" />
+          <AlertDescription>{translate(locale, "autoSaveError")}</AlertDescription>
+        </Alert>
       ) : null}
 
-      <article className="cl-conversion-group">
-        <header className="cl-conversion-group__source">
-          <span className="cl-source-text">{detection.originalText}</span>
-          <span className="cl-code-pill">{detection.currencyCode}</span>
-        </header>
-        <div className="cl-result-list">
-          {results.map((result) => (
-            <ConversionRow
-              key={result.toCurrency}
+      <ConversionEditor
+        amountText={amountText}
+        currencyCode={currencyCode}
+        locale={locale}
+        onAmountTextChange={(nextAmountText) => {
+          setAmountText(nextAmountText);
+          notifySourceChange(nextAmountText, currencyCode);
+        }}
+        onCurrencyChange={(nextCurrency) => {
+          setCurrencyCode(nextCurrency);
+          notifySourceChange(amountText, nextCurrency);
+        }}
+        onReorderTarget={onReorderTarget}
+        portalled={false}
+        sourceHeadingLevel={3}
+        targetAmounts={targetAmounts}
+        targetCurrencies={displayedTargetCurrencies}
+        targetEditing={targetEditing}
+        targetFallback={targetFallback}
+        targetFooter={
+          sourceIsValid && ratePresentation !== null ? (
+            <RateTimestamp
+              isStale={ratePresentation.isStale}
               locale={locale}
-              result={result}
-              showCurrencyCode={showCurrencyCode}
-              showCurrencyCodeForCollision={collidingCurrencyMarks.has(
-                getCurrencyMark(result.toCurrency, locale),
-              )}
-              showCurrencyIcon={showCurrencyIcon}
+              sourceTimestamp={ratePresentation.sourceTimestamp}
             />
-          ))}
-        </div>
-      </article>
-
-      <footer className="cl-conversion-card__footer">
-        <span className="cl-live-dot" />
-        {translate(locale, "ratesFrom", {
-          timestamp: formatTimestamp(data.sourceTimestamp, locale),
-        })}
-      </footer>
-    </div>
+          ) : undefined
+        }
+        targetHeadingLevel={3}
+        targetTitle={translate(locale, "convertedHeading")}
+      />
+    </Stack>
   );
 }
 
-interface ConversionRowProps {
-  readonly locale: UiLocale;
-  readonly result: ConversionResult;
-  readonly showCurrencyCode: boolean;
-  readonly showCurrencyCodeForCollision: boolean;
-  readonly showCurrencyIcon: boolean;
-}
-
-/** Renders a successful target value or a localized unavailable result. */
-function ConversionRow({
-  locale,
-  result,
-  showCurrencyCode,
-  showCurrencyCodeForCollision,
-  showCurrencyIcon,
-}: ConversionRowProps) {
-  const mark = getCurrencyMark(result.toCurrency, locale);
-  const shouldShowCurrencyCode =
-    showCurrencyCode || !showCurrencyIcon || showCurrencyCodeForCollision;
-
-  return (
-    <div className="cl-result-row">
-      <div className="cl-result-row__currency">
-        {showCurrencyIcon ? (
-          <span aria-hidden="true" className="cl-currency-mark">
-            {mark}
-          </span>
-        ) : null}
-        {shouldShowCurrencyCode ? <span>{result.toCurrency}</span> : null}
-      </div>
-      {result.status === "converted" ? (
-        <strong className="cl-result-row__value">
-          {formatDecimal(result.convertedAmount, result.fractionDigits, locale)}
-        </strong>
-      ) : (
-        <span className="cl-result-row__unavailable">
-          {translate(locale, "conversionUnavailable")}
-        </span>
-      )}
-    </div>
-  );
-}
-
-/** Finds narrow symbols that identify more than one target in the same result list. */
-function getCollidingCurrencyMarks(
-  results: readonly ConversionResult[],
+/** Selects the one non-list target body used for loading, error, or empty data. */
+function getConversionTargetFallback(
+  data: ConversionPopupData | null,
+  error: string | null,
+  loading: boolean,
   locale: UiLocale,
-): ReadonlySet<string> {
-  const currenciesByMark = new Map<string, Set<CurrencyCode>>();
-  for (const result of results) {
-    const mark = getCurrencyMark(result.toCurrency, locale);
-    const currencyCodes = currenciesByMark.get(mark) ?? new Set<CurrencyCode>();
-    currencyCodes.add(result.toCurrency);
-    currenciesByMark.set(mark, currencyCodes);
+  useBoundaryFallback: boolean,
+): ReactNode | undefined {
+  if (loading && useBoundaryFallback) {
+    return <ConversionResultsSkeleton locale={locale} />;
   }
+  if (error !== null) {
+    return <ErrorState error={error} locale={locale} />;
+  }
+  if (data === null && useBoundaryFallback) {
+    return (
+      <p className="py-6 text-center text-sm text-muted-foreground">
+        {translate(locale, "conversionEmpty")}
+      </p>
+    );
+  }
+  return undefined;
+}
 
-  return new Set(
-    [...currenciesByMark.entries()]
-      .filter(([, currencyCodes]) => currencyCodes.size > 1)
-      .map(([mark]) => mark),
-  );
+type DialogPresentation = "modal" | "popover";
+
+/** Promotes the dialog to the document top layer without making the host page inert. */
+function useTopLayerDialog(
+  visible: boolean,
+  dialogReference: RefObject<HTMLDialogElement | null>,
+): void {
+  useLayoutEffect(() => {
+    if (!visible) {
+      return undefined;
+    }
+    const dialog = dialogReference.current!;
+    const presentation = showDialog(dialog);
+    return () => hideDialog(dialog, presentation);
+  }, [dialogReference, visible]);
+}
+
+/** Uses the Popover API first and retains a native-dialog fallback for older browsers. */
+function showDialog(dialog: HTMLDialogElement): DialogPresentation {
+  if (typeof dialog.showPopover === "function") {
+    try {
+      dialog.showPopover();
+      dialog.focus({ preventScroll: true });
+      return "popover";
+    } catch {
+      dialog.removeAttribute("popover");
+    }
+  }
+  dialog.showModal();
+  dialog.focus({ preventScroll: true });
+  return "modal";
+}
+
+/** Reverses exactly the presentation mechanism used when the dialog was shown. */
+function hideDialog(dialog: HTMLDialogElement, presentation: DialogPresentation): void {
+  if (presentation === "popover") {
+    dialog.hidePopover();
+    return;
+  }
+  dialog.close();
 }
 
 /** Wires Escape and outside-pointer dismissal across the open shadow boundary. */
 function useDismissableLayer(
   visible: boolean,
-  popupReference: React.RefObject<HTMLDivElement | null>,
+  popupReference: RefObject<HTMLElement | null>,
   onClose: (reason: ConversionDismissReason) => void,
 ): void {
   useEffect(() => {
@@ -308,59 +461,32 @@ function useDismissableLayer(
   }, [onClose, popupReference, visible]);
 }
 
-/** Produces a locale-aware currency glyph without requiring external icon assets. */
-function getCurrencyMark(currencyCode: CurrencyCode, locale: UiLocale): string {
-  try {
-    const currencyPart = new Intl.NumberFormat(locale, {
-      currency: currencyCode,
-      currencyDisplay: "narrowSymbol",
-      style: "currency",
-    })
-      .formatToParts(0)
-      .find((part) => part.type === "currency");
-    return currencyPart?.value ?? currencyCode.slice(0, 1);
-  } catch {
-    return currencyCode.slice(0, 1);
-  }
-}
-
-/** Adds grouping while respecting the precision chosen by the conversion layer. */
-function formatDecimal(value: string, fractionDigits: number, locale: UiLocale): string {
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) {
-    return value;
-  }
-  const decimalPointIndex = value.indexOf(".");
-  const significantFractionDigits =
-    decimalPointIndex === -1 ? 0 : value.length - decimalPointIndex - 1;
-  return new Intl.NumberFormat(locale, {
-    maximumFractionDigits: fractionDigits,
-    minimumFractionDigits: Math.min(significantFractionDigits, fractionDigits),
-  }).format(numericValue);
-}
-
-/** Formats the rate timestamp in the same language as the surrounding card. */
-function formatTimestamp(timestamp: number, locale: UiLocale): string {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(timestamp);
-}
-
-function ConversionSkeleton({ locale }: { readonly locale: UiLocale }) {
+/** Preserves the result-list shape while conversion data is loading. */
+function ConversionResultsSkeleton({ locale }: { readonly locale: UiLocale }) {
   return (
-    <div
+    <Stack
       aria-label={translate(locale, "loadingConversion")}
-      className="cl-skeleton"
+      className="rounded-lg border p-3"
       role="status"
     >
-      <span className="cl-skeleton__line cl-skeleton__line--short" />
-      <span className="cl-skeleton__line" />
-      <span className="cl-skeleton__line" />
-    </div>
+      <Skeleton className="h-9 w-full" />
+      <Skeleton className="h-9 w-full" />
+    </Stack>
   );
 }
 
+/** Preserves the full conversion-card shape before a source is available. */
+function ConversionSkeleton({ locale }: { readonly locale: UiLocale }) {
+  return (
+    <Stack aria-label={translate(locale, "loadingConversion")} gap={3} role="status">
+      <Skeleton className="h-9 w-2/3" />
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-12 w-full" />
+    </Stack>
+  );
+}
+
+/** Presents a localized conversion failure without leaking boundary details. */
 function ErrorState({
   error,
   locale,
@@ -370,19 +496,16 @@ function ErrorState({
 }) {
   const isMissingTarget = error === "MISSING_CONVERSION_TARGET";
   return (
-    <div className="cl-error-state" role="alert">
-      <span aria-hidden="true" className="cl-error-state__mark">
-        !
-      </span>
-      <div>
-        <strong>
-          {translate(
-            locale,
-            isMissingTarget ? "conversionMissingTarget" : "conversionError",
-          )}
-        </strong>
-        {isMissingTarget ? null : <p>{translate(locale, "conversionRetry")}</p>}
-      </div>
-    </div>
+    <Alert variant="destructive">
+      <CircleAlert aria-hidden="true" />
+      <AlertTitle>
+        {translate(locale, isMissingTarget ? "conversionMissingTarget" : "conversionError")}
+      </AlertTitle>
+      {isMissingTarget ? null : (
+        <AlertDescription className="text-pretty">
+          {translate(locale, "conversionRetry")}
+        </AlertDescription>
+      )}
+    </Alert>
   );
 }

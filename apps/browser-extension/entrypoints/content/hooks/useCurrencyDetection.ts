@@ -3,7 +3,7 @@ import {
   detectCurrencies,
   type CurrencyDetectionOptions,
   type DetectedCurrency,
-} from "../../../lib/currency-detection";
+} from "@/lib/currency-detection";
 
 /** Memoizes pure money detection for the current selection and locale hints. */
 export function useCurrencyDetection(

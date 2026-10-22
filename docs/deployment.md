@@ -1,8 +1,15 @@
 # デプロイとストア公開
 
-このリポジトリでは、品質検査とブラウザ拡張機能のストア提出をGitHub Actions、Cloudflare WorkersへのデプロイをCloudflare Workers Buildsで実行します。GitHub Actionsの各Workflowは依存関係を導入する前に`.env`、`.env.*`、`.dev.vars`、`.dev.vars.*`の存在だけを検査し、見つけた場合は内容を読まずに停止します。ブラウザストアの認証情報はGitHubのRepository secretsから、存在確認とWXTによる提出のstepにだけ渡します。
+この文書は、品質検査、Workerのデプロイ、ブラウザ拡張機能のストア提出を動かすための外部設定と、公開の手順をまとめたものです。
+
+- 品質検査とストア提出は、GitHub Actionsが実行します。
+- Cloudflare WorkerのデプロイはCloudflare Workers Buildsが実行します。
+
+GitHub Actionsの各Workflowは、依存関係を入れる前に環境ファイルがないことを確かめます。`.env`、`.env.*`、`.dev.vars`、`.dev.vars.*`のどれかが見つかった場合は、中身を読まずに停止します。値を含まない`.env.example`と`.dev.vars.example`は対象外です。
 
 ## 自動化
+
+Node.jsのバージョンは、ローカル（mise）、GitHub Actions、Cloudflare Workers Buildsのどれも`.node-version`から読みます。pnpmのバージョンは、ローカルとGitHub Actionsでは`package.json`の`packageManager`から読みます。
 
 | 実行基盤                  | 設定                    | 起動条件                                                       | 処理                                                                                |
 | ------------------------- | ----------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -10,13 +17,15 @@
 | GitHub Actions            | `publish-extension.yml` | `vMAJOR.MINOR.PATCH`の安定版GitHub Release公開、または手動実行 | Worker成功と公開API契約を確認後、Chrome版とFirefox版をビルドしてWXTで両ストアへ提出 |
 | Cloudflare Workers Builds | CloudflareのWorker設定  | `main`へのpush                                                 | productionへWorkerをデプロイ                                                        |
 
-GitHub Actionsの全WorkflowはNode.js 24とpnpm 11を使います。外部Actionはcommit SHAで固定し、Dependabotが更新を提案します。WorkerをデプロイするGitHub Actions Workflowは置かず、同じ`main`更新から二重にデプロイしないようにします。ストア公開Workflowには`checks: read`だけを追加し、release commitと同じSHAにCloudflareの成功したCheck Runがあることを検証します。
+- 外部のActionはcommit SHAで固定し、Dependabotが更新を提案します。
+- WorkerをデプロイするGitHub ActionsのWorkflowは置きません。同じ`main`の更新でWorkerが二重にデプロイされるのを防ぐためです。
+- ストア公開Workflowには、権限として`checks: read`だけを追加します。release commitと同じSHAで、CloudflareのCheck Runが成功していることを確かめるためです。
 
 ## GitHubの設定
 
 ### ブランチルール
 
-`main`と`develop`にRulesetを設定し、次の制約を有効にします。個人開発でもPull Requestを必須にしつつ、レビュー担当者がいないため承認数は0とします。共同開発へ移行した時点で1以上へ変更してください。
+`main`と`develop`にRulesetを設定し、次の制約を有効にします。個人開発でもPull Requestは必須にしますが、レビューする人がいないため、必須の承認数は0にしています。共同開発に移ったら1以上にしてください。
 
 | 設定                                | `develop` | `main` | 理由                                               |
 | ----------------------------------- | --------- | ------ | -------------------------------------------------- |
@@ -27,9 +36,9 @@ GitHub Actionsの全WorkflowはNode.js 24とpnpm 11を使います。外部Actio
 | 未解決conversationを残したmerge禁止 | 有効      | 有効   | 指摘を解消してからmergeする                        |
 | force push／branch削除              | 禁止      | 禁止   | 履歴と配布元branchを保護する                       |
 
-`ci.yml`は`main`向けPull Requestのheadが同じリポジトリの`develop`でなければ失敗するため、`develop`から`main`への昇格経路も同じcheckで強制されます。feature branchは`develop`へsquash mergeし、`develop`から`main`へはmerge commitを使います。
+feature branchは`develop`へsquash mergeし、`develop`から`main`へはmerge commitで取り込みます。`main`向けのPull Requestは、headが同じリポジトリの`develop`でなければ`ci.yml`が失敗します。このため、`main`へ入る経路は`develop`からの昇格だけになります。
 
-`main`の必須status checkでは「Require branches to be up to date before merging」を無効にします。昇格時のmerge commitは`main`だけに作られるため、最初の昇格後は`develop`が履歴上の`main`より古い状態になり、最新化を必須にすると次の昇格が停止するためです。`main`向けPull RequestのCIはGitHubが作るmerge branchをcheckoutして統合後の内容を検証し、head branch guardにより取り込み元も`develop`へ限定します。`develop`側では最新化を引き続き必須にします。
+`main`では「Require branches to be up to date before merging」を無効にします。昇格のmerge commitは`main`にだけ作られるため、一度昇格すると`develop`は履歴の上で`main`より古くなります。ここで最新化を必須にすると、次の昇格ができなくなるためです。最新化を求めなくても、`main`向けPull RequestのCIは、GitHubが作るmerge後の内容をcheckoutして検証します。
 
 Rulesetを先に有効にすると、まだ存在しないcheckを待ち続けます。Workflowを一度成功させてから必須checkへ追加してください。
 
@@ -37,13 +46,13 @@ Dependabotの更新先も`develop`に固定しています。WorkflowとDependab
 
 ### Actionsの設定変数
 
-Repository variableとして次を登録します。公開URLなのでsecretではなくvariableとして管理し、Chrome／Firefoxの配布ビルドへ同じ値を渡します。Pull RequestのCIは公開設定から独立させ、既知の本番URLをWorkflow内で使います。
+Repository variableとして次を登録します。公開されているURLなので、secretではなくvariableにしています。ChromeとFirefoxの配布用ビルドは、どちらもこの値を使います。Pull RequestのCIはこのvariableを使わず、Workflowに書いた本番のURLを使います。
 
 | variable       | 値                    | 用途                     |
 | -------------- | --------------------- | ------------------------ |
 | `API_ENDPOINT` | `https://cl.dryk.net` | レートAPIの本番ベースURL |
 
-配布成果物はこの値へ`/v1/latest`を付けて接続します。値を変えると同じソースから生成される拡張機能の接続先も変わるため、変更時はWorkerのCustom Domain、Firefox用の`SOURCE_CODE_REVIEW.md`、リリース成果物を同時に確認します。
+配布する拡張機能は、この値に`/v1/latest`を付けて接続します。値を変えると拡張機能の接続先も変わるため、変えるときはWorkerのCustom Domain、Firefox審査用の`SOURCE_CODE_REVIEW.md`、リリースの成果物もあわせて確認します。
 
 ### Workerデプロイ用Environmentは不要
 
@@ -51,7 +60,7 @@ WorkerのデプロイはGitHub Actionsを経由しないため、GitHubの`produ
 
 ### ストア公開用Repository secrets
 
-現時点では環境ごとにストアの認証情報、承認者、公開条件を分けないため、GitHub Environmentは作成しません。Workflowの手動実行は`main`だけを受け付け、安定版の自動提出は現在の`main`を指す`v*` GitHub Releaseだけを受け付けます。
+今は環境ごとにストアの認証情報、承認者、公開条件を分けていないため、GitHub Environmentは作りません。Workflowの手動実行は`main`からだけ受け付けます。自動提出は、現在の`main`を指す`v*`の安定版GitHub Releaseからだけ受け付けます。
 
 次のRepository secretsを登録します。名前はWXTの`submit`コマンドが使用する環境変数と一致させています。
 
@@ -65,7 +74,9 @@ WorkerのデプロイはGitHub Actionsを経由しないため、GitHubの`produ
 | `FIREFOX_JWT_ISSUER`   | addons.mozilla.org APIのJWT issuer        |
 | `FIREFOX_JWT_SECRET`   | addons.mozilla.org APIのJWT secret        |
 
-ストア用secretはPull Requestや通常のCIには渡さず、公開Workflowの存在確認とWXT提出stepだけへ明示的に渡します。Repository secretsへアクセスするWorkflow自体を保護するため、`main`と`develop`のPull Request必須ルール、必須check、未解決conversationの禁止を維持します。将来stagingとproductionで認証情報や承認者を分ける場合は、その時点でGitHub Environmentの導入を再検討します。
+ストア用のsecretは、Pull Requestや通常のCIには渡しません。渡すのは、公開Workflowの中でsecretの登録を確かめるstepと、WXTで提出するstepだけです。
+
+secretを使うWorkflow自体を書き換えられないよう、`main`と`develop`ではPull Requestの必須化、必須check、未解決conversationがあるときのmerge禁止を続けます。stagingとproductionで認証情報や承認者を分けることになったら、そのときにGitHub Environmentの導入を考え直します。
 
 ## Cloudflareの初期設定
 
@@ -89,15 +100,23 @@ Workers Buildsは次の値で設定します。
 | Node.js version file               | `.node-version`                       |
 | Build variable `PNPM_VERSION`      | `11.13.0`                             |
 
-Cloudflareの既定Node.jsとpnpmはリポジトリの`engines`より古いため、Node.jsはリポジトリ直下の`.node-version`から検出させ、pnpmだけBuild variableで固定します。deploy commandがWorkerのコンパイルも行うため、Build commandではモノリポ全体をビルドしません。品質検査は`main`へmergeする前の必須check `CI / quality`が担います。これにより、Workerデプロイへ不要なブラウザ拡張機能の`API_ENDPOINT`をCloudflareへ重複登録せずに済みます。
+設定の理由は次のとおりです。
 
-接続後はCloudflareがproduction build用のAPI tokenとGitHub checkを管理し、`main`へのpushを検知してデプロイします。Build watch pathsは設定しません。ストア公開Workflowがrelease SHAと同じ`Workers Builds: currency-lens`を必須にするため、Workerコードを変更しないcommitでもCloudflare Check Runが必要です。
+- **Node.jsとpnpmのバージョン**: Cloudflareの既定のNode.jsとpnpmは、リポジトリの`engines`より古いバージョンです。そのため、Node.jsは`.node-version`から読ませ、pnpmだけをBuild variableで指定します。
+- **Build commandを空欄にする理由**: Deploy commandがWorkerのコンパイルも行うので、モノリポ全体をビルドする必要がありません。品質検査は、`main`へmergeする前の必須check `CI / quality`で済んでいます。全体をビルドしないので、Workerのデプロイに関係のない拡張機能の`API_ENDPOINT`をCloudflareに登録せずに済みます。
+- **Build watch pathsを設定しない理由**: ストア公開Workflowは、release SHAに`Workers Builds: currency-lens`のCheck Runがあることを求めます。Workerのコードを変えないcommitでもCheck Runが作られるよう、すべてのpushでビルドさせます。
+
+接続した後は、Cloudflareがbuild用のAPI tokenとGitHubのcheckを管理し、`main`へのpushを検知してデプロイします。
 
 ### Cloudflare Check Runが作成されない場合
 
-Cloudflare側のGit連携やBuild watch pathsを修正しても、修正前に発生した`main`へのpushは再処理されません。対象SHAに`Workers Builds: currency-lens`がない場合は、production branchが`main`であること、Build watch pathsが空であること、GitHub repositoryとの接続が有効であることを修正し、通常の`feature/*`から`develop`、`develop`から`main`へのPull Requestを通して新しい`main`へのpushを発生させます。新しいSHAのCloudflare Check Runが成功するまでは、ブラウザストアの公開Workflowを実行しません。
+Cloudflare側の設定を直しても、直す前の`main`へのpushは処理し直されません。対象のSHAに`Workers Builds: currency-lens`がない場合は、次の順で復旧します。
 
-Deploy HookはCloudflare buildを起動できますが、既存SHAへGitHub Check Runが追加されることを前提にした復旧手段としては扱いません。利用する場合も対象SHAのcheckをGitHub側で別途確認します。Deploy HookのURL自体が認証情報であるため、リポジトリ、Issue、Pull Request、チャット、CIログへ記録せず、一時利用後は不要ならCloudflare側で削除します。
+1. production branchが`main`であること、Build watch pathsが空であること、GitHub repositoryとの接続が有効であることを確かめ、違っていれば直します。
+2. 通常どおり`feature/*`から`develop`、`develop`から`main`へPull Requestを通し、`main`への新しいpushを起こします。
+3. 新しいSHAでCloudflareのCheck Runが成功するまで、ストアの公開Workflowは実行しません。
+
+Deploy HookでもCloudflareのbuildは起動できますが、既存のSHAにGitHubのCheck Runが付くとは限らないため、復旧の手段にはしません。使う場合も、対象のSHAのcheckをGitHubで別に確かめます。Deploy HookのURLはそれ自体が認証情報なので、リポジトリ、Issue、Pull Request、チャット、CIのログに残さず、使い終わったらCloudflareで削除します。
 
 `OPEN_EXCHANGE_RATE_APP_ID`の値はGitHub ActionsやWorkers Buildsのbuild variableへ渡しません。Wrangler設定の`secrets.required`がWorker側にsecretがあることを検証し、通常のデプロイでは既存値を維持します。
 
@@ -115,7 +134,11 @@ Firefoxへ渡すsources ZIPは、リポジトリ直下の`package.json`、`pnpm-
 
 ## 公開手順
 
-最初にGitHub Actionsの`Publish browser extension`を`main`から手動実行し、Workerとの互換性、credentialの登録漏れ、成果物を検証します。手動実行も同じcommitのCloudflareデプロイ成功を待ち、公開中の`/v1/latest`と旧`/latest`を配布版クライアントのZod schemaと拡張機能originのCORS条件で検査します。手動実行は常にdry-runとなり、WXTがストアAPIの認証を確認しますが、ZIPのアップロードや審査提出は行いません。
+最初に、GitHub Actionsの`Publish browser extension`を`main`から手動で実行し、Workerとの互換性、credentialの登録漏れ、成果物を確かめます。手動実行は常にdry-runです。
+
+- 本番と同じく、同じcommitでCloudflareのデプロイが成功するのを待ちます。
+- 公開中の`/v1/latest`と旧`/latest`を、配布版のZod schemaと、拡張機能originからのCORSの条件で検査します。
+- WXTがストアAPIの認証を確かめますが、ZIPのアップロードや審査への提出はしません。
 
 実際に公開するときは次の順で進めます。
 

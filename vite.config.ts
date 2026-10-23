@@ -137,6 +137,13 @@ export default defineConfig({
         },
       },
       {
+        // The release-readiness CLI imports this module under plain Node, which has no @/ alias.
+        files: ["apps/browser-extension/lib/rates.ts"],
+        rules: {
+          "no-restricted-imports": "off",
+        },
+      },
+      {
         files: ["apps/server/**/*.ts"],
         env: { worker: true },
         rules: {

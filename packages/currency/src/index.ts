@@ -1,5 +1,5 @@
-export { currencyLocalNames } from "./local-names";
-export type { CurrencyLocalName, CurrencyLocalNameEntry } from "./local-names";
+export { currencyLocalNames } from "./local-names.ts";
+export type { CurrencyLocalName, CurrencyLocalNameEntry } from "./local-names.ts";
 
 export const currencies = [
   {

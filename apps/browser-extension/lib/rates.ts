@@ -4,7 +4,7 @@ import {
   MAX_FAVORITE_CURRENCIES,
   currencyCodeSchema,
   getCurrencyMetadata,
-} from "@/lib/currency.ts";
+} from "./currency.ts";
 
 export const MAX_CONVERSION_AMOUNTS = 1;
 export const RATE_STALE_AFTER_MS = 24 * 60 * 60 * 1_000;

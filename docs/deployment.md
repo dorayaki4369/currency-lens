@@ -102,7 +102,7 @@ Custom Domainの設定は`apps/server/wrangler.jsonc`を正本とします。Clo
 
 ### デプロイが失敗した場合
 
-`deploy Worker`が失敗したSHAでは、ストアの公開Workflowが止まります。原因を直したら、GitHub Actionsで同じrunの`deploy Worker`を再実行するか、通常どおり`feature/*`から`develop`、`develop`から`main`へPull Requestを通して`main`への新しいpushを起こします。
+`deploy Worker`が失敗したSHAでは、ストアの公開Workflowが止まります。原因を直したら、GitHub Actionsで同じrunの`deploy Worker`を再実行するか、通常どおり`feature/*`から`develop`、`develop`から`main`へPull Requestを通して`main`への新しいpushを起こします。再実行できるのは、そのSHAが今も`main`の先頭にある場合だけです。`deploy Worker`はデプロイの直前に`main`の先頭と照合し、古いSHAならデプロイせずに失敗します。古いコードで本番のWorkerを上書きしないためです。
 
 ## ストアの初期設定
 

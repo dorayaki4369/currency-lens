@@ -27,6 +27,7 @@ squash すると、merge 済みのブランチの上に作ったブランチで�
 ### デプロイが失敗した commit の復旧
 
 原因を直したら、同じ run の `deploy Worker` を再実行するか、通常の Pull Request の経路で `main` へ新しい push を起こし、その SHA の `deploy Worker` が成功したことを確かめます。
+`deploy Worker` は、自分の SHA が `main` の先頭でなければデプロイせずに失敗します。古いコードで本番の Worker を上書きしないためです。
 
 ## ブラウザストア
 

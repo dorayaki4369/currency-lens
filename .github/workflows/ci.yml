@@ -127,6 +127,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Require the current main commit
+        run: |
+          main_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "::error title=Stale deployment source::$GITHUB_SHA is no longer the main HEAD ($main_sha). Deploy from the newest main run instead."
+            exit 1
+          fi
+
       - name: Deploy the Worker
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

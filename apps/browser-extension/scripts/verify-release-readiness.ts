@@ -50,9 +50,7 @@ export async function verifyReleaseReadiness(
     githubToken,
     reportStatus: (message) => writeOutput(`${message}\n`),
   });
-  writeOutput(
-    `Cloudflare deployed ${commitSha} successfully (check run ${deployment.id}).\n`,
-  );
+  writeOutput(`Worker deployed ${commitSha} successfully (check run ${deployment.id}).\n`);
 
   const verifiedRoutes = await verifyApiContract({ apiEndpoint });
   for (const route of verifiedRoutes) {

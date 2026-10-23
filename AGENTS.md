@@ -119,9 +119,9 @@ UI 専用やアクセシビリティ専用の階層は作らず、各階層で�
 
 ### デプロイ
 
-- `main` が更新されると、Cloudflare Workers Builds が Worker を自動デプロイします。
+- `main` が更新されると、CI の `deploy Worker` job が、同じ commit の品質検査の成功後に Worker をデプロイします。
 - `v*` の GitHub Release を公開すると、Chrome Web Store と Firefox Add-ons へ提出します。
-- 提出の前に、release tag と同じ commit の Cloudflare Check Run の成功を待ちます。そのうえで、公開中の `/v1/latest` と旧 `/latest` を配布版クライアントの Zod schema で検証します。
+- 提出の前に、release tag と同じ commit の `deploy Worker` の成功を待ちます。そのうえで、公開中の `/v1/latest` と旧 `/latest` を配布版クライアントの Zod schema で検証します。
 
 ### API の互換性
 
@@ -132,8 +132,8 @@ UI 専用やアクセシビリティ専用の階層は作らず、各階層で�
 
 - 旧 route の廃止の判断
 - 初回のストア掲載
-- Cloudflare の Git 連携と Worker secret の設定
-- ストアの認証情報、GitHub Actions の Repository variables／secrets の設定
+- Cloudflare の API token の発行と Worker secret の設定
+- ストアの認証情報、GitHub Actions の Environment／Repository variables／secrets の設定
 
 これらは人間が行います。
 

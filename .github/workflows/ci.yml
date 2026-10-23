@@ -42,7 +42,7 @@ jobs:
 
       - &checkout
         name: Check out the repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@v7.0.0
         with:
           persist-credentials: false
 
@@ -57,11 +57,11 @@ jobs:
 
       - &install-pnpm
         name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        uses: pnpm/action-setup@v6.0.9
 
       - &set-up-node
         name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@v7.0.0
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -76,6 +76,13 @@ jobs:
           pnpm -C apps/browser-extension routes:generate
           git ls-files --error-unmatch apps/browser-extension/entrypoints/popup/routeTree.gen.ts
           git diff --exit-code -- apps/browser-extension/entrypoints/popup/routeTree.gen.ts
+
+      - name: Verify the workflow lockfile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install github/gh-actions-lock --pin v0.2.0
+          gh actions-lock --verify
 
       - name: Check format, lint, and types
         run: pnpm check
@@ -101,7 +108,7 @@ jobs:
       # Fork pull requests get a read-only token, so they only see the job summary.
       - name: Report coverage
         if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
-        uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
+        uses: davelosert/vitest-coverage-report-action@v2.13.0
         with:
           comment-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && 'pr' || 'none' }}
 

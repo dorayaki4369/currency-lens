@@ -67,6 +67,50 @@ describe("configuration storage", () => {
     });
   });
 
+  it("drops overrides for retired symbols without resetting current settings", async () => {
+    syncState["config"] = {
+      favorites: ["USD", "EUR"],
+      symbolOverrides: { $: "CAD", "💲": "CAD", "💴": "CNY", "💷": "EGP" },
+      theme: "dark",
+      showCurrencyIcon: false,
+      showCurrencyCode: false,
+    };
+
+    await expect(getConfig()).resolves.toEqual({
+      favorites: ["USD", "EUR"],
+      symbolOverrides: { $: "CAD" },
+      theme: "dark",
+    });
+  });
+
+  it("falls back when a previous symbol override is not a current candidate", async () => {
+    syncState["config"] = {
+      favorites: ["USD"],
+      symbolOverrides: { $: "JPY" },
+      theme: "dark",
+      showCurrencyIcon: true,
+      showCurrencyCode: true,
+    };
+
+    await expect(getConfig()).resolves.toEqual(getDefaultConfig());
+  });
+
+  it("drops retired symbols from the previous defaultConversions field", async () => {
+    syncState["config"] = {
+      favorites: ["USD"],
+      defaultConversions: { "¥": "JPY", "💴": "CNY" },
+      theme: "light",
+      showCurrencyIcon: true,
+      showCurrencyCode: true,
+    };
+
+    await expect(getConfig()).resolves.toEqual({
+      favorites: ["USD"],
+      symbolOverrides: { "¥": "JPY" },
+      theme: "light",
+    });
+  });
+
   it("migrates the previous defaultConversions field to symbolOverrides", async () => {
     syncState["config"] = {
       favorites: ["USD", "EUR"],

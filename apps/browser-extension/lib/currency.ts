@@ -63,6 +63,11 @@ export function isKnownCurrencyCode(code: string): code is CurrencyCode {
   return currencyCodeSet.has(code);
 }
 
+/** Returns whether a string is a symbol token that symbol overrides may use. */
+export function isKnownSymbolToken(token: string): boolean {
+  return symbolDefinitionByToken.has(token);
+}
+
 /** Returns immutable metadata for a code from the exhaustive bundled currency union. */
 export function getCurrencyMetadata(code: CurrencyCode): CurrencyMetadata {
   return currencies.find((currency) => currency.code === code)!;

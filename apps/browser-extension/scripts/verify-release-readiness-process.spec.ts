@@ -1,7 +1,7 @@
 import type {
   verifyRatesApiContract,
   waitForWorkerDeployment,
-} from "./release-readiness.ts";
+} from "@/scripts/release-readiness.ts";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -10,12 +10,12 @@ const boundaries = vi.hoisted(() => ({
   waitForDeployment: vi.fn<typeof waitForWorkerDeployment>(),
 }));
 
-vi.mock("./release-readiness.ts", () => ({
+vi.mock("@/scripts/release-readiness.ts", () => ({
   verifyRatesApiContract: boundaries.verifyApi,
   waitForWorkerDeployment: boundaries.waitForDeployment,
 }));
 
-import { runReleaseReadinessProcess } from "./verify-release-readiness.ts";
+import { runReleaseReadinessProcess } from "@/scripts/verify-release-readiness.ts";
 
 const originalExitCode = process.exitCode;
 
@@ -34,11 +34,11 @@ describe("runReleaseReadinessProcess", () => {
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     boundaries.waitForDeployment.mockResolvedValue({
       id: 41,
-      name: "Workers Builds: currency-lens",
+      name: "deploy Worker",
       status: "completed",
       conclusion: "success",
       details_url: null,
-      app: { slug: "cloudflare-workers-and-pages" },
+      app: { slug: "github-actions" },
     });
     boundaries.verifyApi.mockResolvedValue([
       {

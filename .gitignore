@@ -5,7 +5,7 @@ dist
 .output
 .vite
 .wxt
-coverage
+/coverage/
 .pnpm-store
 *.local.md
 
@@ -13,3 +13,6 @@ coverage
 .env.*
 .dev.vars
 .dev.vars.*
+!.env.example
+!.dev.vars.example
+__screenshots__/

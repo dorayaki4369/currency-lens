@@ -1,11 +1,7 @@
 import type { CurrencyCode } from "@cl/currency";
 import { useCallback, useRef, useState } from "react";
-import type { DetectedCurrency } from "../../../lib/currency-detection";
-import {
-  messageTypes,
-  sendMessage,
-  type ConvertCurrenciesResponse,
-} from "../../../lib/messages";
+import type { DetectedCurrency } from "@/lib/currency-detection";
+import { messageTypes, sendMessage, type ConvertCurrenciesResponse } from "@/lib/messages";
 
 type ConversionData = Extract<ConvertCurrenciesResponse, { success: true }>["data"];
 

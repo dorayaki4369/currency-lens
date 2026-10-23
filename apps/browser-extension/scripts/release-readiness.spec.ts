@@ -1,20 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  CLOUDFLARE_APP_SLUG,
-  CLOUDFLARE_CHECK_NAME,
+  WORKER_DEPLOY_APP_SLUG,
+  WORKER_DEPLOY_CHECK_NAME,
   CURRENT_RATES_API_PATH,
   EXTENSION_SMOKE_TEST_ORIGIN,
   LEGACY_RATES_API_PATH,
   evaluateWorkerDeployment,
   verifyRatesApiContract,
   waitForWorkerDeployment,
-} from "./release-readiness.ts";
+} from "@/scripts/release-readiness.ts";
 
 const TEST_REPOSITORY = "dorayaki4369/currency-lens";
 const TEST_COMMIT_SHA = "a".repeat(40);
 
 describe("release readiness", () => {
-  it("uses the newest matching Cloudflare check run", () => {
+  it("uses the newest matching Worker deploy check run", () => {
     expect(
       evaluateWorkerDeployment([
         createCheckRun({ id: 10, conclusion: "success" }),
@@ -22,7 +22,7 @@ describe("release readiness", () => {
       ]),
     ).toEqual({
       status: "pending",
-      message: `${CLOUDFLARE_CHECK_NAME} is in_progress.`,
+      message: `${WORKER_DEPLOY_CHECK_NAME} is in_progress.`,
     });
   });
 
@@ -32,12 +32,12 @@ describe("release readiness", () => {
         createCheckRun({
           id: 11,
           conclusion: "success",
-          appSlug: "github-actions",
+          appSlug: "cloudflare-workers-and-pages",
         }),
       ]),
     ).toEqual({
       status: "pending",
-      message: `Waiting for ${CLOUDFLARE_CHECK_NAME} to be created.`,
+      message: `Waiting for ${WORKER_DEPLOY_CHECK_NAME} to be created.`,
     });
   });
 
@@ -60,7 +60,7 @@ describe("release readiness", () => {
     expect(sleep).toHaveBeenCalledOnce();
   });
 
-  it("fails when the newest Cloudflare deployment failed", async () => {
+  it("fails when the newest Worker deployment failed", async () => {
     const fetchImplementation = createSequenceFetch([
       createCheckRunsResponse([createCheckRun({ id: 13, conclusion: "failure" })]),
     ]);
@@ -72,10 +72,10 @@ describe("release readiness", () => {
         githubToken: "test-token",
         fetchImplementation,
       }),
-    ).rejects.toThrow(`${CLOUDFLARE_CHECK_NAME} completed with failure.`);
+    ).rejects.toThrow(`${WORKER_DEPLOY_CHECK_NAME} completed with failure.`);
   });
 
-  it("times out when Cloudflare did not create a check for the commit", async () => {
+  it("times out when the deploy job did not create a check for the commit", async () => {
     const fetchImplementation = createSequenceFetch([createCheckRunsResponse([])]);
 
     await expect(
@@ -86,7 +86,7 @@ describe("release readiness", () => {
         fetchImplementation,
         timeoutMs: 0,
       }),
-    ).rejects.toThrow(`Timed out waiting for ${CLOUDFLARE_CHECK_NAME}`);
+    ).rejects.toThrow(`Timed out waiting for ${WORKER_DEPLOY_CHECK_NAME}`);
   });
 
   it("aborts a Checks API request which does not respond", async () => {
@@ -183,11 +183,11 @@ function createCheckRun(
 ) {
   return {
     id: overrides.id,
-    name: CLOUDFLARE_CHECK_NAME,
+    name: WORKER_DEPLOY_CHECK_NAME,
     status: overrides.status ?? "completed",
     conclusion: overrides.conclusion,
-    details_url: "https://dash.cloudflare.com/build",
-    app: { slug: overrides.appSlug ?? CLOUDFLARE_APP_SLUG },
+    details_url: "https://github.com/dorayaki4369/currency-lens/actions/runs/1/job/1",
+    app: { slug: overrides.appSlug ?? WORKER_DEPLOY_APP_SLUG },
   };
 }
 

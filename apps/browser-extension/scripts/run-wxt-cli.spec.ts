@@ -16,7 +16,7 @@ vi.mock("node:fs/promises", () => ({
   rm: boundaries.rm,
 }));
 
-import { runWxtCli } from "./run-wxt-without-env.ts";
+import { runWxtCli } from "@/scripts/run-wxt-without-env.ts";
 
 const originalExitCode = process.exitCode;
 

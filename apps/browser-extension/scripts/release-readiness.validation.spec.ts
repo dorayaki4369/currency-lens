@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  CLOUDFLARE_APP_SLUG,
-  CLOUDFLARE_CHECK_NAME,
+  WORKER_DEPLOY_APP_SLUG,
+  WORKER_DEPLOY_CHECK_NAME,
   EXTENSION_SMOKE_TEST_ORIGIN,
   evaluateWorkerDeployment,
   verifyRatesApiContract,
   waitForWorkerDeployment,
-} from "./release-readiness.ts";
+} from "@/scripts/release-readiness.ts";
 
 const TEST_REPOSITORY = "dorayaki4369/currency-lens";
 const TEST_COMMIT_SHA = "b".repeat(40);
@@ -32,7 +32,7 @@ describe("release readiness validation", () => {
       evaluateWorkerDeployment([createCheckRun({ id: 21, conclusion: null })]),
     ).toEqual({
       status: "failure",
-      message: `${CLOUDFLARE_CHECK_NAME} completed with no conclusion.`,
+      message: `${WORKER_DEPLOY_CHECK_NAME} completed with no conclusion.`,
     });
   });
 
@@ -41,7 +41,7 @@ describe("release readiness validation", () => {
 
     expect(evaluateWorkerDeployment([checkRun])).toEqual({
       status: "pending",
-      message: `Waiting for ${CLOUDFLARE_CHECK_NAME} to be created.`,
+      message: `Waiting for ${WORKER_DEPLOY_CHECK_NAME} to be created.`,
     });
   });
 
@@ -176,15 +176,15 @@ describe("release readiness validation", () => {
   });
 });
 
-/** Creates one Cloudflare check-run payload with valid defaults. */
+/** Creates one Worker deploy check-run payload with valid defaults. */
 function createCheckRun(options: { id: number; conclusion: string | null }) {
   return {
     id: options.id,
-    name: CLOUDFLARE_CHECK_NAME,
+    name: WORKER_DEPLOY_CHECK_NAME,
     status: "completed",
     conclusion: options.conclusion,
     details_url: null,
-    app: { slug: CLOUDFLARE_APP_SLUG },
+    app: { slug: WORKER_DEPLOY_APP_SLUG },
   };
 }
 

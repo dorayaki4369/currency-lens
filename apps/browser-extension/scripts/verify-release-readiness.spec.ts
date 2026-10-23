@@ -3,12 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   verifyRatesApiContract,
   waitForWorkerDeployment,
-} from "./release-readiness.ts";
+} from "@/scripts/release-readiness.ts";
 import {
   requireEnvironmentVariable,
   runReleaseReadinessCli,
   verifyReleaseReadiness,
-} from "./verify-release-readiness.ts";
+} from "@/scripts/verify-release-readiness.ts";
 
 describe("verify-release-readiness CLI", () => {
   it("trims and forwards required configuration while reporting progress", async () => {
@@ -16,11 +16,11 @@ describe("verify-release-readiness CLI", () => {
       options.reportStatus?.("Deployment pending.");
       return {
         id: 32,
-        name: "Workers Builds: currency-lens",
+        name: "deploy Worker",
         status: "completed",
         conclusion: "success",
         details_url: null,
-        app: { slug: "cloudflare-workers-and-pages" },
+        app: { slug: "github-actions" },
       };
     });
     const verifyApiContract = vi.fn<typeof verifyRatesApiContract>(async () => [

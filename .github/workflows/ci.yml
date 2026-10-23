@@ -15,11 +15,11 @@ permissions:
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Never cancel a main run that may be deploying the Worker.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   API_ENDPOINT: "https://cl.dryk.net"
-  PNPM_VERSION: "11.13.0"
 
 jobs:
   quality:
@@ -45,7 +45,7 @@ jobs:
 
       - name: Reject environment files
         run: |
-          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) -print -quit)"
+          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) ! -name '*.example' -print -quit)"
           if [[ -n "$blocked_path" ]]; then
             echo "::error title=Environment file in checkout::$blocked_path must not be present in the repository."
             exit 1
@@ -53,8 +53,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -66,17 +64,85 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check formatting
-        run: pnpm format:check
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
 
-      - name: Lint
-        run: pnpm lint
+      - name: Verify generated popup routes
+        run: |
+          pnpm -C apps/browser-extension routes:generate
+          git ls-files --error-unmatch apps/browser-extension/entrypoints/popup/routeTree.gen.ts
+          git diff --exit-code -- apps/browser-extension/entrypoints/popup/routeTree.gen.ts
 
-      - name: Type-check
-        run: pnpm typecheck
+      - name: Check format, lint, and types
+        run: pnpm check
 
       - name: Test
         run: pnpm test:coverage
 
+      - name: Test integration
+        run: pnpm test:integration
+
+      - name: Test built Chrome extension
+        run: pnpm test:e2e
+
       - name: Build
         run: pnpm build
+
+  deploy:
+    name: deploy Worker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'dorayaki4369/currency-lens'
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: worker-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://cl.dryk.net
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Reject environment files
+        run: |
+          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) ! -name '*.example' -print -quit)"
+          if [[ -n "$blocked_path" ]]; then
+            echo "::error title=Environment file in checkout::$blocked_path must not be present in the repository."
+            exit 1
+          fi
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Require the current main commit
+        run: |
+          main_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "::error title=Stale deployment source::$GITHUB_SHA is no longer the main HEAD ($main_sha). Deploy from the newest main run instead."
+            exit 1
+          fi
+
+      - name: Deploy the Worker
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [[ -z "$CLOUDFLARE_ACCOUNT_ID" || -z "$CLOUDFLARE_API_TOKEN" ]]; then
+            echo "::error title=Missing Cloudflare credentials::Configure the production environment secrets."
+            exit 1
+          fi
+
+          pnpm --filter @cl/server run deploy

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getDefaultConfig } from "./storage";
+import { getDefaultConfig } from "@/lib/storage";
 import {
   convertCurrenciesRequestSchema,
   messageTypes,
   parseMessageResponse,
   sendMessage,
-} from "./messages";
+} from "@/lib/messages";
 
 const runtimeSendMessage = vi.fn();
 

@@ -6,6 +6,8 @@ packages:
 verifyDepsBeforeRun: error
 engineStrict: true
 enableGlobalVirtualStore: false
+# Refuse to install or run with Node.js and pnpm versions outside package.json engines.
+engineStrict: true
 
 allowBuilds:
   esbuild: true

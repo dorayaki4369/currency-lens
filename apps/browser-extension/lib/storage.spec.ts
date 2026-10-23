@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { currencyCodeSchema } from "./currency";
-import { createExchangeRateCache } from "./rates";
+import { currencyCodeSchema } from "@/lib/currency";
+import { createExchangeRateCache } from "@/lib/rates";
 import {
   clearExchangeRateCache,
   getConfig,
@@ -8,7 +8,7 @@ import {
   getExchangeRateCache,
   setConfig,
   setExchangeRateCache,
-} from "./storage";
+} from "@/lib/storage";
 
 let syncState: Record<string, unknown>;
 let localState: Record<string, unknown>;
@@ -51,6 +51,66 @@ describe("configuration storage", () => {
     await expect(getConfig()).resolves.toEqual(getDefaultConfig());
   });
 
+  it("removes retired display preferences without resetting current settings", async () => {
+    syncState["config"] = {
+      favorites: ["USD", "EUR"],
+      symbolOverrides: { $: "CAD" },
+      theme: "dark",
+      showCurrencyIcon: false,
+      showCurrencyCode: false,
+    };
+
+    await expect(getConfig()).resolves.toEqual({
+      favorites: ["USD", "EUR"],
+      symbolOverrides: { $: "CAD" },
+      theme: "dark",
+    });
+  });
+
+  it("drops overrides for retired symbols without resetting current settings", async () => {
+    syncState["config"] = {
+      favorites: ["USD", "EUR"],
+      symbolOverrides: { $: "CAD", "💲": "CAD", "💴": "CNY", "💷": "EGP" },
+      theme: "dark",
+      showCurrencyIcon: false,
+      showCurrencyCode: false,
+    };
+
+    await expect(getConfig()).resolves.toEqual({
+      favorites: ["USD", "EUR"],
+      symbolOverrides: { $: "CAD" },
+      theme: "dark",
+    });
+  });
+
+  it("falls back when a previous symbol override is not a current candidate", async () => {
+    syncState["config"] = {
+      favorites: ["USD"],
+      symbolOverrides: { $: "JPY" },
+      theme: "dark",
+      showCurrencyIcon: true,
+      showCurrencyCode: true,
+    };
+
+    await expect(getConfig()).resolves.toEqual(getDefaultConfig());
+  });
+
+  it("drops retired symbols from the previous defaultConversions field", async () => {
+    syncState["config"] = {
+      favorites: ["USD"],
+      defaultConversions: { "¥": "JPY", "💴": "CNY" },
+      theme: "light",
+      showCurrencyIcon: true,
+      showCurrencyCode: true,
+    };
+
+    await expect(getConfig()).resolves.toEqual({
+      favorites: ["USD"],
+      symbolOverrides: { "¥": "JPY" },
+      theme: "light",
+    });
+  });
+
   it("migrates the previous defaultConversions field to symbolOverrides", async () => {
     syncState["config"] = {
       favorites: ["USD", "EUR"],
@@ -64,8 +124,6 @@ describe("configuration storage", () => {
       favorites: ["USD", "EUR"],
       symbolOverrides: { $: "CAD", "¥": "JPY" },
       theme: "dark",
-      showCurrencyIcon: false,
-      showCurrencyCode: true,
     });
   });
 

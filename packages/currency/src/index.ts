@@ -1,3 +1,6 @@
+export { currencyLocalNames } from "./local-names.ts";
+export type { CurrencyLocalName, CurrencyLocalNameEntry } from "./local-names.ts";
+
 export const currencies = [
   {
     code: "AED",
@@ -1642,19 +1645,19 @@ export const symbols = [
       "UYU",
       "XCD",
     ],
-    alternatives: ["＄", "💲"],
+    alternatives: ["＄"],
   },
   {
     symbol: "¥",
     default: "JPY",
     codes: ["CNH", "CNY", "JPY"],
-    alternatives: ["￥", "💴"],
+    alternatives: ["￥"],
   },
   {
     symbol: "£",
     default: "GBP",
     codes: ["EGP", "FKP", "GBP", "GIP", "IMP", "JEP", "SHP", "SYP"],
-    alternatives: ["₤", "💷"],
+    alternatives: ["₤"],
   },
   {
     symbol: "€",

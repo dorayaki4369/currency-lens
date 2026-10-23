@@ -1,8 +1,8 @@
-import React from "react";
+import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createShadowRootUi } from "wxt/utils/content-script-ui/shadow-root";
-import "../../assets/style.css";
-import App from "./App.tsx";
+import "@/assets/style.css";
+import App from "@/entrypoints/content/App.tsx";
 
 export default defineContentScript({
   cssInjectionMode: "ui",
@@ -16,9 +16,9 @@ export default defineContentScript({
       onMount(container) {
         const root = createRoot(container);
         root.render(
-          <React.StrictMode>
+          <StrictMode>
             <App />
-          </React.StrictMode>,
+          </StrictMode>,
         );
         return root;
       },

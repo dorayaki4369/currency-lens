@@ -114,7 +114,7 @@ UI 専用やアクセシビリティ専用の階層は作らず、各階層で�
 
 ### ブランチ
 
-- 通常の作業は `feature/*` から `develop` への Pull Request で行い、squash merge します。
+- 通常の作業は `feature/*` から `develop` への Pull Request で行い、merge commit で取り込みます。
 - `main` へは `develop` からの Pull Request だけを許可し、必須 CI を通して merge commit で取り込みます。
 
 ### デプロイ

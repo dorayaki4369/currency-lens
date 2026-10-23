@@ -6,13 +6,15 @@
 ## ブランチ
 
 1. `feature/*` から `develop` へ Pull Request を作ります。
-2. 必須 CI を通し、未解決の conversation をなくしてから squash merge します。
+2. 必須 CI を通し、未解決の conversation をなくしてから merge commit で取り込みます。
 3. `develop` から `main` へ Pull Request を作ります。
 4. 必須 CI を通し、merge commit で `main` へ取り込みます。
 
 `main` 向けの Pull Request は、head が同じリポジトリの `develop` でなければ CI が失敗します。
 必須の承認数は0件です。
 Pull Request と CI は必須です。
+Ruleset が許可する merge 方法は、`develop` と `main` のどちらも merge commit だけです。
+squash すると、merge 済みのブランチの上に作ったブランチで同じ変更が別の commit として残り、conflict の原因になるためです。
 
 ## Worker
 

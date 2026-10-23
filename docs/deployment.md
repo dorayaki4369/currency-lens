@@ -34,9 +34,10 @@ Node.jsのバージョンは、ローカル（mise）、GitHub Actions、Cloudfl
 | 必須check `CI / quality`            | 有効      | 有効   | format、lint、型、テスト、buildを必須にする        |
 | head branchを最新にする             | 有効      | 無効   | `develop`は最新化し、`main`はPRのmerge結果をCIする |
 | 未解決conversationを残したmerge禁止 | 有効      | 有効   | 指摘を解消してからmergeする                        |
+| 許可するmerge方法                   | merge     | merge  | 積み上げたbranchでも同じcommitを共有できる         |
 | force push／branch削除              | 禁止      | 禁止   | 履歴と配布元branchを保護する                       |
 
-feature branchは`develop`へsquash mergeし、`develop`から`main`へはmerge commitで取り込みます。`main`向けのPull Requestは、headが同じリポジトリの`develop`でなければ`ci.yml`が失敗します。このため、`main`へ入る経路は`develop`からの昇格だけになります。
+feature branchから`develop`へも、`develop`から`main`へも、merge commitで取り込みます。squashすると、merge済みのbranchの上に作ったbranchで同じ変更が別のcommitとして残り、conflictの原因になるためです。`main`向けのPull Requestは、headが同じリポジトリの`develop`でなければ`ci.yml`が失敗します。このため、`main`へ入る経路は`develop`からの昇格だけになります。
 
 `main`では「Require branches to be up to date before merging」を無効にします。昇格のmerge commitは`main`にだけ作られるため、一度昇格すると`develop`は履歴の上で`main`より古くなります。ここで最新化を必須にすると、次の昇格ができなくなるためです。最新化を求めなくても、`main`向けPull RequestのCIは、GitHubが作るmerge後の内容をcheckoutして検証します。
 

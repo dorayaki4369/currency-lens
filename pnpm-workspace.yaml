@@ -5,6 +5,8 @@ packages:
 # Never let a script silently repair dependency drift with a different global pnpm.
 verifyDepsBeforeRun: error
 enableGlobalVirtualStore: false
+# Refuse to install or run with Node.js and pnpm versions outside package.json engines.
+engineStrict: true
 
 allowBuilds:
   esbuild: true

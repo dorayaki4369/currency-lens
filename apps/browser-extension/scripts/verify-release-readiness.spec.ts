@@ -3,12 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   verifyRatesApiContract,
   waitForWorkerDeployment,
-} from "./release-readiness.ts";
+} from "@/scripts/release-readiness.ts";
 import {
   requireEnvironmentVariable,
   runReleaseReadinessCli,
   verifyReleaseReadiness,
-} from "./verify-release-readiness.ts";
+} from "@/scripts/verify-release-readiness.ts";
 
 describe("verify-release-readiness CLI", () => {
   it("trims and forwards required configuration while reporting progress", async () => {

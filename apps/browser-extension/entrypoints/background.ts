@@ -10,20 +10,20 @@ import {
   type ConvertCurrenciesRequest,
   type Message,
   type MessageResponse,
-} from "../lib/messages";
+} from "@/lib/messages";
 import {
   convertCurrencyBatch,
   fetchExchangeRateCache,
   getRateSnapshot,
   isExchangeRateCacheStale,
-} from "../lib/rates";
-import { RATE_REFRESH_ALARM_NAME, ensureRateRefreshAlarm } from "../lib/rate-refresh";
+} from "@/lib/rates";
+import { RATE_REFRESH_ALARM_NAME, ensureRateRefreshAlarm } from "@/lib/rate-refresh";
 import {
   getConfig,
   getExchangeRateCache,
   setConfig,
   setExchangeRateCache,
-} from "../lib/storage";
+} from "@/lib/storage";
 
 const RATE_ENDPOINT = new URL("v1/latest", `${import.meta.env.API_ENDPOINT}/`).href;
 let activeRateRefresh: Promise<void> | null = null;
@@ -140,7 +140,15 @@ async function handleConvertCurrencies(
 
 /** Returns the retained rates together with freshness metadata. */
 async function handleGetRates(): Promise<MessageResponse> {
-  const cache = await getExchangeRateCache();
+  let cache = await getExchangeRateCache();
+  if (cache && isExchangeRateCacheStale(cache)) {
+    try {
+      await refreshRates();
+      cache = (await getExchangeRateCache()) ?? cache;
+    } catch {
+      // The retained cache remains useful and carries an explicit stale warning.
+    }
+  }
   if (!cache) {
     return getRatesResponseSchema.parse({
       success: false,

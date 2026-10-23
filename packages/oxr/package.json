@@ -6,12 +6,6 @@
     ".": "./src/index.ts",
     "./*": "./src/*.ts"
   },
-  "scripts": {
-    "dev": "tsc --watch",
-    "dev:agent": "tsc --watch",
-    "typecheck": "tsc --noEmit",
-    "build": "tsc"
-  },
   "dependencies": {
     "zod": "^4.4.3"
   }

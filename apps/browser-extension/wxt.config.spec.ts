@@ -1,7 +1,15 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import type { ConfigEnv } from "wxt";
+import type { ConfigEnv, PublicPathEntry, ResolvedPublicFile } from "wxt";
 
-import { createManifest, createViteConfig, resolveApiEndpoint } from "./wxt.config";
+import { currencyFlagRegions } from "@/lib/currency-flags";
+import wxtConfig, {
+  addCurrencyFlagPublicAssets,
+  addCurrencyFlagPublicPath,
+  createManifest,
+  createViteConfig,
+  resolveApiEndpoint,
+} from "@/wxt.config";
 
 const PRODUCTION_API_ENDPOINT = "https://cl.dryk.net";
 const DEVELOPMENT_ENV = {
@@ -44,6 +52,12 @@ describe("WXT API endpoint configuration", () => {
       default_locale: "en",
       description: "__MSG_extensionDescription__",
       name: "__MSG_extensionName__",
+      web_accessible_resources: [
+        {
+          matches: ["<all_urls>"],
+          resources: ["currency-flags/*.svg"],
+        },
+      ],
     });
   });
 
@@ -63,5 +77,48 @@ describe("WXT API endpoint configuration", () => {
     expect(() => resolveApiEndpoint("https://example.com#invalid")).toThrow(
       "must not contain a fragment",
     );
+  });
+});
+
+describe("WXT currency flag assets", () => {
+  it("copies only selectable flag-icons files and types their runtime URLs", () => {
+    const files: ResolvedPublicFile[] = [];
+    const paths: PublicPathEntry[] = [];
+
+    addCurrencyFlagPublicAssets(undefined, files);
+    addCurrencyFlagPublicPath(undefined, paths);
+
+    expect(files.map((file) => file.relativeDest)).toEqual(
+      currencyFlagRegions.map(
+        (regionCode) => `currency-flags/${regionCode.toLowerCase()}.svg`,
+      ),
+    );
+    expect(
+      files.every(
+        (file) =>
+          "absoluteSrc" in file && file.absoluteSrc.endsWith(file.relativeDest.slice(15)),
+      ),
+    ).toBe(true);
+    expect(paths).toEqual([
+      { path: "currency-flags/${string}.svg", type: "templateLiteral" },
+    ]);
+  });
+});
+
+describe("WXT browser runner configuration", () => {
+  it("serves and opens the local sandbox on a deterministic development URL", async () => {
+    expect(wxtConfig.dev?.server).toEqual({
+      port: 3000,
+      strictPort: true,
+    });
+    expect(wxtConfig.webExt?.startUrls).toEqual(["http://localhost:3000/sandbox.html"]);
+
+    await expect(
+      readFile(new URL("./sandbox.html", import.meta.url), "utf8"),
+    ).resolves.toContain("Currency Lens Browser Extension Sandbox Page");
+  });
+
+  it("includes shared stores in the Firefox review source archive", () => {
+    expect(wxtConfig.zip?.includeSources).toContain("apps/browser-extension/stores/**");
   });
 });

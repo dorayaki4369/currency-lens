@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  formatConvertedAmount,
   getCurrencyDisplayName,
   getRegionDisplayNames,
   getUiLocale,
   resolveUiLocale,
   translate,
-} from "./i18n";
+} from "@/lib/i18n";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -21,10 +22,13 @@ describe("UI localization", () => {
   });
 
   it("formats named placeholders in both shipped languages", () => {
-    expect(translate("en", "targetCount", { current: 3, maximum: 5 })).toBe("3/5");
+    expect(
+      translate("en", "reorderCurrency", { currency: "JPY", position: 1, total: 3 }),
+    ).toBe("Reorder JPY, position 1 of 3");
     expect(translate("ja", "ratesFrom", { timestamp: "2026/08/27" })).toBe(
       "2026/08/27 時点のレート",
     );
+    expect(translate("ja", "addTarget")).toBe("換算通貨を追加");
   });
 
   it("reads an explicit, extension, navigator, or missing browser language", () => {
@@ -65,5 +69,36 @@ describe("UI localization", () => {
 
     expect(getCurrencyDisplayName("USD", "en")).toBe("USD");
     expect(getRegionDisplayNames(["US", "CA", "MX"], "en", 2)).toBe("US · CA");
+  });
+});
+
+describe("formatConvertedAmount", () => {
+  it.each([
+    ["15000", "15,000.00"],
+    ["1.2", "1.20"],
+    ["1.2345", "1.23"],
+  ])("formats %s with exactly two decimal places", (value, expected) => {
+    expect(formatConvertedAmount(value, "en")).toBe(expected);
+  });
+
+  it.each([
+    ["999999999.99", "999,999,999.99"],
+    ["1000000000", "1.00E+9"],
+    ["1267165358", "1.27E+9"],
+    ["1267165358.42", "1.27E+9"],
+    ["-1267165358.4", "-1.27E+9"],
+  ])(
+    "uses a two-decimal exponent only when the standard display of %s is too wide",
+    (value, expected) => {
+      expect(formatConvertedAmount(value, "en")).toBe(expected);
+    },
+  );
+
+  it("returns the original value when the number formatter rejects its options", () => {
+    vi.spyOn(Intl, "NumberFormat").mockImplementationOnce(function rejectNumberFormat() {
+      throw new RangeError("Unsupported formatting options");
+    });
+
+    expect(formatConvertedAmount("1234.56", "en")).toBe("1234.56");
   });
 });

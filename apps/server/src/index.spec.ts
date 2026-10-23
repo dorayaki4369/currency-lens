@@ -55,6 +55,22 @@ describe("latest rates API", () => {
     expect(dependencies.fetchLatestRates).not.toHaveBeenCalled();
   });
 
+  it("serves the stored snapshot when the OXR secret is unavailable", async () => {
+    const dependencies = createDependencies();
+    const app = createApp(dependencies);
+
+    const response = await app.request("/v1/latest", {}, createBindings({ appId: "" }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      base: "USD",
+      rates: { USD: "1", EUR: "0.92", NEW_COIN: "2.5" },
+      timestamp: 1_700_000_000,
+    });
+    expect(dependencies.fetchLatestRates).not.toHaveBeenCalled();
+    expect(dependencies.putLatestRates).not.toHaveBeenCalled();
+  });
+
   it("does not expose CORS access to ordinary web origins", async () => {
     const app = createApp(createDependencies());
 

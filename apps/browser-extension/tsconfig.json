@@ -3,6 +3,9 @@
   "compilerOptions": {
     "lib": ["DOM", "ESNext"],
     "allowImportingTsExtensions": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./*"]
+    }
   }
 }

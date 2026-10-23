@@ -7,7 +7,7 @@ import {
   evaluateWorkerDeployment,
   verifyRatesApiContract,
   waitForWorkerDeployment,
-} from "./release-readiness.ts";
+} from "@/scripts/release-readiness.ts";
 
 const TEST_REPOSITORY = "dorayaki4369/currency-lens";
 const TEST_COMMIT_SHA = "b".repeat(40);

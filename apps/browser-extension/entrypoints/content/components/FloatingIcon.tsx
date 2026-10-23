@@ -1,5 +1,7 @@
 import type { CSSProperties, MouseEvent } from "react";
-import { translate, type UiLocale } from "../../../lib/i18n";
+import { translate, type UiLocale } from "@/lib/i18n";
+import { AppLogo } from "@/components/layout/AppLogo";
+import { IconButton } from "@/components/ui/icon-button";
 
 interface FloatingIconProps {
   readonly floatingStyles: CSSProperties;
@@ -8,7 +10,7 @@ interface FloatingIconProps {
   readonly setFloating: (element: HTMLButtonElement | null) => void;
 }
 
-/** Renders the compact aperture control beside a detected selection. */
+/** Renders the app logo as the conversion trigger beside a detected selection. */
 export function FloatingIcon({
   floatingStyles,
   locale,
@@ -16,20 +18,18 @@ export function FloatingIcon({
   setFloating,
 }: FloatingIconProps) {
   return (
-    <button
-      aria-label={translate(locale, "convertSelection")}
-      className="cl-lens-trigger"
+    <IconButton
+      className="cursor-pointer rounded-md bg-slate-950 shadow-lg hover:bg-slate-900 focus-visible:ring-sky-400"
+      label={translate(locale, "convertSelection")}
       onClick={onClick}
       onMouseDown={preservePageSelection}
       ref={setFloating}
+      size="icon-sm"
       style={floatingStyles}
-      title={translate(locale, "openApp")}
       type="button"
     >
-      <span aria-hidden="true" className="cl-aperture cl-aperture--small">
-        <span className="cl-aperture__core" />
-      </span>
-    </button>
+      <AppLogo className="size-4" />
+    </IconButton>
   );
 }
 

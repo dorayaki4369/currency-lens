@@ -8,22 +8,49 @@ import type {
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  applyLocalApiEndpointDefault,
   createCommand,
   parseUserArguments,
   runWxtWithoutEnv,
   waitForChildExit,
-} from "./run-wxt-without-env.ts";
+} from "@/scripts/run-wxt-without-env.ts";
 
 describe("run-wxt-without-env internals", () => {
-  it("removes the local endpoint option and argument delimiter", () => {
-    expect(parseUserArguments(["--use-local-api-endpoint", "--", "build"])).toEqual({
-      useLocalApiEndpoint: true,
-      userArguments: ["build"],
-    });
-    expect(parseUserArguments(["zip"])).toEqual({
-      useLocalApiEndpoint: false,
-      userArguments: ["zip"],
-    });
+  it("removes the argument delimiter", () => {
+    expect(parseUserArguments(["--", "build"])).toEqual(["build"]);
+    expect(parseUserArguments(["zip"])).toEqual(["zip"]);
+  });
+
+  it.each([[[]], [["-b", "firefox", "--mv3"]], [["prepare"]]])(
+    "defaults the endpoint to the local Worker for %j",
+    (userArguments) => {
+      const unset: Record<string, string | undefined> = {};
+      const blank: Record<string, string | undefined> = { API_ENDPOINT: " " };
+
+      applyLocalApiEndpointDefault(unset, userArguments);
+      applyLocalApiEndpointDefault(blank, userArguments);
+
+      expect(unset["API_ENDPOINT"]).toBe("http://localhost:8787");
+      expect(blank["API_ENDPOINT"]).toBe("http://localhost:8787");
+    },
+  );
+
+  it("keeps a configured endpoint during local development", () => {
+    const environment: Record<string, string | undefined> = {
+      API_ENDPOINT: "https://cl.dryk.net",
+    };
+
+    applyLocalApiEndpointDefault(environment, []);
+
+    expect(environment["API_ENDPOINT"]).toBe("https://cl.dryk.net");
+  });
+
+  it.each(["build", "zip"])("leaves the endpoint required for %s", (command) => {
+    const environment: Record<string, string | undefined> = {};
+
+    applyLocalApiEndpointDefault(environment, [command]);
+
+    expect(environment).toEqual({});
   });
 
   it("routes publishing, project, and default commands to their owning CLI", () => {
@@ -60,7 +87,7 @@ describe("run-wxt-without-env internals", () => {
 
     await expect(
       runWxtWithoutEnv(
-        ["--use-local-api-endpoint", "--", "build"],
+        ["--", "build"],
         environment,
         mkdtemp as unknown as typeof createTemporaryDirectory,
         rm as unknown as typeof removeDirectory,
@@ -69,7 +96,7 @@ describe("run-wxt-without-env internals", () => {
       ),
     ).resolves.toBe(7);
 
-    expect(environment["API_ENDPOINT"]).toBe("http://localhost:8787");
+    expect(environment).toEqual({});
     expect(spawn).toHaveBeenCalledWith(
       process.execPath,
       expect.arrayContaining([expect.stringMatching(/wxt\.mjs$/u), "build"]),

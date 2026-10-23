@@ -5,67 +5,67 @@ description: Currency Lens のブラウザ拡張機能、為替レート Worker�
 
 # Currency Lens Development
 
-Currency Lens 固有の境界、検証順、リリース条件を一貫して扱います。
-一般的な TypeScript 実装原則は既存の software-* と typescript-* Skill を重ねて適用します。
+Currency Lens の変更先の決め方、変更の種類ごとのテスト観点、検証とリリースの手順をまとめます。
+AGENTS.md のルールを前提とし、ここでは繰り返しません。
+TypeScript の一般的な実装原則は、software-* と typescript-* の Skill を併用します。
 
 ## 最初に確認すること
 
 1. ルートの `AGENTS.md` を読みます。
-2. `.env`、`.env.*`、`.dev.vars`、`.dev.vars.*` は名前や場所を問わず絶対に読みません。
-3. [references/architecture-and-contracts.md](references/architecture-and-contracts.md) から、変更対象の正本と契約を確認します。
-4. 次の除外付きコマンドで作業中の差分を確認し、依頼範囲と重なる変更を整理します。禁止対象を表示し得る無条件の `git status` や `git diff` は実行しません。
-
-```text
-git status --short -- . ':(exclude,glob)**/.env' ':(exclude,glob)**/.env.*' ':(exclude,glob)**/.dev.vars' ':(exclude,glob)**/.dev.vars.*'
-```
-
-Agent がローカル開発タスクを起動するときは、環境ファイルを読む人間専用の `pnpm dev` ではなく `pnpm dev:agent` を使います。
+2. [references/architecture-and-contracts.md](references/architecture-and-contracts.md) で、変更対象の正本と契約を確認します。
+3. 作業中の差分を確認し、依頼の範囲と重なる変更を把握します。
 
 ## 変更先を決める
 
-- 金額文字列の解析、曖昧な通貨記号、換算、storage、runtime message は `apps/browser-extension/lib/` が所有します。
-- 選択操作と換算カードは `apps/browser-extension/entrypoints/content/` が所有します。
-- 換算先通貨と表示設定は `apps/browser-extension/entrypoints/popup/` が所有します。
-- 曖昧な通貨記号の解釈と対応通貨一覧は `apps/browser-extension/entrypoints/options/` が所有します。
-- Open Exchange Rates との通信契約は `packages/oxr/` が所有します。
-- 公開レート API、R2、定期更新は `apps/server/` が所有します。
-- 通貨コード、記号、表示桁は `packages/currency/` が正本です。
-- 実際に複数の配備単位で使う契約だけを共有 package へ置きます。
+| 変更する内容                                                     | 変更先                                         |
+| ---------------------------------------------------------------- | ---------------------------------------------- |
+| 金額文字列の解析、曖昧な通貨記号、換算、storage、runtime message | `apps/browser-extension/lib/`                  |
+| 選択操作、換算カード                                             | `apps/browser-extension/entrypoints/content/`  |
+| 換算先通貨、外観、曖昧な通貨記号の解釈、対応通貨一覧             | `apps/browser-extension/entrypoints/popup/`    |
+| Open Exchange Rates との通信                                     | `packages/oxr/`                                |
+| 公開レート API、R2、定期的なレート取得                           | `apps/server/`                                 |
+| 通貨コード、記号、換算の精度                                     | `packages/currency/`                           |
+| 換算後の金額の表示桁                                             | `apps/browser-extension/lib/i18n.ts`           |
 
-## 実装する
+共有パッケージへ置くのは、実際に複数の配備単位（拡張機能と Worker）で使う契約だけです。
 
-外部入力は Zod で境界検証します。
-特に browser storage、runtime message、HTTP response、R2 JSON を型アサーションだけで通しません。
+## 実装で守ること
 
-次の不変条件を保ちます。
+AGENTS.md の実装ルールに加えて、次を守ります。
 
-- 選択テキストはローカル解析だけに使い、Worker へ送信しません。
-- 検出処理は金額候補を出現順に返し、画面と Background Script へ渡すのは先頭1件だけです。
-- お気に入りは重複なしで最大5通貨です。
-- レート取得に失敗しても最後の正常値を消しません。
-- source timestamp、取得時刻、stale 状態を混同しません。
-- Content Script の CSS は Shadow DOM 内へ閉じます。
-- Chrome と Firefox の両方で使える WebExtensions API を優先します。
+- レートの取得に失敗しても、最後に取得できたレートを消しません。
+- レートの提供時刻（`sourceTimestamp`）、拡張機能が取得した時刻（`fetchedAt`）、古さの判定（`isStale`）を混同しません。
+- ブラウザ API は、Chrome と Firefox の両方で使える WebExtensions API を優先します。
 
-UI を変更するときは frontend-design と browser Skill も使います。
-popup、Options、換算カードを実ブラウザで開き、スクリーンショットを撮って少なくとも1回は見た目を批評してから完了します。
+## 変更の種類ごとのテスト観点
+
+| 変更                | テストする観点                                                                                 |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| 金額の検出          | US／EU／空白区切り、4桁以上、複数文字の記号、通貨コード、部分一致、曖昧な記号、件数の上限      |
+| storage／message    | 正常値、不正値、旧設定の移行、fresh／stale、通信失敗後のレートの保持                           |
+| Worker              | R2 の正常／空／破損、OXR の非2xx／timeout／不正な JSON、定期的な取得                           |
+| UI                  | loading、empty、error、success、保存の失敗、Escape、外側のクリック、focus、reduced motion      |
+
+UI を変更するときは、frontend-design と browser の Skill も使います。
+各コンポーネントのライト・ダーク表示、Popup の各設定画面、換算カードを、少なくとも1回は実ブラウザで見て評価します。
+崩れがあれば直し、もう一度確認してから完了とします。
+静的な見た目は integration と E2E が保存するレビュー用画像で、操作や動きは `pnpm dev` で起動した拡張機能で確認します。
 
 ## 検証する
 
-変更中は対象を絞り、完了前はルートで次を実行します。
+作業中は対象のテストに絞って実行します。
+完了前に、ルートで次を実行します。
 
 ```text
-pnpm format
+pnpm check --fix
 API_ENDPOINT=https://cl.dryk.net pnpm validate
+pnpm test:e2e
 ```
 
-検出変更では US／EU／空白区切り、4桁以上、複数文字記号、コード、部分一致、曖昧記号、上限をテストします。
-storage／message 変更では正常値、不正値、旧設定移行、fresh／stale、通信失敗後の保持をテストします。
-Worker 変更では R2 の正常／空／破損、OXR の非2xx／timeout／不正JSON、定期更新をテストします。
-UI 変更では loading、empty、error、success、保存失敗、Escape、外側クリック、focus、reduced motion を確認します。
+`pnpm validate` は、check、unit のカバレッジ、integration、build をまとめて実行します。
 
 ## リリースする
 
-[references/release.md](references/release.md) を読み、開発ブランチ、Worker、ストア公開の順序と人間が用意する credentials を確認します。
-初回ストア掲載や credentials 作成を自動化済みと誤認しません。
-外部状態を実際に確認できない場合は、ローカル実装完了と外部設定待ちを分けて報告します。
+[references/release.md](references/release.md) を読み、ブランチ、Worker、ストア公開の順序と、人間が行う作業を確認します。
+初回のストア掲載や credentials の作成を、自動化済みと考えません。
+外部の状態を実際に確かめられない場合は、ローカルの実装が完了したことと、外部の設定を待っていることを分けて報告します。

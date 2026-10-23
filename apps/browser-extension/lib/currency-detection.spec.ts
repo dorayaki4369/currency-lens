@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { currencyCodeSchema } from "./currency";
-import { detectCurrencies, parseMoneyAmount } from "./currency-detection";
+import { currencyLocalNames } from "@cl/currency";
+import { currencyCodeSchema } from "@/lib/currency";
+import { detectCurrencies, parseMoneyAmount } from "@/lib/currency-detection";
 
 describe("parseMoneyAmount", () => {
   it("parses US and European separators from explicit page locales", () => {
@@ -43,6 +44,34 @@ describe("parseMoneyAmount", () => {
 });
 
 describe("detectCurrencies", () => {
+  it("detects every local-language amount supported by the currency package", () => {
+    for (const currency of currencyLocalNames) {
+      for (const localName of currency.names) {
+        for (const locale of localName.locales) {
+          expect(
+            detectCurrencies(localName.sample, { pageLocale: locale }),
+            `${currency.code}: ${localName.sample} (${locale})`,
+          ).toMatchObject([
+            {
+              amount: 100,
+              currencyCode: currency.code,
+              originalText: localName.sample,
+            },
+          ]);
+        }
+      }
+    }
+  });
+
+  it("uses the documented default when a local unit name has no locale hint", () => {
+    expect(detectCurrencies("100 dollars")).toMatchObject([
+      { amount: 100, currencyCode: "AUD", originalText: "100 dollars" },
+    ]);
+    expect(detectCurrencies("100 dollars", { pageLocale: "ja-JP" })).toMatchObject([
+      { amount: 100, currencyCode: "AUD", originalText: "100 dollars" },
+    ]);
+  });
+
   it("detects code and symbol forms before and after amounts", () => {
     const detected = detectCurrencies("USD 1,234.56; 2.345,67 EUR; £3 456.78", {
       pageLocale: "en-US",
@@ -103,9 +132,9 @@ describe("detectCurrencies", () => {
   });
 
   it("does not accept suffix fragments of longer codes, symbols, or malformed amounts", () => {
-    expect(
-      detectCurrencies("NOTUSD 100; 100 kroner; 1,23,456 USD; invoice123 USD"),
-    ).toEqual([]);
+    expect(detectCurrencies("NOTUSD 100; 100 money; 1,23,456 USD; invoice123 USD")).toEqual(
+      [],
+    );
   });
 
   it("accepts an amount at the start and rejects word-adjacent amount endings", () => {

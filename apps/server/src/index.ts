@@ -45,7 +45,7 @@ export function createApp(dependencies: LatestRatesDependencies = defaultDepende
   const app = new Hono<{ Bindings: CloudflareBindings }>();
   let seedPromise: Promise<LatestRates> | undefined;
 
-  /** Coalesces concurrent first requests into one upstream fetch and R2 seed. */
+  /** Coalesces concurrent requests for an empty bucket into one upstream fetch. */
   function seedLatestRates(env: CloudflareBindings, appId: string): Promise<LatestRates> {
     if (!seedPromise) {
       seedPromise = (async () => {

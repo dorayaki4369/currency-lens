@@ -5,10 +5,12 @@
 ## GitHubの設定の理由
 
 - feature branchから`develop`へも、`develop`から`main`へも、merge commitで取り込みます。squashすると、merge済みのbranchの上に作ったbranchで同じ変更が別のcommitとして残り、conflictの原因になるためです。
-- 「Require branches to be up to date before merging」は無効にします。昇格のmerge commitは`main`にだけ作られるので、最新化を必須にすると次の昇格ができなくなるためです。Pull RequestのCIはmerge後の内容を検証するので、最新化しなくても検証は抜けません。
-- 必須の承認数は0です。レビューする人がいないためで、collaboratorを追加するときは1以上にし、auto-mergeの扱いも見直します。
+- 「Require branches to be up to date before merging」は両branchで無効にします。`main`では、昇格のmerge commitが`main`にだけ作られるため、最新化を必須にすると次の昇格ができなくなります。`develop`では、auto-mergeを予約したPull Requestが、別のPull Requestが入るたびに手動の最新化を待たないようにするためです。別々にCIを通ったPull Requestの組み合わせで壊れた場合は、`develop`へのpushで動くCIと、昇格のPull RequestのCIで止まります。
+- 必須の承認数は0です。レビューする人がいないためです。auto-mergeは書き込み権限を持つ人なら承認なしで有効にできるため、collaboratorを追加するときは承認数を1以上にし、auto-mergeの扱いも見直します。
+- fork Pull Requestのworkflow実行は、外部の人すべてについて承認を必須にします。secretは渡りませんが、外部のコードでCIを動かす前に内容を確かめるためです。
 - `production` Environmentは`main`だけに制限し、承認者は置きません。`main`へのmergeで自動的にデプロイしつつ、Cloudflareのtokenを`main`以外のbranchのWorkflowから読めなくするためです。
-- ストア用のsecretはRepository secretsに置きます。今は環境ごとに認証情報や承認者を分けていないためです。分けることになったら、ストア用のEnvironmentを考え直します。
+- ストア用のsecretはRepository secretsに置きます。今は環境ごとに認証情報や承認者を分けていないためです。Environmentで守らない代わりに、`main`と`develop`のRulesetでWorkflowの書き換えを防ぎます。分けることになったら、ストア用のEnvironmentを考え直します。
+- `API_ENDPOINT`は公開されているURLなので、secretではなくRepository variableにしています。
 
 ## Cloudflareの初期設定
 
@@ -34,7 +36,7 @@ Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必�
 
 ChromeとFirefoxへの提出は一つのトランザクションではなく、一方だけ成功することがあります。再実行する前にActions artifactと両ストアのdashboardを確認し、同じversionを再提出できる状態か判断してください。
 
-`API_ENDPOINT`の値を変えると、配布する拡張機能の接続先も変わります。変えるときは、WorkerのCustom Domain、Firefox審査用の`SOURCE_CODE_REVIEW.md`もあわせて確認します。
+Repository variable `API_ENDPOINT`の値を変えると、配布する拡張機能の接続先も変わります。変えるときは、WorkerのCustom Domain、Firefox審査用の`SOURCE_CODE_REVIEW.md`もあわせて確認します。
 
 ## デプロイが失敗した場合
 

@@ -15,19 +15,17 @@ merge 済みのブランチの上に作ったブランチで同じ変更が別�
 
 ## Worker
 
-- Worker は `ci.yml` の `deploy Worker` だけがデプロイします。ローカルからのデプロイや Cloudflare Workers Builds の Git 連携は使いません。
+- Worker は `ci.yml` の `deploy Worker` がデプロイします。Cloudflare Workers Builds の Git 連携は使いません。
 - Cloudflare の認証情報は `production` Environment の secret だけに置き、Repository secrets には置きません。
 - `OPEN_EXCHANGE_RATE_APP_ID` は Cloudflare Worker secret だけに置きます。
 
-### デプロイが失敗した commit の復旧
-
-原因を直したら、同じ run の `deploy Worker` を再実行するか、通常の Pull Request の経路で `main` へ新しい push を起こし、その SHA の `deploy Worker` が成功したことを確かめます。
-再実行できるのは、その SHA が今も `main` の先頭にある場合だけです。
+デプロイが失敗したときは、`docs/deployment.md` の「デプロイが失敗した場合」に従います。
 
 ## ブラウザストア
 
-release tag は、`deploy Worker` が成功した現在の `main` の HEAD に付けます。
+release tag は `v` と `apps/browser-extension/package.json` の version をつないだ名前にし、`deploy Worker` が成功した現在の `main` の HEAD に付けます。
 提出前の検査は `publish-extension.yml` が行うので、検査を省く手順を作りません。
+手動実行は dry-run だけにし、本番提出へ切り替える入力を足しません。同じ version を二重に提出しないためです。
 
 ### API の互換性
 
@@ -47,4 +45,4 @@ Agent は次の作業を行わず、必要になったら人間に依頼しま�
 - Cloudflare の API token の発行と、`production` Environment への secret の登録
 - ストアの credentials を GitHub Actions の Repository secrets に登録すること
 - 各ストアの初回 listing、説明、画像、プライバシー項目、公開範囲の設定
-- 旧 route を廃止するかどうかの判断
+- 旧 route を廃止するかどうかの判断（対応する配布済み拡張機能が使われなくなったことを確かめてから判断します）

@@ -17,15 +17,7 @@
       "Edit(./.dev.vars)",
       "Edit(./.dev.vars.*)",
       "Edit(./**/.dev.vars)",
-      "Edit(./**/.dev.vars.*)",
-      "Write(./.env)",
-      "Write(./.env.*)",
-      "Write(./**/.env)",
-      "Write(./**/.env.*)",
-      "Write(./.dev.vars)",
-      "Write(./.dev.vars.*)",
-      "Write(./**/.dev.vars)",
-      "Write(./**/.dev.vars.*)"
+      "Edit(./**/.dev.vars.*)"
     ]
   },
   "sandbox": {

@@ -25,9 +25,10 @@ GitHub Actionsの全WorkflowはNode.js 24とpnpm 11を使います。外部Actio
 | 必須check `CI / quality`            | 有効      | 有効   | format、lint、型、テスト、buildを必須にする        |
 | head branchを最新にする             | 有効      | 無効   | `develop`は最新化し、`main`はPRのmerge結果をCIする |
 | 未解決conversationを残したmerge禁止 | 有効      | 有効   | 指摘を解消してからmergeする                        |
+| 許可するmerge方法                   | merge     | merge  | 積み上げたbranchでも同じcommitを共有できる         |
 | force push／branch削除              | 禁止      | 禁止   | 履歴と配布元branchを保護する                       |
 
-`ci.yml`は`main`向けPull Requestのheadが同じリポジトリの`develop`でなければ失敗するため、`develop`から`main`への昇格経路も同じcheckで強制されます。feature branchは`develop`へsquash mergeし、`develop`から`main`へはmerge commitを使います。
+`ci.yml`は`main`向けPull Requestのheadが同じリポジトリの`develop`でなければ失敗するため、`develop`から`main`への昇格経路も同じcheckで強制されます。feature branchから`develop`へも、`develop`から`main`へも、merge commitで取り込みます。squashすると、merge済みのbranchの上に作ったbranchで同じ変更が別のcommitとして残り、conflictの原因になるためです。
 
 `main`の必須status checkでは「Require branches to be up to date before merging」を無効にします。昇格時のmerge commitは`main`だけに作られるため、最初の昇格後は`develop`が履歴上の`main`より古い状態になり、最新化を必須にすると次の昇格が停止するためです。`main`向けPull RequestのCIはGitHubが作るmerge branchをcheckoutして統合後の内容を検証し、head branch guardにより取り込み元も`develop`へ限定します。`develop`側では最新化を引き続き必須にします。
 

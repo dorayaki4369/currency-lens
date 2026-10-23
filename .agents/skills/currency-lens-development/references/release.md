@@ -3,12 +3,14 @@
 ## ブランチ
 
 1. `feature/*` から `develop` へ Pull Request を作ります。
-2. 必須 CI と会話解決を通し、feature は squash merge します。
+2. 必須 CI と会話解決を通し、feature は merge commit で取り込みます。
 3. `develop` から `main` へ Pull Request を作ります。
 4. `main` への head branch guard と必須 CI を通し、merge commit で昇格します。
 
 一人開発では self approval ができないため、required approval は0件にします。
 Pull Request と CI は必須のままです。
+Ruleset が許可する merge 方法は、`develop` と `main` のどちらも merge commit だけです。
+squash すると、merge 済みのブランチの上に作ったブランチで同じ変更が別の commit として残り、conflict の原因になるためです。
 `develop` の必須 status check は head branch の最新化を要求し、`main` では要求しません。
 昇格時の merge commit は `main` だけに作られて `develop` が履歴上古くなるため、`main` でも最新化を要求すると次の昇格が停止します。
 `main` 向け Pull Request の CI は GitHub の merge branch を検査し、head branch guard により取り込み元を同じリポジトリの `develop` へ限定します。

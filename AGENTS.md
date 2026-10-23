@@ -73,7 +73,7 @@ UI を変更したら popup、Options、換算カードのスクリーンショ�
 
 通常の作業は `feature/*` から `develop` への Pull Request で行います。
 `main` へは `develop` からの Pull Request だけを許可し、必須 CI を通します。
-feature Pull Request は squash、`develop` から `main` への昇格は merge commit を使います。
+feature Pull Request と `develop` から `main` への昇格は、どちらも merge commit で取り込みます。
 `main` 更新時に Cloudflare Workers Builds から Worker を自動デプロイし、`v*` の GitHub Release 公開時に Chrome Web Store と Firefox Add-ons へ提出します。
 ストア提出前に、release tag と同じ commit の Cloudflare Check Run 成功を待ち、公開中の `/v1/latest` と旧 `/latest` を配布版クライアントの Zod schema で検証します。
 現行の v1 契約は後方互換に保ち、項目の追加を含む破壊的変更は `/v2/latest` のような新しい versioned route へ分けます。

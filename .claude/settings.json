@@ -4,14 +4,7 @@
     "WRANGLER_WRITE_LOGS": "false"
   },
   "permissions": {
-    "deny": [
-      "Read(./.env)",
-      "Read(./.dev.vars)",
-      "Edit(./.env)",
-      "Edit(./.dev.vars)",
-      "Write(./.env)",
-      "Write(./.dev.vars)"
-    ]
+    "deny": ["Read(./.env)", "Read(./.dev.vars)", "Edit(./.env)", "Edit(./.dev.vars)"]
   },
   "sandbox": {
     "enabled": true,

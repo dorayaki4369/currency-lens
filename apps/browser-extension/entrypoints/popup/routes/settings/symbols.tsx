@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { Config } from "@/lib/currency";
 import { translate, type UiLocale } from "@/lib/i18n";
 import { Stack } from "@/components/layout/Stack";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   type PopupApplicationContextValue,
   PopupRouteFrame,
@@ -49,17 +48,13 @@ function SymbolSettings({ config, locale, updateConfig }: SymbolSettingsProps) {
       <p className="text-xs text-muted-foreground">
         {translate(locale, "ambiguousDescription")}
       </p>
-      <Card className="flex-1" spacing="none">
-        <CardContent>
-          <AmbiguousSymbolSettings
-            config={config}
-            headingId="symbol-settings-title"
-            listClassName="min-h-0 flex-1"
-            locale={locale}
-            updateConfig={updateConfig}
-          />
-        </CardContent>
-      </Card>
+      <AmbiguousSymbolSettings
+        config={config}
+        headingId="symbol-settings-title"
+        listClassName="min-h-0 flex-1"
+        locale={locale}
+        updateConfig={updateConfig}
+      />
     </Stack>
   );
 }

@@ -6,9 +6,10 @@ import { getCurrencySearchKeywords, matchesCurrencySearch } from "@/lib/currency
 import { cn } from "@/lib/utils";
 import { CurrencyIdentity } from "@/components/currency/CurrencyIdentity";
 import { Stack } from "@/components/layout/Stack";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { List, ListItem } from "@/components/ui/list";
+import { List, ListItem, ListItemRow } from "@/components/ui/list";
 
 interface CurrencyCatalogProps {
   readonly className?: string | undefined;
@@ -46,21 +47,25 @@ export function CurrencyCatalog({
           value={query}
         />
       </div>
-      <List
-        aria-labelledby={headingId}
-        as="ul"
-        className={cn("overflow-y-auto", listClassName)}
-        tabIndex={0}
-      >
-        {visibleCurrencies.map((currencyCode) => (
-          <ListItem as="li" className="py-3" dividerInset="edge" key={currencyCode}>
-            <CurrencyIdentity
-              currencyCode={currencyCode}
-              description={getCurrencyDisplayName(currencyCode, locale)}
-            />
-          </ListItem>
-        ))}
-      </List>
+      <Card className={cn("overflow-hidden", listClassName)} spacing="none">
+        <List
+          aria-labelledby={headingId}
+          as="ul"
+          className="min-h-0 flex-1 overflow-y-auto"
+          tabIndex={0}
+        >
+          {visibleCurrencies.map((currencyCode) => (
+            <ListItem as="li" key={currencyCode}>
+              <ListItemRow>
+                <CurrencyIdentity
+                  currencyCode={currencyCode}
+                  description={getCurrencyDisplayName(currencyCode, locale)}
+                />
+              </ListItemRow>
+            </ListItem>
+          ))}
+        </List>
+      </Card>
     </Stack>
   );
 }

@@ -27,7 +27,8 @@ import { HoverTooltip } from "@/components/ui/hover-tooltip";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { List, ListItem } from "@/components/ui/list";
+import { Card } from "@/components/ui/card";
+import { ListItem } from "@/components/ui/list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 
@@ -68,7 +69,6 @@ interface ConversionEditorProps {
 const UNAVAILABLE_TARGET_AMOUNT: ConversionTargetAmount = { status: "unavailable" };
 const EMPTY_TARGET_AMOUNTS: ReadonlyMap<CurrencyCode, ConversionTargetAmount> = new Map();
 const TargetAmountsContext = createContext(EMPTY_TARGET_AMOUNTS);
-const TARGET_ROW_CLASS_NAME = "px-3 py-1.5";
 const TARGET_EDITING_MOTION_SELECTOR = [
   '[data-slot="currency-value-row"]',
   '[data-slot="currency-leading-action"]',
@@ -145,11 +145,6 @@ export function ConversionEditor({
     <Stack gap={3} data-slot="conversion-editor">
       <Stack as="section" aria-labelledby={sourceHeadingId}>
         <SectionHeader
-          action={
-            <Label className="text-xs text-muted-foreground" htmlFor={sourceAmountId}>
-              {translate(locale, "sourceAmount")}
-            </Label>
-          }
           headingLevel={sourceHeadingLevel}
           id={sourceHeadingId}
           title={translate(locale, "sourceHeading")}
@@ -157,22 +152,27 @@ export function ConversionEditor({
         <CurrencyValueRow
           amount={
             <>
-              <Input
-                aria-describedby={sourceAmountIsInvalid ? sourceErrorId : undefined}
-                aria-invalid={sourceAmountIsInvalid}
-                className={cn(
-                  "h-12 rounded-lg border-0 bg-card text-right shadow-none [appearance:textfield] tabular-nums focus-visible:ring-0 dark:bg-card",
-                  "[&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none",
-                )}
-                id={sourceAmountId}
-                inputMode="decimal"
-                min="0"
-                onChange={(event) => onAmountTextChange(event.target.value)}
-                ref={sourceAmountReference}
-                step="any"
-                type="number"
-                value={amountText}
-              />
+              <Label className="sr-only" htmlFor={sourceAmountId}>
+                {translate(locale, "sourceAmount")}
+              </Label>
+              <Card className="overflow-hidden" spacing="none">
+                <Input
+                  aria-describedby={sourceAmountIsInvalid ? sourceErrorId : undefined}
+                  aria-invalid={sourceAmountIsInvalid}
+                  className={cn(
+                    "h-12 rounded-none border-0 bg-transparent text-right shadow-none [appearance:textfield] tabular-nums focus-visible:ring-0 dark:bg-transparent",
+                    "[&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none",
+                  )}
+                  id={sourceAmountId}
+                  inputMode="decimal"
+                  min="0"
+                  onChange={(event) => onAmountTextChange(event.target.value)}
+                  ref={sourceAmountReference}
+                  step="any"
+                  type="number"
+                  value={amountText}
+                />
+              </Card>
               {sourceAmountIsInvalid ? (
                 <p className="px-3 pb-2 text-xs text-destructive" id={sourceErrorId}>
                   {translate(locale, "sourceAmountInvalid")}
@@ -180,9 +180,8 @@ export function ConversionEditor({
               ) : null}
             </>
           }
-          className="bg-transparent"
           identity={
-            <div className="rounded-lg bg-card">
+            <Card className="overflow-hidden" spacing="none">
               <Label className="sr-only" htmlFor={sourceCurrencyId}>
                 {translate(locale, "sourceCurrency")}
               </Label>
@@ -198,7 +197,7 @@ export function ConversionEditor({
                 value={currencyCode}
                 variant="row"
               />
-            </div>
+            </Card>
           }
           currencyCode={currencyCode}
           mode="edit"
@@ -315,7 +314,6 @@ function ConversionTargetArea({
   const isJoined = editing !== undefined && fallback === undefined;
   const content = fallback ?? (
     <ConversionTargetList
-      embedded={isJoined}
       locale={locale}
       onRemove={editing?.onRemove}
       onReorder={onReorder}
@@ -326,7 +324,13 @@ function ConversionTargetArea({
   return (
     <TargetAmountsContext.Provider value={targetAmounts}>
       {editing === undefined ? (
-        content
+        fallback === undefined ? (
+          <Card className="overflow-hidden" spacing="none">
+            {content}
+          </Card>
+        ) : (
+          content
+        )
       ) : (
         <EditableConversionTargets
           editing={editing}
@@ -391,14 +395,15 @@ function EditableConversionTargets({
   return (
     <div className="contents" ref={editingMotionRoot}>
       {isJoined ? (
-        <List
-          className={cn(exiting && "pointer-events-none")}
+        <Card
+          className={cn("overflow-hidden", exiting && "pointer-events-none")}
           data-slot="target-editing-list"
           data-target-editing-motion={entering ? "entering" : undefined}
           data-target-editing-state={exiting ? "exiting" : "active"}
+          spacing="none"
         >
           {content}
-        </List>
+        </Card>
       ) : (
         <Stack
           className={cn(exiting && "pointer-events-none")}
@@ -448,7 +453,6 @@ function readElementAnimations(element: HTMLElement): readonly Animation[] {
 }
 
 interface ConversionTargetListProps {
-  readonly embedded: boolean;
   readonly locale: UiLocale;
   readonly onRemove?: ((currencyCode: CurrencyCode) => void) | undefined;
   readonly onReorder?: ConversionEditorProps["onReorderTarget"];
@@ -457,7 +461,6 @@ interface ConversionTargetListProps {
 
 /** Keeps target identities stable while amount cells receive calculation updates. */
 const ConversionTargetList = memo(function ConversionTargetList({
-  embedded,
   locale,
   onRemove,
   onReorder,
@@ -465,12 +468,7 @@ const ConversionTargetList = memo(function ConversionTargetList({
 }: ConversionTargetListProps) {
   if (targetCurrencies.length === 0) {
     return (
-      <p
-        className={cn(
-          "bg-card p-4 text-center text-sm text-muted-foreground",
-          !embedded && "rounded-lg",
-        )}
-      >
+      <p className="p-4 text-center text-sm text-muted-foreground">
         {translate(locale, "targetEmpty")}
       </p>
     );
@@ -483,7 +481,6 @@ const ConversionTargetList = memo(function ConversionTargetList({
       isDeletable={onRemove !== undefined}
       isDraggable={onReorder !== undefined}
       items={targetCurrencies}
-      listClassName={embedded ? "rounded-none" : undefined}
       locale={locale}
       onDelete={onRemove}
       onReorder={onReorder}
@@ -495,7 +492,6 @@ const ConversionTargetList = memo(function ConversionTargetList({
           locale,
         })
       }
-      rowClassName={TARGET_ROW_CLASS_NAME}
     />
   );
 });
@@ -639,33 +635,51 @@ function ConversionTargetAdder({
       data-slot="target-add-reveal"
     >
       <div className="min-h-0 overflow-hidden" data-slot="target-add-clip">
-        <ListItem
-          className={cn(
-            "flex w-full items-center motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out",
-            !embedded && "rounded-lg bg-card",
-          )}
-          data-slot="target-add-row"
-          dividerVisibility={embedded && targetCurrencies.length > 0 ? "visible" : "hidden"}
-        >
-          <Label className="sr-only" htmlFor={selectId}>
-            {translate(locale, "addTarget")}
-          </Label>
-          <CurrencyCombobox
-            ariaLabel={translate(locale, "addTarget")}
-            contentClassName={portalled ? undefined : "w-64"}
-            currencyCodes={editing.availableCurrencyCodes}
-            disabledCurrencyCodes={targetCurrencies}
-            id={selectId}
-            locale={locale}
-            onValueChange={editing.onAdd}
-            placeholder={translate(locale, "addTarget")}
-            portalled={portalled}
-            value={null}
-            variant="row"
-          />
-        </ListItem>
+        <TargetAdderSurface embedded={embedded}>
+          <ListItem
+            className="flex w-full items-center motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out"
+            data-slot="target-add-row"
+            dividerVisibility={
+              embedded && targetCurrencies.length > 0 ? "visible" : "hidden"
+            }
+          >
+            <Label className="sr-only" htmlFor={selectId}>
+              {translate(locale, "addTarget")}
+            </Label>
+            <CurrencyCombobox
+              ariaLabel={translate(locale, "addTarget")}
+              contentClassName={portalled ? undefined : "w-64"}
+              currencyCodes={editing.availableCurrencyCodes}
+              disabledCurrencyCodes={targetCurrencies}
+              id={selectId}
+              locale={locale}
+              onValueChange={editing.onAdd}
+              placeholder={translate(locale, "addTarget")}
+              portalled={portalled}
+              value={null}
+              variant="row"
+            />
+          </ListItem>
+        </TargetAdderSurface>
       </div>
     </div>
+  );
+}
+
+/** Gives the add row its own card only when it is not joined to the target list. */
+function TargetAdderSurface({
+  children,
+  embedded,
+}: {
+  readonly children: ReactNode;
+  readonly embedded: boolean;
+}) {
+  return embedded ? (
+    children
+  ) : (
+    <Card className="overflow-hidden" spacing="none">
+      {children}
+    </Card>
   );
 }
 

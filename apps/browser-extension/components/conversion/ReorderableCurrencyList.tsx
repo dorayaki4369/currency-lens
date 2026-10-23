@@ -17,7 +17,7 @@ import { translate, type UiLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { HoverTooltip } from "@/components/ui/hover-tooltip";
 import { IconButton } from "@/components/ui/icon-button";
-import { List, ListItem } from "@/components/ui/list";
+import { List, ListItem, ListItemRow } from "@/components/ui/list";
 import { FOCUS_WITHIN_RING_CLASS_NAME } from "@/components/ui/focus-ring";
 
 const ROW_EXIT_DURATION_MS = 300;
@@ -68,7 +68,6 @@ interface ReorderableCurrencyListProps<Item> {
     index: number,
     actions: CurrencyValueRowActions,
   ) => ReactNode;
-  readonly rowClassName?: string | undefined;
 }
 
 /** Owns optional drag and delete behavior around currency value rows. */
@@ -84,7 +83,6 @@ export function ReorderableCurrencyList<Item>({
   onDelete,
   onReorder,
   renderItem,
-  rowClassName,
 }: ReorderableCurrencyListProps<Item>) {
   const instructionsId = useId();
   const listRef = useRef<HTMLOListElement>(null);
@@ -497,13 +495,11 @@ export function ReorderableCurrencyList<Item>({
                 data-slot="list-item-reveal"
               >
                 <div className="min-h-0 overflow-hidden">
-                  <div
+                  <ListItemRow
                     className={cn(
-                      "relative flex items-center gap-2 motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out",
+                      "relative motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out",
                       isDeleting && "-translate-y-full pointer-events-none",
-                      rowClassName,
                     )}
-                    data-slot="list-item-row"
                     onTransitionEnd={(event: ReactTransitionEvent<HTMLDivElement>) => {
                       if (
                         event.currentTarget === event.target &&
@@ -518,7 +514,7 @@ export function ReorderableCurrencyList<Item>({
                       leadingAction,
                       trailingAction,
                     })}
-                  </div>
+                  </ListItemRow>
                 </div>
               </div>
               {dropPlacement === undefined ? null : (

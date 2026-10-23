@@ -8,6 +8,7 @@ import {
 import { translate, type UiLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { CurrencyCombobox } from "@/components/currency/CurrencyCombobox";
+import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { List, ListItem } from "@/components/ui/list";
 
@@ -46,22 +47,20 @@ export function AmbiguousSymbolSettings({
   };
 
   return (
-    <List
-      aria-labelledby={headingId}
-      as="ul"
-      className={cn("overflow-y-auto", listClassName)}
-    >
-      {groups.map((group) => (
-        <ListItem as="li" key={group.tokens.join("")}>
-          <SymbolMappingRow
-            group={group}
-            locale={locale}
-            onChange={handleChange}
-            value={getGroupOverride(config, group)}
-          />
-        </ListItem>
-      ))}
-    </List>
+    <Card className={cn("overflow-hidden", listClassName)} spacing="none">
+      <List aria-labelledby={headingId} as="ul" className="min-h-0 flex-1 overflow-y-auto">
+        {groups.map((group) => (
+          <ListItem as="li" key={group.tokens.join("")}>
+            <SymbolMappingRow
+              group={group}
+              locale={locale}
+              onChange={handleChange}
+              value={getGroupOverride(config, group)}
+            />
+          </ListItem>
+        ))}
+      </List>
+    </Card>
   );
 }
 
@@ -95,7 +94,7 @@ function SymbolMappingRow({
       >
         <span className="flex flex-wrap gap-1.5">
           {group.tokens.map((token) => (
-            <code className="rounded-sm bg-muted px-1.5 py-0.5 text-xs" key={token}>
+            <code className="text-sm" key={token}>
               {token}
             </code>
           ))}

@@ -75,17 +75,15 @@ describe("popup layout", () => {
 
     const card = requireElement('[data-slot="card"]');
     const cardBounds = card.getBoundingClientRect();
-    const themeRowBounds = requireElement(
-      '[data-slot="card-content"] > div',
-      card,
-    ).getBoundingClientRect();
+    const labelBounds = requireElement("label", card).getBoundingClientRect();
+    const selectBounds = requireElement("select", card).getBoundingClientRect();
 
     expectEdge(settingsRowBounds.height, 44);
     expectEdge(cardBounds.height, 48);
-    expect(themeRowBounds.left - cardBounds.left).toBe(12);
-    expect(cardBounds.right - themeRowBounds.right).toBe(12);
-    expect(themeRowBounds.top - cardBounds.top).toBe(8);
-    expect(cardBounds.bottom - themeRowBounds.bottom).toBe(8);
+    expect(labelBounds.left - cardBounds.left).toBe(12);
+    expect(cardBounds.right - selectBounds.right).toBe(12);
+    expect(selectBounds.top - cardBounds.top).toBe(8);
+    expect(cardBounds.bottom - selectBounds.bottom).toBe(8);
   });
 
   it("lets the symbol list consume the height left below its description", async () => {
@@ -98,31 +96,24 @@ describe("popup layout", () => {
     await expectListScrollsInternally(list);
   });
 
-  it("keeps the catalog's lower card padding while its list scrolls internally", async () => {
+  it("aligns the catalog search and list while the list scrolls internally", async () => {
     await openSettingsRoute("対応通貨一覧");
     const section = requireElement('section[aria-labelledby="currencies-title"]');
     const sectionBounds = expectPopupSectionUsesUniformPadding(section);
-    const cardBounds = requireElement(
-      '[data-slot="card"]',
+    const listBounds = requireElement(
+      '[data-slot="list"]',
       section,
     ).getBoundingClientRect();
-    const list = requireElement('[data-slot="list"]', section);
-    const catalog = page
+    const searchBounds = page
       .elementLocator(section)
       .getByRole("searchbox", { name: "通貨を検索" })
-      .element().parentElement?.parentElement;
-    if (catalog === null || catalog === undefined) {
-      throw new Error("Currency catalog was not rendered");
-    }
-    const catalogBounds = catalog.getBoundingClientRect();
+      .element()
+      .getBoundingClientRect();
 
-    expectEdge(cardBounds.bottom, sectionBounds.bottom);
-    expectEdge(catalogBounds.left - cardBounds.left, POPUP_PADDING);
-    expectEdge(catalogBounds.top - cardBounds.top, POPUP_PADDING);
-    expectEdge(cardBounds.right - catalogBounds.right, POPUP_PADDING);
-    expectEdge(cardBounds.bottom - catalogBounds.bottom, POPUP_PADDING);
-    expectEdge(list.getBoundingClientRect().bottom, catalogBounds.bottom);
-    await expectListScrollsInternally(list);
+    expectEdge(listBounds.bottom, sectionBounds.bottom);
+    expectEdge(listBounds.left, searchBounds.left);
+    expectEdge(listBounds.right, searchBounds.right);
+    await expectListScrollsInternally(requireElement('[data-slot="list"]', section));
   });
 
   it("uses the same typography and icon spacing for every currency presentation", async () => {

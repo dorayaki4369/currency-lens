@@ -27,6 +27,7 @@ import { Stack } from "@/components/layout/Stack";
 import { IconButton } from "@/components/ui/icon-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
+import { List, ListItem, ListItemRow } from "@/components/ui/list";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export interface ConversionPopupData {
@@ -464,14 +465,17 @@ function useDismissableLayer(
 /** Preserves the result-list shape while conversion data is loading. */
 function ConversionResultsSkeleton({ locale }: { readonly locale: UiLocale }) {
   return (
-    <Stack
-      aria-label={translate(locale, "loadingConversion")}
-      className="rounded-lg border p-3"
-      role="status"
-    >
-      <Skeleton className="h-9 w-full" />
-      <Skeleton className="h-9 w-full" />
-    </Stack>
+    <Card aria-label={translate(locale, "loadingConversion")} role="status" spacing="none">
+      <List>
+        {[0, 1].map((row) => (
+          <ListItem key={row}>
+            <ListItemRow>
+              <Skeleton className="h-9 w-full" />
+            </ListItemRow>
+          </ListItem>
+        ))}
+      </List>
+    </Card>
   );
 }
 

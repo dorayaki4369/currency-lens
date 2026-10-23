@@ -31,7 +31,7 @@ export function CurrencyValueRow({
     <div
       className={cn(
         "relative flex min-w-0 text-sm motion-safe:transition-[padding-left,padding-right] motion-safe:duration-300 motion-safe:ease-in-out",
-        mode === "edit" ? "items-start rounded-lg bg-card" : "flex-1 items-center",
+        mode === "edit" ? "items-start" : "flex-1 items-center",
         { "pl-8": hasLeadingAction, "pr-10": hasTrailingAction },
         className,
       )}

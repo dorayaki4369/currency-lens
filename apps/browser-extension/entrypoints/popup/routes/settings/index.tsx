@@ -8,8 +8,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { translate, type UiLocale } from "@/lib/i18n";
-import { Stack } from "@/components/layout/Stack";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { List, ListItem } from "@/components/ui/list";
 import {
   PopupRouteFrame,
   usePopupApplicationContext,
@@ -88,26 +89,28 @@ function SettingsMenu({
   symbolTriggerReference,
 }: SettingsMenuProps) {
   return (
-    <Stack as="nav" aria-label={translate(locale, "settingsHeading")}>
-      <SettingsMenuItem
-        buttonReference={displayTriggerReference}
-        icon={Palette}
-        label={translate(locale, "displayHeading")}
-        onClick={onOpenDisplay}
-      />
-      <SettingsMenuItem
-        buttonReference={symbolTriggerReference}
-        icon={RefreshCw}
-        label={translate(locale, "ambiguousHeading")}
-        onClick={onOpenSymbols}
-      />
-      <SettingsMenuItem
-        buttonReference={currenciesTriggerReference}
-        icon={DollarSign}
-        label={translate(locale, "supportedCurrenciesHeading")}
-        onClick={onOpenCurrencies}
-      />
-    </Stack>
+    <nav aria-label={translate(locale, "settingsHeading")}>
+      <List as="ul" className="flex flex-col gap-2">
+        <SettingsMenuItem
+          buttonReference={displayTriggerReference}
+          icon={Palette}
+          label={translate(locale, "displayHeading")}
+          onClick={onOpenDisplay}
+        />
+        <SettingsMenuItem
+          buttonReference={symbolTriggerReference}
+          icon={RefreshCw}
+          label={translate(locale, "ambiguousHeading")}
+          onClick={onOpenSymbols}
+        />
+        <SettingsMenuItem
+          buttonReference={currenciesTriggerReference}
+          icon={DollarSign}
+          label={translate(locale, "supportedCurrenciesHeading")}
+          onClick={onOpenCurrencies}
+        />
+      </List>
+    </nav>
   );
 }
 
@@ -126,16 +129,20 @@ function SettingsMenuItem({
   onClick,
 }: SettingsMenuItemProps) {
   return (
-    <Button
-      className="h-11 w-full justify-between bg-card px-3 font-normal focus-visible:ring-inset"
-      onClick={onClick}
-      ref={buttonReference}
-      type="button"
-      variant="secondary"
-    >
-      <Icon aria-hidden="true" />
-      <span className="flex-1 text-left">{label}</span>
-      <ChevronRight aria-hidden="true" />
-    </Button>
+    <ListItem as="li" dividerVisibility="hidden">
+      <Card spacing="none">
+        <Button
+          className="h-11 w-full justify-between bg-transparent px-3 font-normal focus-visible:ring-inset"
+          onClick={onClick}
+          ref={buttonReference}
+          type="button"
+          variant="secondary"
+        >
+          <Icon aria-hidden="true" />
+          <span className="flex-1 text-left">{label}</span>
+          <ChevronRight aria-hidden="true" />
+        </Button>
+      </Card>
+    </ListItem>
   );
 }

@@ -4,7 +4,6 @@ import { translate, type UiLocale } from "@/lib/i18n";
 import { CurrencyCatalog } from "@/components/currency/CurrencyCatalog";
 import { Stack } from "@/components/layout/Stack";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   PopupRouteFrame,
   usePopupApplicationContext,
@@ -46,16 +45,12 @@ function SupportedCurrencies({ locale }: { readonly locale: UiLocale }) {
           </Badge>
         </div>
       </div>
-      <Card className="flex-1" spacing="compact">
-        <CardContent>
-          <CurrencyCatalog
-            className="min-h-0 flex-1"
-            headingId="currencies-title"
-            listClassName="min-h-0 flex-1"
-            locale={locale}
-          />
-        </CardContent>
-      </Card>
+      <CurrencyCatalog
+        className="min-h-0 flex-1"
+        headingId="currencies-title"
+        listClassName="min-h-0 flex-1"
+        locale={locale}
+      />
     </Stack>
   );
 }

@@ -14,6 +14,7 @@ import { CurrencyIcon } from "@/components/currency/CurrencyIcon";
 import { CurrencyIdentity } from "@/components/currency/CurrencyIdentity";
 import { SectionHeader } from "@/components/layout/SectionHeader";
 import { Stack } from "@/components/layout/Stack";
+import { Card } from "@/components/ui/card";
 import { HoverTooltip } from "@/components/ui/hover-tooltip";
 import { IconButton } from "@/components/ui/icon-button";
 import { AnimatedNumber } from "@/components/ui/animated-number";
@@ -231,40 +232,40 @@ function CurrencyComboboxFixture({ open }: { readonly open: boolean }) {
 
 function CurrencyListFixture() {
   return (
-    <ReorderableCurrencyList
-      ariaLabel="換算後の通貨"
-      getCurrencyCode={(currencyCode) => currencyCode}
-      isDeletable
-      isDraggable
-      items={LIST_CURRENCIES}
-      listClassName="overflow-hidden rounded-xl border"
-      locale="ja"
-      onDelete={() => undefined}
-      onReorder={() => undefined}
-      renderItem={(currencyCode, _index, actions) => (
-        <CurrencyValueRow
-          amount={
-            <strong className="tabular-nums">
-              <AnimatedNumber
-                text={LIST_AMOUNTS[currencyCode]}
-                value={Number(LIST_AMOUNTS[currencyCode])}
+    <Card className="overflow-hidden" spacing="none">
+      <ReorderableCurrencyList
+        ariaLabel="換算後の通貨"
+        getCurrencyCode={(currencyCode) => currencyCode}
+        isDeletable
+        isDraggable
+        items={LIST_CURRENCIES}
+        locale="ja"
+        onDelete={() => undefined}
+        onReorder={() => undefined}
+        renderItem={(currencyCode, _index, actions) => (
+          <CurrencyValueRow
+            amount={
+              <strong className="tabular-nums">
+                <AnimatedNumber
+                  text={LIST_AMOUNTS[currencyCode]}
+                  value={Number(LIST_AMOUNTS[currencyCode])}
+                />
+              </strong>
+            }
+            identity={
+              <CurrencyIdentity
+                currencyCode={currencyCode}
+                description={getCurrencyDisplayName(currencyCode, "ja")}
               />
-            </strong>
-          }
-          identity={
-            <CurrencyIdentity
-              currencyCode={currencyCode}
-              description={getCurrencyDisplayName(currencyCode, "ja")}
-            />
-          }
-          currencyCode={currencyCode}
-          leadingAction={actions.leadingAction}
-          mode="display"
-          trailingAction={actions.trailingAction}
-        />
-      )}
-      rowClassName="px-3 py-3"
-    />
+            }
+            currencyCode={currencyCode}
+            leadingAction={actions.leadingAction}
+            mode="display"
+            trailingAction={actions.trailingAction}
+          />
+        )}
+      />
+    </Card>
   );
 }
 

@@ -20,42 +20,26 @@ type ListProps =
   | ({ readonly as: "ol" } & ComponentProps<"ol">)
   | ({ readonly as: "ul" } & ComponentProps<"ul">);
 
+type ListItemRowProps = HTMLAttributes<HTMLDivElement>;
+
 type ListItemProps = {
   readonly as?: ListItemElement | undefined;
   readonly dividerInset?: ListDividerInset | undefined;
   readonly dividerVisibility?: ListDividerVisibility | undefined;
 } & HTMLAttributes<HTMLElement>;
 
-/** Groups related rows inside one card surface while preserving caller-selected semantics. */
+/** Groups related rows while preserving caller-selected semantics; surfaces come from Card. */
 export function List(props: ListProps) {
   if (props.as === "ol") {
     const { as: _as, className, ...elementProps } = props;
-    return (
-      <ol
-        className={cn("overflow-hidden rounded-lg bg-card", className)}
-        data-slot="list"
-        {...elementProps}
-      />
-    );
+    return <ol className={className} data-slot="list" {...elementProps} />;
   }
   if (props.as === "ul") {
     const { as: _as, className, ...elementProps } = props;
-    return (
-      <ul
-        className={cn("overflow-hidden rounded-lg bg-card", className)}
-        data-slot="list"
-        {...elementProps}
-      />
-    );
+    return <ul className={className} data-slot="list" {...elementProps} />;
   }
   const { as: _as, className, ...elementProps } = props;
-  return (
-    <div
-      className={cn("overflow-hidden rounded-lg bg-card", className)}
-      data-slot="list"
-      {...elementProps}
-    />
-  );
+  return <div className={className} data-slot="list" {...elementProps} />;
 }
 
 /** Aligns each leading separator with either the row content or the list edge. */
@@ -76,4 +60,15 @@ export function ListItem({
     return <li className={itemClassName} data-slot="list-item" {...props} />;
   }
   return <div className={itemClassName} data-slot="list-item" {...props} />;
+}
+
+/** Gives every list row the same padding so rows differ only by their content. */
+export function ListItemRow({ className, ...props }: ListItemRowProps) {
+  return (
+    <div
+      className={cn("flex min-h-12 items-center gap-2 px-3 py-1.5", className)}
+      data-slot="list-item-row"
+      {...props}
+    />
+  );
 }

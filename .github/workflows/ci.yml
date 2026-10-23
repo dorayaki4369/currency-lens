@@ -103,9 +103,11 @@ jobs:
       - name: Test with coverage
         run: pnpm test:coverage
 
+      # Reporting is auxiliary, so an upload failure only skips the coverage comment.
       - name: Upload coverage
         id: upload-coverage
         if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v7.0.1
         with:
           name: unit-coverage
@@ -113,6 +115,7 @@ jobs:
             coverage/coverage-summary.json
             coverage/coverage-final.json
           if-no-files-found: error
+          overwrite: true
           retention-days: 1
 
   # Holds the pull request write token apart from the job that runs dependency code.

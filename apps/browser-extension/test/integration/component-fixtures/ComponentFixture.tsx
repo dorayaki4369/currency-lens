@@ -43,7 +43,7 @@ function ThemePanel({
   readonly theme: "dark" | "light";
 }) {
   const style: ThemePanelStyle = {
-    "--fixture-dialog-left": theme === "dark" ? "50vw" : "0px",
+    "--fixture-dialog-left": theme === "dark" ? "50vw" : "0",
   };
 
   return (

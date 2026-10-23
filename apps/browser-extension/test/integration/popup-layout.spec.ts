@@ -6,12 +6,13 @@ import {
   expectEdge,
   openPopupScreen,
   queryAll,
+  rem,
   requireElement,
   saveReviewScreenshot,
   setViewport,
 } from "@/test/integration/browser-harness";
 
-const POPUP_PADDING = 16;
+const POPUP_PADDING_REM = 1;
 
 beforeEach(async () => {
   await setViewport({ height: 600, width: 420 });
@@ -19,12 +20,12 @@ beforeEach(async () => {
 });
 
 describe("popup layout", () => {
-  it("reserves the fixed 400-by-600-pixel workspace", async () => {
+  it("reserves the fixed 25-by-37.5-rem workspace", async () => {
     await openPopupScreen();
-    const popup = requireElement('[data-slot="popup-root"]');
+    const popupBounds = requireElement('[data-slot="popup-root"]').getBoundingClientRect();
 
-    expect(getComputedStyle(popup).width).toBe("400px");
-    expect(getComputedStyle(popup).height).toBe("600px");
+    expectEdge(popupBounds.width, rem(25));
+    expectEdge(popupBounds.height, rem(37.5));
   });
 
   it("keeps the target currency menu fully usable inside the popup", async () => {
@@ -78,12 +79,12 @@ describe("popup layout", () => {
     const labelBounds = requireElement("label", card).getBoundingClientRect();
     const selectBounds = requireElement("select", card).getBoundingClientRect();
 
-    expectEdge(settingsRowBounds.height, 44);
-    expectEdge(cardBounds.height, 48);
-    expect(labelBounds.left - cardBounds.left).toBe(12);
-    expect(cardBounds.right - selectBounds.right).toBe(12);
-    expect(selectBounds.top - cardBounds.top).toBe(8);
-    expect(cardBounds.bottom - selectBounds.bottom).toBe(8);
+    expectEdge(settingsRowBounds.height, rem(2.75));
+    expectEdge(cardBounds.height, rem(3));
+    expectEdge(labelBounds.left - cardBounds.left, rem(0.75));
+    expectEdge(cardBounds.right - selectBounds.right, rem(0.75));
+    expectEdge(selectBounds.top - cardBounds.top, rem(0.5));
+    expectEdge(cardBounds.bottom - selectBounds.bottom, rem(0.5));
   });
 
   it("lets the symbol list consume the height left below its description", async () => {
@@ -144,21 +145,22 @@ describe("popup layout", () => {
     await openPopupScreen();
     addHostStyle("html { font-size: 125%; }");
     const popup = requireElement('[data-slot="popup-root"]');
-    await expect.poll(() => getComputedStyle(popup).width).toBe("500px");
-    expect(getComputedStyle(popup).height).toBe("700px");
-    expect(
-      getComputedStyle(page.getByRole("spinbutton", { name: "金額" }).element()).fontSize,
-    ).toBe("17.5px");
+    await expect.poll(() => popup.getBoundingClientRect().width).toBeCloseTo(rem(25), 0);
+    // 37.5rem exceeds this viewport, so the height is capped by the viewport.
+    expectEdge(popup.getBoundingClientRect().height, window.innerHeight);
+    expectFontSize(page.getByRole("spinbutton", { name: "金額" }).element(), 0.875);
 
     await setViewport({ height: 600, width: 320 });
-    await expect.poll(() => getComputedStyle(popup).width).toBe("320px");
-    expect(getComputedStyle(popup).height).toBe("600px");
+    await expect
+      .poll(() => popup.getBoundingClientRect().width)
+      .toBeCloseTo(window.innerWidth, 0);
+    expectEdge(popup.getBoundingClientRect().height, window.innerHeight);
     await userEvent.click(page.getByRole("button", { name: "設定を開く" }));
     await userEvent.click(page.getByRole("button", { name: "対応通貨一覧", exact: true }));
     await userEvent.fill(page.getByRole("searchbox", { name: "通貨を検索" }), "ANG");
     const code = page.getByRole("list").getByText("ANG", { exact: true });
     await expect.element(code).toBeVisible();
-    expect(getComputedStyle(code.element()).fontSize).toBe("17.5px");
+    expectFontSize(code.element(), 0.875);
     expect(popup.scrollWidth > popup.clientWidth).toBe(false);
     await saveReviewScreenshot("popup-narrow-enlarged-text");
   });
@@ -199,10 +201,10 @@ function expectPopupSectionUsesUniformPadding(section: HTMLElement): DOMRect {
   expectEdge(route.getBoundingClientRect().height, popupBounds.height);
   expectEdge(contentBounds.top, headerBounds.bottom);
   expectEdge(contentBounds.bottom, popupBounds.bottom);
-  expectEdge(sectionBounds.left - contentBounds.left, POPUP_PADDING);
-  expectEdge(contentBounds.right - sectionBounds.right, POPUP_PADDING);
-  expectEdge(sectionBounds.top - contentBounds.top, POPUP_PADDING);
-  expectEdge(contentBounds.bottom - sectionBounds.bottom, POPUP_PADDING);
+  expectEdge(sectionBounds.left - contentBounds.left, rem(POPUP_PADDING_REM));
+  expectEdge(contentBounds.right - sectionBounds.right, rem(POPUP_PADDING_REM));
+  expectEdge(sectionBounds.top - contentBounds.top, rem(POPUP_PADDING_REM));
+  expectEdge(contentBounds.bottom - sectionBounds.bottom, rem(POPUP_PADDING_REM));
   expect(popup.scrollHeight).toBe(popup.clientHeight);
 
   return sectionBounds;
@@ -223,4 +225,12 @@ async function expectListScrollsInternally(list: HTMLElement): Promise<void> {
   const lastItemBounds = lastItem.getBoundingClientRect();
   expect(lastItemBounds.top).toBeGreaterThanOrEqual(listBounds.top - 1);
   expect(lastItemBounds.bottom).toBeLessThanOrEqual(listBounds.bottom + 1);
+}
+
+/** Verifies text follows the root font size instead of a fixed pixel size. */
+function expectFontSize(element: Element, expectedRem: number): void {
+  expect(Number.parseFloat(getComputedStyle(element).fontSize)).toBeCloseTo(
+    rem(expectedRem),
+    1,
+  );
 }

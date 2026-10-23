@@ -12,6 +12,7 @@ import {
   pressPointer,
   queryAll,
   releasePointer,
+  rem,
   requireElement,
   setViewport,
   waitForElement,
@@ -105,9 +106,9 @@ describe("conversion layout", () => {
     await expect.poll(() => root.activeElement).toBe(amount);
     const expected = readCardDimensions(dialog);
 
-    addHostStyle("html { font-size: 10px; }");
+    addHostStyle("html { font-size: 62.5%; }");
     await expect.poll(() => readCardDimensions(dialog)).toEqual(expected);
-    addHostStyle("html { font-size: 32px; }");
+    addHostStyle("html { font-size: 200%; }");
     await expect.poll(() => readCardDimensions(dialog)).toEqual(expected);
   });
 });
@@ -121,16 +122,16 @@ describe("shared component layout", () => {
       return {
         display: style.display,
         flexDirection: style.flexDirection,
-        gap: style.rowGap,
+        gap: Number.parseFloat(style.rowGap) / rem(1),
         variant: stack.getAttribute("data-fixture-stack"),
       };
     });
 
     expect(styles).toEqual([
-      { display: "flex", flexDirection: "column", gap: "8px", variant: "default" },
-      { display: "flex", flexDirection: "column", gap: "16px", variant: "wide" },
-      { display: "flex", flexDirection: "column", gap: "8px", variant: "default" },
-      { display: "flex", flexDirection: "column", gap: "16px", variant: "wide" },
+      { display: "flex", flexDirection: "column", gap: 0.5, variant: "default" },
+      { display: "flex", flexDirection: "column", gap: 1, variant: "wide" },
+      { display: "flex", flexDirection: "column", gap: 0.5, variant: "default" },
+      { display: "flex", flexDirection: "column", gap: 1, variant: "wide" },
     ]);
   });
 

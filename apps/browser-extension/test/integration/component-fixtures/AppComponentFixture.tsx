@@ -166,7 +166,7 @@ export function AppComponentFixture({ fixtureId }: { readonly fixtureId: AppFixt
       </div>
     ),
     "symbol-settings": (
-      <section className="max-h-[680px] overflow-hidden">
+      <section className="max-h-170 overflow-hidden">
         <h2 className="sr-only" id="fixture-symbol-settings">
           通貨記号
         </h2>

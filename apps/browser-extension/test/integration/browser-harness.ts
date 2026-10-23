@@ -157,6 +157,11 @@ export async function findByRole(
   return match;
 }
 
+/** Converts a design length in rem to the pixels the browser currently renders. */
+export function rem(value: number): number {
+  return value * Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+}
+
 /** Compares rendered edges with one pixel of browser rounding tolerance. */
 export function expectEdge(actual: number, expected: number): void {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1);

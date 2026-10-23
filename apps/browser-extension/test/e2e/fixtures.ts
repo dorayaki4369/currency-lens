@@ -25,7 +25,7 @@ export const test = base.extend<ExtensionFixtures>({
     const context = await chromium.launchPersistentContext("", {
       args: [
         ...getHeadlessChromiumLaunchArguments(),
-        // Reserve enough screen space below the toolbar for a 600px-tall popup.
+        // Reserve enough screen space below the toolbar for a 37.5rem-tall popup.
         "--screen-info={1280x900}",
         "--window-size=1280,900",
         `--disable-extensions-except=${extensionPath}`,

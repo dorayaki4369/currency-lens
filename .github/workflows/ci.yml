@@ -108,7 +108,7 @@ jobs:
       # Fork pull requests get a read-only token, so they only see the job summary.
       - name: Report coverage
         if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
-        uses: davelosert/vitest-coverage-report-action@v2.13.0
+        uses: davelosert/vitest-coverage-report-action@v2.13.1
         with:
           comment-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && 'pr' || 'none' }}
 

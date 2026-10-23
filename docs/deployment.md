@@ -26,19 +26,25 @@ Node.jsのバージョンは`.node-version`、pnpmのバージョンは`package.
 
 `main`と`develop`にRulesetを設定し、次の制約を有効にします。個人開発でもPull Requestは必須にしますが、レビューする人がいないため、必須の承認数は0にしています。共同開発に移ったら1以上にしてください。
 
-| 設定                                | `develop` | `main` | 理由                                               |
-| ----------------------------------- | --------- | ------ | -------------------------------------------------- |
-| Pull Request必須                    | 有効      | 有効   | 直接pushを禁止する                                 |
-| 必須承認数                          | 0         | 0      | 個人開発でもPR経由を強制し、自己承認待ちを避ける   |
-| 必須check `CI / quality`            | 有効      | 有効   | format、lint、型、テスト、buildを必須にする        |
-| head branchを最新にする             | 有効      | 無効   | `develop`は最新化し、`main`はPRのmerge結果をCIする |
-| 未解決conversationを残したmerge禁止 | 有効      | 有効   | 指摘を解消してからmergeする                        |
-| 許可するmerge方法                   | merge     | merge  | 積み上げたbranchでも同じcommitを共有できる         |
-| force push／branch削除              | 禁止      | 禁止   | 履歴と配布元branchを保護する                       |
+| 設定                                | `develop` | `main` | 理由                                             |
+| ----------------------------------- | --------- | ------ | ------------------------------------------------ |
+| Pull Request必須                    | 有効      | 有効   | 直接pushを禁止する                               |
+| 必須承認数                          | 0         | 0      | 個人開発でもPR経由を強制し、自己承認待ちを避ける |
+| 必須check `CI / quality`            | 有効      | 有効   | format、lint、型、テスト、buildを必須にする      |
+| head branchを最新にする             | 無効      | 無効   | PRのmerge結果をCIし、最新化を待たずにmergeする   |
+| 未解決conversationを残したmerge禁止 | 有効      | 有効   | 指摘を解消してからmergeする                      |
+| 許可するmerge方法                   | merge     | merge  | 積み上げたbranchでも同じcommitを共有できる       |
+| force push／branch削除              | 禁止      | 禁止   | 履歴と配布元branchを保護する                     |
 
 feature branchから`develop`へも、`develop`から`main`へも、merge commitで取り込みます。squashすると、merge済みのbranchの上に作ったbranchで同じ変更が別のcommitとして残り、conflictの原因になるためです。`main`向けのPull Requestは、headが同じリポジトリの`develop`でなければ`ci.yml`が失敗します。このため、`main`へ入る経路は`develop`からの昇格だけになります。
 
-`main`では「Require branches to be up to date before merging」を無効にします。昇格のmerge commitは`main`にだけ作られるため、一度昇格すると`develop`は履歴の上で`main`より古くなります。ここで最新化を必須にすると、次の昇格ができなくなるためです。最新化を求めなくても、`main`向けPull RequestのCIは、GitHubが作るmerge後の内容をcheckoutして検証します。
+どちらのbranchでも「Require branches to be up to date before merging」を無効にします。`main`では、昇格のmerge commitが`main`にだけ作られるため、一度昇格すると`develop`は履歴の上で`main`より古くなります。ここで最新化を必須にすると、次の昇格ができなくなります。`develop`では、auto-mergeを予約したPull Requestが、先に別のPull Requestが入るたびに手動の最新化を待つことを避けます。最新化を求めなくても、Pull RequestのCIはGitHubが作るmerge後の内容をcheckoutして検証します。ただし、別々にCIを通った2つのPull Requestが組み合わさって壊れる場合は、merge後に`develop`へのpushで動くCIで検出します。この場合も、`main`へ入る前に昇格のPull RequestのCIで止まります。
+
+### Pull Requestの設定
+
+リポジトリの設定でauto-mergeを許可します。auto-mergeを有効にできるのは書き込み権限を持つ人だけで、現在はオーナーだけです。外部の人が作ったPull Requestでも、オーナーが有効にしない限り自動ではmergeされません。有効にした後に書き込み権限のない人がhead branchへpushすると、GitHubがauto-mergeを解除します。collaboratorを追加すると、その人もauto-mergeを有効にでき、承認なしでmergeできます。共同開発に移るときは、必須承認数と合わせて見直してください。
+
+Actionsの設定で、fork Pull Requestのworkflow実行には、外部の人すべてについて承認を必須にします（Require approval for all external contributors）。fork Pull Requestにはsecretが渡らず、`GITHUB_TOKEN`も読み取り専用ですが、外部のコードでCIを動かす前に内容を確認するためです。
 
 Rulesetを先に有効にすると、まだ存在しないcheckを待ち続けます。Workflowを一度成功させてから必須checkへ追加してください。
 

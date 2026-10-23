@@ -1,64 +1,107 @@
-# 画面品質の確認記録
+# 画面品質の確認手順
 
-この文書は、Currency Lens の主要画面を実ブラウザで確認した結果と、再現に使うプレビュー入口を記録します。
-画面の正本は実装であり、この文書と画像は変更時の比較資料です。
+Currency LensのUIは、unit、integration、E2Eの3階層のテストと、人による画面の確認で検証します。UI専用のテスト階層は作りません。
 
-## 換算カード
+## テストの階層
 
-2026年8月28日に Chromium ベースのブラウザで、日本語・ライトテーマの換算カードを確認しました。
-プレビューは環境ファイルを読まない `design-preview/vite.config.ts` を使用します。
+| 階層        | 対象                                                                    | UIについて検証すること                                                                                                                 |
+| ----------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| unit        | 純粋関数、Reactコンポーネント、hook、route                              | loading・empty・error・success、accessible name、role、状態、キーボード操作、focus、コールバック                                       |
+| integration | DOMをまたぐ処理、テスト中のページへ描画したコンポーネントと結合済み画面 | ライト・ダーク表示、実際の配置、ポップオーバー、ドラッグ、アニメーション、reduced motion、画面遷移、Shadow DOM、axe-coreによる自動検査 |
+| E2E         | Chrome向けビルドの成果物と、Chromiumへ読み込んだ拡張機能                | ルート分割されたチャンク、Popupの初期表示、Webページ上の選択、Content Scriptの起動、換算結果、フォーカス、配布物上のaxe-core検査       |
+
+ルートで次を実行します。
 
 ```sh
-pnpm exec vp dev --config apps/browser-extension/design-preview/vite.config.ts --host 127.0.0.1 --port 4173 --strictPort
+pnpm test:unit
+pnpm test:integration
+pnpm test:e2e
 ```
 
-`conversion.html` の `state` には `success`、`loading`、`empty`、`error` を指定できます。
-値が不正な場合は `success` を表示します。
+初めて実行する前に、Playwrightが管理するChromiumを入れます。integrationとE2Eの両方がこれを使います。
 
-| 確認対象     | プレビュー                                    | 実ブラウザで確認した内容                                                                                                                                                                                         |
-| ------------ | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 成功         | `conversion.html?state=success`               | 選択元は `$249.00`／USD の1件だけで、換算先は設定順の JPY、EUR、GBP の3件です。レート時点も日本語で表示されます。                                                                                                |
-| 読み込み中   | `conversion.html?state=loading`               | スケルトンだけを表示し、`role="status"` と「通貨を換算中」のラベルを持ちます。                                                                                                                                   |
-| 空           | `conversion.html?state=empty`                 | 「対応している金額が見つかりませんでした。」を表示します。                                                                                                                                                       |
-| エラー       | `conversion.html?state=error`                 | 再試行を促す日本語メッセージを `role="alert"` で表示します。                                                                                                                                                     |
-| キーボード   | `conversion.html?state=success`               | 開いた直後に閉じるボタンへフォーカスし、`:focus-visible` が有効です。フォーカスリングは3pxの実線として表示されます。                                                                                             |
-| 動きを抑える | `conversion.html?state=loading&motion=reduce` | QA専用の動作抑制モードで、アニメーションとトランジションは0.01ms、反復は1回になります。本番の `prefers-reduced-motion: reduce` と同じCSS値を再現した確認であり、ブラウザのメディアクエリ自体の発火は未検証です。 |
-| 狭い幅       | 幅390px、`conversion.html?state=success`      | DOM実測のカード幅は360pxで、横方向のはみ出しはありません。画像は撮影基盤側で縮小表示されるため、寸法の根拠にはDOM実測値を使用しています。                                                                        |
+```sh
+pnpm exec playwright install chromium
+```
 
-すべての状態を移動した後のブラウザコンソールエラーは0件でした。
+どのテストも環境ファイルを読まず、外部のレートAPIにも接続しません。
 
-### 成功
+- integrationは、`test/integration/screens.tsx`の描画関数で、コンポーネントや画面をテスト中のページへ直接描画します。
+- E2Eは、テスト用の設定とレートを拡張機能のストレージへ保存してから検証します。Content Scriptを動かすホストページは、Playwrightがブラウザの中で直接返すので、開発サーバーは起動しません。
 
-![換算カードの成功状態](assets/design-qa/conversion-card-success.png)
+### カバレッジ
 
-### 読み込み中
+`pnpm test:coverage`はunitを実行し、まだimportされていない本体コードも含めて、カバレッジ4指標がファイルごとに100%であることを確かめます。カバレッジは品質の基準で、テストの階層ではありません。
 
-![換算カードの読み込み状態](assets/design-qa/conversion-card-loading.png)
+integrationのカバレッジは計測しません。Viteが変換時に加えるCommonJS互換の処理やルートの分割を、本体の分岐として数えてしまうためです。
 
-### 空
+## テストの置き場所
 
-![換算カードの空状態](assets/design-qa/conversion-card-empty.png)
+- **unit**: コンポーネントとrouteのテストは、本体と同じディレクトリへ`*.test.tsx`として置きます。対象を直接importして検証し、統合テスト経由の実行やカバレッジの到達では代わりにしません。
+- **integration**: `apps/browser-extension/test/integration/`に置きます。テスト用のコンポーネントのfixtureと、画面の描画関数も同じディレクトリに置きます。
+- **E2E**: `apps/browser-extension/test/e2e/`に置きます。ルート分割のようなビルド成果物の構成も、同じビルドを使ってここで検査します。E2Eは主要な操作の流れに絞り、コンポーネント単体の状態やCSSの細部は検証しません。
 
-### エラー
+## 人による確認
 
-![換算カードのエラー状態](assets/design-qa/conversion-card-error.png)
+読み上げの順序、案内の自然さ、情報の強弱、余白や整列が適切かは、自動テストでは判断できません。UIを変更したら、影響する画面を実際に見て確認します。
 
-### キーボードフォーカス
+### レビュー用の画像
 
-![換算カードのキーボードフォーカス](assets/design-qa/conversion-card-keyboard-focus.png)
+静的な見た目は、`pnpm test:integration`と`pnpm test:e2e`が保存する画像で確認します。
 
-### 動きを抑える設定
+- 保存先は`apps/browser-extension/test/__screenshots__/review/`です。実行するたびに上書きされ、比較もコミットもしません。
+- 画像は、既存のテストが検証した画面から保存します。画像を作るためだけのテストや、画像を比較するvisualテストは作りません。
+- 保存には、integrationでは`test/integration/browser-harness.ts`の`saveReviewScreenshot(name)`、E2Eでは`test/e2e/fixtures.ts`の`saveReviewScreenshot(page, name)`を使います。
+- 同じ名前の画像は上書きされるため、integrationとE2Eで名前が重ならないようにします。
 
-![動きを抑えた換算カード](assets/design-qa/conversion-card-reduced-motion.png)
+| 画像                                           | 写っているもの                                            |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| `popup-{light,dark}-*.png`                     | Popupの換算画面、換算先の編集と追加、設定一覧、各設定詳細 |
+| `popup-narrow-enlarged-text.png`               | 文字サイズ125%、幅320pxのPopup                            |
+| `conversion-{success,loading,empty,error}.png` | ホストページ上の換算カードの各状態                        |
+| `conversion-shadow-dom.png`                    | Shadow DOM内へ描画した換算カード                          |
+| `component-*.png`                              | 各コンポーネントのライトとダーク                          |
+| `e2e-*.png`                                    | ビルド済み拡張機能のPopup、選択後のボタン、換算カード     |
 
-### 狭い幅
+ホバー、キーボード操作、フォーカス、アニメーション、スクリーンリーダー、ホストページとの干渉は、画像では分かりません。ビルド済みの拡張機能か、`pnpm dev`で起動した拡張機能をブラウザに読み込んで確認します。
 
-![狭い画面幅の換算カード](assets/design-qa/conversion-card-success-narrow.png)
+### 確認する項目
 
-## Popup と換算設定
+変更の影響する範囲に応じて、次を確認します。
 
-Popup と換算設定の比較画像は `docs/assets/design-qa/` に保存しています。
+**テーマと色**
 
-- `popup-conversion-settings.png`
-- `options-conversion-settings.png`
-- `options-conversion-settings-narrow.png`
+- Popupと換算カードが、ライト、ダーク、システムのどのテーマでも崩れないこと
+- 拡張機能のテーマとホストページの明暗をそれぞれ切り替えても、選択後のボタンの背景が透けず、通常時・ホバー時・キーボードフォーカス時にロゴを見分けられること
+
+**ロゴとボタン**
+
+- Popupの見出しと選択後のボタンに、同じ青と黄のロゴが切れたり歪んだりせずに表示されること。換算カードにはロゴを置かないこと
+- 選択後のボタンが枠線のない角丸の四角で、ロゴの周りに余白があること。マウスを重ねると指の形のカーソルになること
+
+**状態とデータ**
+
+- 読み込み中、空、エラー、成功の各状態
+- 長い通貨名、登録が最大の5通貨、記号が衝突する通貨、レートの欠けた通貨
+
+**大きさ**
+
+- 標準の文字サイズで、Popupが幅25rem、換算カードが幅384pxになること
+- Popupのルート文字サイズを125%にし、幅320pxにしても、設定の操作と通貨の検索ができること
+- ホストページのルート文字サイズを10pxや32pxにしても、換算カードの大きさが変わらないこと
+
+**操作とフォーカス**
+
+- キーボードで操作でき、フォーカスリングが見え、閉じる操作ができること。スクリーンリーダーが通貨名を読み上げること
+- Popupと換算カードを開くと、枠線のない金額欄にフォーカスが当たること。設定画面から戻ると、設定ボタンにフォーカスが戻ること
+- `prefers-reduced-motion: reduce`のとき、アニメーションとトランジションが止まること
+
+**ページへの影響**
+
+- ブラウザのコンソールにエラーが出ず、ホストページへCSSが漏れないこと
+
+問題が見つかったら実装を直し、該当するunit、integration、E2Eを実行し直してから、画面をもう一度確認します。スクリーンショットを記録に残す場合は、秘密情報が写らないようにします。
+
+## 移行前のUIの画像
+
+`docs/assets/design-qa/`の画像は、Tailwind CSSとshadcn/uiへ移行する前のUIを記録したものです。今の画面と比べる資料には使いません。

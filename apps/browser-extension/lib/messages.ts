@@ -1,11 +1,11 @@
 import { z } from "zod/v4";
-import { MAX_FAVORITE_CURRENCIES, configSchema, currencyCodeSchema } from "./currency";
+import { MAX_FAVORITE_CURRENCIES, configSchema, currencyCodeSchema } from "@/lib/currency";
 import {
   MAX_CONVERSION_AMOUNTS,
   conversionResultSchema,
   exchangeRateCacheSchema,
   rateWarningSchema,
-} from "./rates";
+} from "@/lib/rates";
 
 export const messageTypes = {
   GET_CONFIG: "GET_CONFIG",

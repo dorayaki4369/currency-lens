@@ -1,0 +1,4 @@
+@import "../../assets/style.css";
+
+/* Browser-test screens and fixtures add layout classes the shipped CSS must not scan. */
+@source "./";

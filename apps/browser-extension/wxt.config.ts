@@ -1,7 +1,24 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig, type ConfigEnv, type UserManifest, type WxtViteConfig } from "wxt";
+import { resolve } from "node:path";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import tailwindcss from "@tailwindcss/vite";
+import {
+  defineConfig,
+  type ConfigEnv,
+  type PublicPathEntry,
+  type ResolvedPublicFile,
+  type UserManifest,
+  type WxtViteConfig,
+} from "wxt";
+import { createPopupRouterPluginOptions } from "./entrypoints/popup/router-config";
+import { currencyFlagRegions } from "./lib/currency-flags";
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
+const browserExtensionRoot = fileURLToPath(new URL(".", import.meta.url));
+const currencyFlagSourceDirectory = fileURLToPath(
+  new URL("./node_modules/flag-icons/flags/4x3/", import.meta.url),
+);
+const CURRENCY_FLAG_OUTPUT_DIRECTORY = "currency-flags";
 const API_ENDPOINT_VARIABLE = "API_ENDPOINT";
 const LOCAL_HTTP_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
@@ -9,8 +26,32 @@ export default defineConfig({
   manifestVersion: 3,
   targetBrowsers: ["chrome", "firefox"],
   modules: ["@wxt-dev/module-react", "@wxt-dev/auto-icons"],
+  react: {
+    vitePluginsBefore: [
+      tanstackRouter(
+        createPopupRouterPluginOptions({
+          generatedRouteTree: "./entrypoints/popup/routeTree.gen.ts",
+          routesDirectory: "./entrypoints/popup/routes",
+          temporaryDirectory: "./.output/tanstack-router",
+        }),
+      ),
+    ],
+  },
   autoIcons: {
     developmentIndicator: false,
+  },
+  dev: {
+    server: {
+      port: 3000,
+      strictPort: true,
+    },
+  },
+  webExt: {
+    startUrls: ["http://localhost:3000/sandbox.html"],
+  },
+  hooks: {
+    "build:publicAssets": addCurrencyFlagPublicAssets,
+    "prepare:publicPaths": addCurrencyFlagPublicPath,
   },
   vite: createViteConfig,
   manifest: createManifest,
@@ -26,14 +67,16 @@ export default defineConfig({
       "vite.config.ts",
       "apps/browser-extension/env.d.ts",
       "apps/browser-extension/package.json",
+      "apps/browser-extension/components/**",
       "apps/browser-extension/scripts/**",
       "apps/browser-extension/tsconfig.json",
       "apps/browser-extension/wxt.config.ts",
-      "apps/browser-extension/SOURCE_CODE_REVIEW.md",
+      "SOURCE_CODE_REVIEW.md",
       "apps/browser-extension/assets/**",
       "apps/browser-extension/entrypoints/**",
       "apps/browser-extension/lib/**",
       "apps/browser-extension/public/**",
+      "apps/browser-extension/stores/**",
       "packages/currency/package.json",
       "packages/currency/tsconfig.json",
       "packages/currency/src/**",
@@ -54,6 +97,12 @@ export function createManifest(
     default_locale: "en",
     permissions: ["storage", "alarms"],
     host_permissions: [createApiHostPermission(apiEndpoint)],
+    web_accessible_resources: [
+      {
+        matches: ["<all_urls>"],
+        resources: [`${CURRENCY_FLAG_OUTPUT_DIRECTORY}/*.svg`],
+      },
+    ],
     browser_specific_settings: {
       gecko: {
         data_collection_permissions: {
@@ -66,6 +115,28 @@ export function createManifest(
   };
 }
 
+/** Adds only selectable flag-icons assets to WXT's public build files. */
+export function addCurrencyFlagPublicAssets(
+  _wxt: unknown,
+  files: ResolvedPublicFile[],
+): void {
+  for (const regionCode of currencyFlagRegions) {
+    const filename = `${regionCode.toLowerCase()}.svg`;
+    files.push({
+      absoluteSrc: resolve(currencyFlagSourceDirectory, filename),
+      relativeDest: `${CURRENCY_FLAG_OUTPUT_DIRECTORY}/${filename}`,
+    });
+  }
+}
+
+/** Teaches browser.runtime.getURL about generated flag asset paths. */
+export function addCurrencyFlagPublicPath(_wxt: unknown, paths: PublicPathEntry[]): void {
+  paths.push({
+    path: `${CURRENCY_FLAG_OUTPUT_DIRECTORY}/\${string}.svg`,
+    type: "templateLiteral",
+  });
+}
+
 /** Injects the validated API base URL while keeping environment-file discovery disabled. */
 export function createViteConfig(
   _env: Readonly<ConfigEnv>,
@@ -75,6 +146,12 @@ export function createViteConfig(
 
   return {
     envDir: false,
+    plugins: [tailwindcss()],
+    resolve: {
+      alias: {
+        "@": browserExtensionRoot,
+      },
+    },
     define: {
       "import.meta.env.API_ENDPOINT": JSON.stringify(apiEndpoint),
     },

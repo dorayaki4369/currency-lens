@@ -3,17 +3,27 @@ import {
   MAX_FAVORITE_CURRENCIES,
   configSchema,
   currencyCodeSchema,
+  isKnownSymbolToken,
   type Config,
-} from "./currency";
-import { exchangeRateCacheSchema, type ExchangeRateCache } from "./rates";
+} from "@/lib/currency";
+import type { CurrencyCode } from "@cl/currency";
+import { exchangeRateCacheSchema, type ExchangeRateCache } from "@/lib/rates";
 
 const CONFIG_KEY = "config";
 const CACHE_KEY = "exchangeRateCache";
 
-const legacyConfigSchema = z
+const storedSymbolOverridesSchema = z.record(z.string(), currencyCodeSchema);
+
+const previousConfigSchema = configSchema.extend({
+  symbolOverrides: storedSymbolOverridesSchema,
+  showCurrencyIcon: z.boolean(),
+  showCurrencyCode: z.boolean(),
+});
+
+const legacySymbolConfigSchema = z
   .object({
     favorites: z.array(currencyCodeSchema),
-    defaultConversions: z.record(z.string(), currencyCodeSchema),
+    defaultConversions: storedSymbolOverridesSchema,
     theme: z.enum(["light", "dark", "system"]),
     showCurrencyIcon: z.boolean(),
     showCurrencyCode: z.boolean(),
@@ -33,8 +43,6 @@ export function getDefaultConfig(): Config {
     favorites: ["USD"],
     symbolOverrides: {},
     theme: "system",
-    showCurrencyIcon: true,
-    showCurrencyCode: true,
   });
 }
 
@@ -67,14 +75,24 @@ export async function clearExchangeRateCache(): Promise<void> {
   await browser.storage.local.remove(CACHE_KEY);
 }
 
-/** Parses current configuration and migrates the previous symbol-mapping field when possible. */
-function parseStoredConfig(value: unknown): Config | null {
+/** Parses current configuration and removes retired display preferences when possible. */
+export function parseStoredConfig(value: unknown): Config | null {
   const current = configSchema.safeParse(value);
   if (current.success) {
     return current.data;
   }
 
-  const legacy = legacyConfigSchema.safeParse(value);
+  const previous = previousConfigSchema.safeParse(value);
+  if (previous.success) {
+    const migrated = configSchema.safeParse({
+      favorites: previous.data.favorites,
+      symbolOverrides: dropRetiredSymbols(previous.data.symbolOverrides),
+      theme: previous.data.theme,
+    });
+    return migrated.success ? migrated.data : null;
+  }
+
+  const legacy = legacySymbolConfigSchema.safeParse(value);
   if (!legacy.success) {
     return null;
   }
@@ -82,12 +100,19 @@ function parseStoredConfig(value: unknown): Config | null {
   const favorites = [...new Set(legacy.data.favorites)].slice(0, MAX_FAVORITE_CURRENCIES);
   const migrated = configSchema.safeParse({
     favorites,
-    symbolOverrides: legacy.data.defaultConversions,
+    symbolOverrides: dropRetiredSymbols(legacy.data.defaultConversions),
     theme: legacy.data.theme,
-    showCurrencyIcon: legacy.data.showCurrencyIcon,
-    showCurrencyCode: legacy.data.showCurrencyCode,
   });
   return migrated.success ? migrated.data : null;
+}
+
+/** Removes overrides whose symbol earlier versions accepted but the current table no longer has. */
+function dropRetiredSymbols(
+  overrides: Readonly<Record<string, CurrencyCode>>,
+): Record<string, CurrencyCode> {
+  return Object.fromEntries(
+    Object.entries(overrides).filter(([token]) => isKnownSymbolToken(token)),
+  );
 }
 
 /** Preserves the previous cache format while adding source and fetch metadata. */

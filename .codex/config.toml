@@ -1,23 +1,18 @@
 default_permissions = "workspace"
-sandbox_mode = "workspace-write"
 
-[permissions.workspace.filesystem]
-":minimal" = "read"
-glob_scan_max_depth = 4
+[permissions.workspace]
+extends = ":workspace"
 
 [permissions.workspace.filesystem.":workspace_roots"]
 "." = "write"
 ".git" = "write"
 ".git/**" = "write"
-".env" = "none"
-".env.*" = "none"
-".dev.vars" = "none"
-".dev.vars.*" = "none"
-"*/.env" = "none"
-"*/.env.*" = "none"
-"*/.dev.vars" = "none"
-"*/.dev.vars.*" = "none"
-"**/.env" = "none"
-"**/.env.*" = "none"
-"**/.dev.vars" = "none"
-"**/.dev.vars.*" = "none"
+".env" = "deny"
+".dev.vars" = "deny"
+
+[permissions.workspace.network]
+enabled = true
+
+# The sandbox cannot write Wrangler's default log directory under the user's home.
+[shell_environment_policy.set]
+WRANGLER_WRITE_LOGS = "false"

@@ -1,39 +1,544 @@
 <!doctype html>
-<html lang="en">
+<!-- Currency Lens Browser Extension Sandbox Page -->
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sandbox</title>
+    <meta
+      name="description"
+      content="世界で流通する153のISO通貨について、記号・ISOコード・現地語での金額表記を比較するCurrency Lensの検証ページです。"
+    />
+    <title>世界の通貨表記 — Currency Lens</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #16201d;
+        --muted: #66706b;
+        --paper: #f3f0e8;
+        --surface: #fffdf7;
+        --line: #d8d4ca;
+        --accent: #d8552e;
+        --accent-dark: #9f3216;
+        --shadow: 0 18px 48px rgb(31 40 35 / 8%);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: Inter, "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+        font-variant-numeric: tabular-nums;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page-shell {
+        width: min(1440px, calc(100% - 32px));
+        margin-inline: auto;
+        padding-block: 12px 56px;
+      }
+
+      .toolbar {
+        position: sticky;
+        z-index: 5;
+        top: 12px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 16px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgb(255 253 247 / 92%);
+        box-shadow: 0 10px 28px rgb(31 40 35 / 8%);
+        backdrop-filter: blur(14px);
+      }
+
+      .search-wrap {
+        position: relative;
+      }
+
+      .search-wrap svg {
+        position: absolute;
+        top: 50%;
+        left: 16px;
+        width: 19px;
+        color: var(--muted);
+        transform: translateY(-50%);
+      }
+
+      #currency-search {
+        width: 100%;
+        min-height: 48px;
+        padding: 10px 16px 10px 48px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        outline: none;
+        background: #f1eee6;
+        color: var(--ink);
+        font: inherit;
+      }
+
+      #currency-search:focus-visible {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgb(216 85 46 / 16%);
+      }
+
+      .result-count {
+        min-width: 104px;
+        color: var(--muted);
+        font-size: 0.86rem;
+        text-align: center;
+      }
+
+      .result-count strong {
+        color: var(--ink);
+        font-size: 1.05rem;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .currency-table {
+        width: 100%;
+        min-width: 1020px;
+        border-collapse: collapse;
+      }
+
+      .currency-column {
+        width: 230px;
+      }
+
+      .symbol-column {
+        width: 150px;
+      }
+
+      .iso-column {
+        width: 112px;
+      }
+
+      .language-column {
+        width: 112px;
+      }
+
+      .region-column {
+        width: 180px;
+      }
+
+      .local-column {
+        width: 220px;
+      }
+
+      .currency-table > caption {
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.76rem;
+        line-height: 1.6;
+        text-align: left;
+      }
+
+      .currency-table > caption a {
+        color: var(--accent-dark);
+        font-weight: 700;
+        text-underline-offset: 3px;
+      }
+
+      .currency-table > thead {
+        background: #e8e3d9;
+      }
+
+      .currency-table > thead th,
+      .currency-table > tbody th,
+      .currency-table > tbody td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+
+      .currency-table > thead th {
+        color: #59625e;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .currency-table > tbody:last-child > tr:last-child > * {
+        border-bottom: 0;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      .currency-name {
+        font-size: 0.98rem;
+        font-weight: 750;
+      }
+
+      .currency-local-name {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 500;
+      }
+
+      .currency-source-link {
+        display: flex;
+        width: max-content;
+        gap: 4px;
+        align-items: center;
+        margin-top: 4px;
+        color: var(--accent-dark);
+        font-size: 0.7rem;
+        font-weight: 750;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+
+      .money-sample,
+      .local-sample {
+        display: block;
+        font-family: Georgia, "Noto Serif", serif;
+        font-size: 0.95rem;
+        line-height: 1.3;
+        white-space: nowrap;
+      }
+
+      .sample-list {
+        display: grid;
+        gap: 1px;
+      }
+
+      .language-name,
+      .region-name {
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+
+      .iso-sample {
+        padding: 7px 9px;
+        border: 1px solid #ddd6c8;
+        border-radius: 7px;
+        background: #f5f1e8;
+        display: inline-block;
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 0.88rem;
+        white-space: nowrap;
+      }
+
+      .empty-state {
+        padding: 64px 24px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      @media (max-width: 900px) {
+        .page-shell {
+          width: min(100% - 20px, 1440px);
+          padding-top: 12px;
+        }
+
+        .toolbar {
+          top: 8px;
+          grid-template-columns: 1fr;
+        }
+
+        .result-count {
+          padding-block: 2px;
+        }
+
+        .table-wrap {
+          border-radius: 14px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
   </head>
   <body>
-    <h1>Currency Lens Browser Extension Sandbox Page</h1>
-
-    <h2>Test Currency Detection</h2>
-    <p>Select the text below to test currency conversion:</p>
-
-    <div style="margin: 2rem 0; line-height: 2">
-      <p>This item costs <strong>$50.00</strong></p>
-      <p>Price in Europe: <strong>€100.50</strong></p>
-      <p>Price in Japan: <strong>¥15,000</strong></p>
-      <p>Amount: <strong>USD 1,234.56</strong></p>
-      <p>
-        Mixed currencies: <strong>$50</strong> and <strong>€100</strong> and
-        <strong>£75</strong>
-      </p>
-      <p>Symbol after: <strong>100$</strong> or <strong>50€</strong></p>
-      <p>With spaces: <strong>1,000 EUR</strong> and <strong>2,500 JPY</strong></p>
-      <p>No currency here: just 100 (should not trigger)</p>
-    </div>
-
-    <h2>Original Test Cases</h2>
-    <div style="display: flex; gap: 1rem">
-      <div style="background-color: lightblue; padding: 1em">10.0 USD</div>
-      <div style="background-color: lightblue; padding: 1em">10.0 USD</div>
-      <div style="background-color: lightblue; padding: 1em">10.0 USD</div>
-      <div style="background-color: lightblue; padding: 1em; font-size: 3rem">
-        10
-        <span style="font-size: 1rem; vertical-align: super">USD</span>
+    <main class="page-shell">
+      <div class="toolbar">
+        <label class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+          </svg>
+          <input
+            id="currency-search"
+            type="search"
+            aria-label="通貨を検索"
+            placeholder="USD、円、dólar…"
+            autocomplete="off"
+          />
+        </label>
+        <p class="result-count" aria-live="polite">
+          <strong id="visible-count">153</strong> / 153 通貨
+        </p>
       </div>
-    </div>
+
+      <div class="table-wrap">
+        <table class="currency-table">
+          <colgroup>
+            <col class="currency-column" />
+            <col class="iso-column" />
+            <col class="language-column" />
+            <col class="region-column" />
+            <col class="symbol-column" />
+            <col class="local-column" />
+          </colgroup>
+          <caption>
+            記号表記は
+            <a
+              href="https://cldr.unicode.org/downloads/cldr-48"
+              target="_blank"
+              rel="noreferrer"
+              >Unicode CLDR 48.2.1</a
+            >
+            を基準とし、発行当局の現行表記で補正しています。現地語は正式通貨名ではなく、価格表示で広く通じる短い単位名です。言語と地域の組み合わせを1行ずつ示し、同じ表記は縦方向にまとめています。
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">通貨</th>
+              <th scope="col">ISO コード</th>
+              <th scope="col">言語</th>
+              <th scope="col">地域</th>
+              <th scope="col">記号表記</th>
+              <th scope="col">現地語</th>
+            </tr>
+          </thead>
+        </table>
+        <p id="empty-state" class="empty-state" hidden>
+          一致する通貨がありません。ISO コードや通貨名を変えて検索してください。
+        </p>
+      </div>
+    </main>
+
+    <script type="module">
+      import { sandboxCurrencies } from "./sandbox-data.ts";
+
+      const currencyTable = document.querySelector(".currency-table");
+
+      // 指定した文字列とロケールから、方向を自動判定するテキスト要素を作ります。
+      function textElement(tagName, className, text, language) {
+        const element = document.createElement(tagName);
+        if (className) element.className = className;
+        element.textContent = text;
+        if (language) {
+          element.lang = language;
+          element.dir = "auto";
+        }
+        return element;
+      }
+
+      // 一つの地域別表記に複数の記号例がある場合も、同じセル内へ並べます。
+      function sampleList(values, sampleClass, language) {
+        const list = document.createElement("div");
+        list.className = "sample-list";
+        list.append(
+          ...values.map((value) => textElement("span", sampleClass, value, language)),
+        );
+
+        return list;
+      }
+
+      // 連続する同じ言語または地域を縦方向に結合する行数を返します。
+      function contiguousSpan(locales, index, key) {
+        const value = locales[index][key];
+        if (index > 0 && locales[index - 1][key] === value) return 0;
+
+        let span = 1;
+        while (index + span < locales.length && locales[index + span][key] === value) {
+          span += 1;
+        }
+        return span;
+      }
+
+      // 通貨名、全地域表記、ロケールを検索対象の文字列へ直列化します。
+      function currencySearchText(row) {
+        return [
+          row.code,
+          row.japaneseName,
+          row.englishName,
+          row.commonLocalName,
+          row.isoSample,
+          ...row.representations.flatMap((representation) => [
+            ...representation.symbolSamples,
+            representation.localSample,
+            ...representation.locales.flatMap((locale) => [
+              locale.language,
+              locale.languageName,
+              locale.regionName,
+            ]),
+          ]),
+        ]
+          .join(" ")
+          .toLocaleLowerCase();
+      }
+
+      // 元の通貨列を、通貨全体にまたがる行見出しとして組み立てます。
+      function currencyCell(row, rowSpan, primaryLanguage) {
+        const cell = document.createElement("th");
+        cell.className = "currency-cell";
+        cell.scope = "rowgroup";
+        cell.rowSpan = rowSpan;
+        cell.append(
+          textElement("span", "currency-name", row.japaneseName),
+          textElement("span", "currency-local-name", row.commonLocalName, primaryLanguage),
+        );
+
+        const sourceLink = document.createElement("a");
+        const sourceHost = new URL(row.sourceUrl).hostname;
+        const sourceLabel = sourceHost.endsWith("wikipedia.org") ? "Wikipedia" : "発行当局";
+        sourceLink.className = "currency-source-link";
+        sourceLink.href = row.sourceUrl;
+        sourceLink.target = "_blank";
+        sourceLink.rel = "noreferrer";
+        sourceLink.ariaLabel = `${row.japaneseName}の${sourceLabel}`;
+        sourceLink.append(
+          textElement("span", "", sourceLabel),
+          textElement("span", "", "↗"),
+        );
+        sourceLink.lastElementChild.ariaHidden = "true";
+        cell.append(sourceLink);
+        return cell;
+      }
+
+      // ISO表記を、通貨全体にまたがる元のISOコード列へ配置します。
+      function isoCell(row, rowSpan) {
+        const cell = document.createElement("td");
+        cell.className = "iso-cell";
+        cell.rowSpan = rowSpan;
+        cell.append(textElement("code", "iso-sample", row.isoSample));
+        return cell;
+      }
+
+      // 調査済みデータを、一通貨につき一つの表の行グループへ変換します。
+      function renderCurrency(row) {
+        const group = document.createElement("tbody");
+        group.dataset.currencyGroup = "";
+        group.dataset.search = currencySearchText(row);
+        const rowSpan = row.representations.reduce(
+          (total, representation) => total + representation.locales.length,
+          0,
+        );
+        const primaryLanguage = row.representations[0].locales[0].language;
+        let currencyRowIndex = 0;
+
+        for (const representation of row.representations) {
+          for (const [localeIndex, locale] of representation.locales.entries()) {
+            const tableRow = document.createElement("tr");
+
+            if (currencyRowIndex === 0) {
+              tableRow.append(currencyCell(row, rowSpan, primaryLanguage));
+            }
+
+            if (currencyRowIndex === 0) {
+              tableRow.append(isoCell(row, rowSpan));
+            }
+
+            const languageSpan = contiguousSpan(
+              representation.locales,
+              localeIndex,
+              "languageName",
+            );
+            if (languageSpan > 0) {
+              const languageCell = textElement("td", "language-name", locale.languageName);
+              languageCell.rowSpan = languageSpan;
+              tableRow.append(languageCell);
+            }
+
+            const regionSpan = contiguousSpan(
+              representation.locales,
+              localeIndex,
+              "regionName",
+            );
+            if (regionSpan > 0) {
+              const regionCell = textElement("td", "region-name", locale.regionName);
+              regionCell.rowSpan = regionSpan;
+              tableRow.append(regionCell);
+            }
+
+            if (localeIndex === 0) {
+              const representationRowSpan = representation.locales.length;
+              const symbolCell = document.createElement("td");
+              symbolCell.className = "symbol-cell";
+              symbolCell.rowSpan = representationRowSpan;
+              symbolCell.append(
+                sampleList(representation.symbolSamples, "money-sample", locale.language),
+              );
+
+              const localCell = document.createElement("td");
+              localCell.className = "local-cell";
+              localCell.rowSpan = representationRowSpan;
+              localCell.append(
+                sampleList([representation.localSample], "local-sample", locale.language),
+              );
+              tableRow.append(symbolCell, localCell);
+            }
+
+            group.append(tableRow);
+            currencyRowIndex += 1;
+          }
+        }
+        return group;
+      }
+
+      currencyTable.append(...sandboxCurrencies.map(renderCurrency));
+      const searchInput = document.querySelector("#currency-search");
+      const groups = [...document.querySelectorAll("[data-currency-group]")];
+      const visibleCount = document.querySelector("#visible-count");
+      const emptyState = document.querySelector("#empty-state");
+
+      // 通貨コードと多言語名を、一つの入力から絞り込みます。
+      searchInput.addEventListener("input", () => {
+        const query = searchInput.value.trim().toLocaleLowerCase();
+        let matches = 0;
+
+        for (const group of groups) {
+          const isMatch = group.dataset.search.includes(query);
+          group.hidden = !isMatch;
+          if (isMatch) matches += 1;
+        }
+
+        visibleCount.textContent = String(matches);
+        emptyState.hidden = matches !== 0;
+      });
+    </script>
   </body>
 </html>

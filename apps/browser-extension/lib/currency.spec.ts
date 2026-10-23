@@ -8,7 +8,7 @@ import {
   getCurrencySymbolDefinition,
   getCurrencySymbolDefinitions,
   isKnownCurrencyCode,
-} from "./currency";
+} from "@/lib/currency";
 
 afterEach(() => {
   vi.doUnmock("@cl/currency");
@@ -58,8 +58,6 @@ describe("configuration validation", () => {
     favorites: ["USD"],
     symbolOverrides: {},
     theme: "system",
-    showCurrencyIcon: true,
-    showCurrencyCode: true,
   } as const;
 
   it("accepts valid settings and rejects duplicates, overflow, and extra fields", () => {
@@ -120,7 +118,7 @@ describe("symbol table normalization", () => {
       ],
     }));
 
-    const normalized = await import("./currency");
+    const normalized = await import("@/lib/currency");
     expect(normalized.getCurrencySymbolDefinition("invalid")).toBeUndefined();
     expect(normalized.getCurrencySymbolDefinition("a")).toEqual({
       token: "a",

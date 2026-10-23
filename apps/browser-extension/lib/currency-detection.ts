@@ -4,14 +4,27 @@ import {
   getCurrencyMetadata,
   getCurrencySymbolDefinition,
   getCurrencySymbolDefinitions,
-} from "./currency";
+} from "@/lib/currency";
+import {
+  getCurrencyLocalNameDefinition,
+  getCurrencyLocalNameDefinitions,
+} from "@/lib/currency-local-names";
 
 export const MAX_DETECTED_AMOUNTS = 3;
 
 const MAX_SELECTION_LENGTH = 1_000;
-const NUMBER_SOURCE = String.raw`\d+(?:[.,\u00A0\u202F\u2009 ]\d+)*`;
+const NUMBER_SOURCE = String.raw`\p{Nd}+(?:[.,\u00A0\u202F\u2009 ]\p{Nd}+)*`;
 const GROUPING_SPACE_PATTERN = /[\u00A0\u202F\u2009 ]/gu;
 const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}_]/u;
+const DECIMAL_DIGIT_SETS = [
+  "0123456789",
+  "٠١٢٣٤٥٦٧٨٩",
+  "۰۱۲۳۴۵۶۷۸۹",
+  "०१२३४५६७८९",
+  "০১২৩৪৫৬৭৮৯",
+  "༠༡༢༣༤༥༦༧༨༩",
+  "၀၁၂၃၄၅၆၇၈၉",
+] as const;
 
 export interface DetectedCurrency {
   readonly amount: number;
@@ -32,7 +45,7 @@ interface NumberSeparators {
 }
 
 type Placement = "currency-before" | "currency-after";
-type TokenKind = "code" | "symbol";
+type TokenKind = "code" | "local-name" | "symbol";
 
 interface DetectionPattern {
   readonly regex: RegExp;
@@ -49,7 +62,8 @@ const detectionPatterns = buildDetectionPatterns();
 
 /**
  * Detects at most three monetary amounts in source order for pure parsing callers.
- * Locale hints only influence ambiguous separators and symbols; the function has no browser-state dependency.
+ * Locale hints only influence ambiguous separators, symbols, and local names.
+ * The function has no browser-state dependency.
  */
 export function detectCurrencies(
   text: string,
@@ -79,7 +93,10 @@ export function parseMoneyAmount(
   amountText: string,
   options: Pick<CurrencyDetectionOptions, "pageLocale" | "browserLocale"> = {},
 ): number | null {
-  const normalized = amountText.replace(GROUPING_SPACE_PATTERN, " ");
+  const normalized = normalizeDecimalDigits(amountText).replace(
+    GROUPING_SPACE_PATTERN,
+    " ",
+  );
   if (!/^\d+(?:[., ]\d+)*$/u.test(normalized)) {
     return null;
   }
@@ -99,7 +116,7 @@ export function parseMoneyAmount(
   return Number.isFinite(amount) ? amount : null;
 }
 
-/** Creates code and symbol patterns with longest tokens first to prevent suffix matches. */
+/** Creates code, symbol, and local-name patterns with longest tokens first. */
 function buildDetectionPatterns(): DetectionPattern[] {
   const codeSource = getCurrencyCodes()
     .map(escapeRegularExpression)
@@ -108,10 +125,16 @@ function buildDetectionPatterns(): DetectionPattern[] {
   const symbolSource = getCurrencySymbolDefinitions()
     .map((definition) => escapeRegularExpression(definition.token))
     .join("|");
+  const localNameSource = getCurrencyLocalNameDefinitions()
+    .map((definition) => escapeRegularExpression(definition.token))
+    .toSorted((left, right) => right.length - left.length)
+    .join("|");
 
   return [
     createDetectionPattern(codeSource, "currency-before", "code"),
     createDetectionPattern(codeSource, "currency-after", "code"),
+    createDetectionPattern(localNameSource, "currency-before", "local-name"),
+    createDetectionPattern(localNameSource, "currency-after", "local-name"),
     createDetectionPattern(symbolSource, "currency-before", "symbol"),
     createDetectionPattern(symbolSource, "currency-after", "symbol"),
   ];
@@ -251,6 +274,22 @@ function resolveCurrencyToken(
     return getCurrencyCodes().find((currencyCode) => currencyCode === token);
   }
 
+  if (tokenKind === "local-name") {
+    // Local-name patterns are built exclusively from this table, so every match has a definition.
+    const definition = getCurrencyLocalNameDefinition(token)!;
+
+    for (const region of getLocaleRegions(options)) {
+      const localeCurrency = definition.currencies.find((currency) =>
+        currency.regions.includes(region),
+      );
+      if (localeCurrency !== undefined) {
+        return localeCurrency.code;
+      }
+    }
+
+    return definition.defaultCurrency;
+  }
+
   // Symbol patterns are built exclusively from this table, so every match has a definition.
   const definition = getCurrencySymbolDefinition(token)!;
 
@@ -327,17 +366,25 @@ function determineDecimalSeparator(
   if (dotCount > 0 && commaCount > 0) {
     return amountText.lastIndexOf(".") > amountText.lastIndexOf(",") ? "." : ",";
   }
-
-  const separator = dotCount > 0 ? "." : commaCount > 0 ? "," : null;
-  if (separator === null) {
+  if (dotCount === 0 && commaCount === 0) {
     return null;
   }
 
+  const separator = dotCount > 0 ? "." : ",";
   const count = separator === "." ? dotCount : commaCount;
   if (count > 1) {
     return normalizeGroupedInteger(amountText) === null ? undefined : null;
   }
 
+  return determineSingleDecimalSeparator(amountText, separator, preferred);
+}
+
+/** Resolves one punctuation mark using locale hints and common grouping conventions. */
+function determineSingleDecimalSeparator(
+  amountText: string,
+  separator: "." | ",",
+  preferred: NumberSeparators | undefined,
+): "." | "," | null {
   const [integerPart = "", fractionPart = ""] = amountText.split(separator);
   if (amountText.includes(" ")) {
     return separator;
@@ -401,6 +448,21 @@ function normalizeGroupedInteger(integerPart: string): string | null {
 /** Counts exact occurrences of one separator character. */
 function countCharacter(value: string, character: string): number {
   return value.split(character).length - 1;
+}
+
+/** Converts decimal digits used by sandbox locales to their ASCII equivalents. */
+function normalizeDecimalDigits(value: string): string {
+  return Array.from(value)
+    .map((character) => {
+      for (const digits of DECIMAL_DIGIT_SETS) {
+        const digit = digits.indexOf(character);
+        if (digit >= 0) {
+          return String(digit);
+        }
+      }
+      return character;
+    })
+    .join("");
 }
 
 /** Escapes arbitrary currency tokens for use inside a regular-expression alternation. */

@@ -4,6 +4,7 @@ packages:
 
 # Never let a script silently repair dependency drift with a different global pnpm.
 verifyDepsBeforeRun: error
+engineStrict: true
 enableGlobalVirtualStore: false
 
 allowBuilds:

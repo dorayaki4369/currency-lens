@@ -87,6 +87,6 @@ pnpm -C apps/server typegen
 
 ## デプロイ
 
-Workerは、`main`が更新されたときにCloudflare Workers Buildsがデプロイします。初回設定と障害対応のとき以外は、ローカルから本番へデプロイしません。
+Workerは、`main`が更新されたときにGitHub ActionsのCIがデプロイします。初回設定と障害対応のとき以外は、ローカルから本番へデプロイしません。
 
-R2 Bucketの作成、Open Exchange Ratesのsecretの登録、Custom Domainの設定、CloudflareとGitHubの接続は、リポジトリの外で行う作業です。手順は[デプロイとストア公開](../../docs/deployment.md)にあります。
+R2 Bucketの作成、Open Exchange Ratesのsecretの登録、Custom Domainの設定、デプロイ用のAPI tokenの登録は、リポジトリの外で行う作業です。手順は[デプロイとストア公開](../../docs/deployment.md)にあります。

@@ -18,18 +18,16 @@ squash すると、merge 済みのブランチの上に作ったブランチで�
 
 ## Worker
 
-- `main` が更新されると、Cloudflare Workers Builds が `pnpm --filter @cl/server run deploy` を実行します。
-- GitHub Actions から Worker をデプロイしません。`CLOUDFLARE_ACCOUNT_ID` と `CLOUDFLARE_API_TOKEN` を GitHub secrets に置きません。
+- `main` が更新されると、`ci.yml` の `deploy Worker` job が、同じ SHA の `quality` の成功後に `pnpm --filter @cl/server run deploy` を実行します。
+- `CLOUDFLARE_ACCOUNT_ID` と `CLOUDFLARE_API_TOKEN` は、`main` だけに制限した `production` Environment の secret に置きます。Repository secrets には置きません。
+- Cloudflare Workers Builds の Git 連携は使いません。連携が残っていると Worker が二重にデプロイされます。
 - `OPEN_EXCHANGE_RATE_APP_ID` は Cloudflare Worker secret だけに置きます。Wrangler の `secrets.required` が、secret があることを検査します。
-- Build watch paths は設定しません。`main` のすべての commit に Cloudflare Check Run を作るためです。
+- `main` への push で動く CI は、実行中の run を取り消しません。デプロイ中の run を止めないためです。待機中の古い run は、新しい push の run に置き換わります。
 
-### Check Run がない commit の復旧
+### デプロイが失敗した commit の復旧
 
-Cloudflare の設定を直しても、過去の `main` への push は処理し直されません。
-対象の SHA に Check Run がない場合は、設定を直したうえで、通常の Pull Request の経路で `main` へ新しい push を起こし、その SHA の Check Run が成功したことを確かめます。
-
-Deploy Hook は、既存の SHA に Check Run が付くとは限らないため、復旧の手段にしません。
-Deploy Hook の URL は認証情報なので、リポジトリ、Issue、Pull Request、チャット、CI ログに書きません。
+原因を直したら、同じ run の `deploy Worker` を再実行するか、通常の Pull Request の経路で `main` へ新しい push を起こし、その SHA の `deploy Worker` が成功したことを確かめます。
+`deploy Worker` は、自分の SHA が `main` の先頭でなければデプロイせずに失敗します。古いコードで本番の Worker を上書きしないためです。
 
 ## ブラウザストア
 
@@ -39,7 +37,7 @@ Deploy Hook の URL は認証情報なので、リポジトリ、Issue、Pull Re
 
 - tag の version が `apps/browser-extension/package.json` の version と一致する
 - release tag が現在の `main` の HEAD を指す
-- 同じ commit で `Workers Builds: currency-lens` が成功している
+- 同じ commit で `deploy Worker` が成功している
 - 公開中の `/v1/latest` と旧 `/latest` が、配布するクライアントの Zod schema を満たす
 
 どれかを満たさない場合、Workflow はストアの credentials を参照する前に停止します。
@@ -58,7 +56,8 @@ sources ZIP に秘密情報を含めません。
 
 Agent は次の作業を行わず、必要になったら人間に依頼します。
 
-- R2 bucket、Custom Domain、Cloudflare と GitHub の連携の初回設定
+- R2 bucket、Custom Domain の初回設定
+- Cloudflare の API token の発行と、`production` Environment への secret の登録
 - ストアの credentials を GitHub Actions の Repository secrets に登録すること
 - 各ストアの初回 listing、説明、画像、プライバシー項目、公開範囲の設定
 - 旧 route を廃止するかどうかの判断

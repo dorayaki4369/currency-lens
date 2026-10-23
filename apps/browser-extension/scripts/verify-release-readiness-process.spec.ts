@@ -34,11 +34,11 @@ describe("runReleaseReadinessProcess", () => {
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     boundaries.waitForDeployment.mockResolvedValue({
       id: 41,
-      name: "Workers Builds: currency-lens",
+      name: "deploy Worker",
       status: "completed",
       conclusion: "success",
       details_url: null,
-      app: { slug: "cloudflare-workers-and-pages" },
+      app: { slug: "github-actions" },
     });
     boundaries.verifyApi.mockResolvedValue([
       {

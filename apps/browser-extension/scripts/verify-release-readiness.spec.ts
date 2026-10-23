@@ -16,11 +16,11 @@ describe("verify-release-readiness CLI", () => {
       options.reportStatus?.("Deployment pending.");
       return {
         id: 32,
-        name: "Workers Builds: currency-lens",
+        name: "deploy Worker",
         status: "completed",
         conclusion: "success",
         details_url: null,
-        app: { slug: "cloudflare-workers-and-pages" },
+        app: { slug: "github-actions" },
       };
     });
     const verifyApiContract = vi.fn<typeof verifyRatesApiContract>(async () => [

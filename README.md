@@ -139,6 +139,6 @@ pnpm -C apps/server dev                     # Worker
 
 通常の開発は`develop`へのPull Requestで行い、リリース時に`develop`から`main`へのPull Requestで昇格させます。`main`へ直接変更を入れることはありません。
 
-`develop`と`main`へのpushとPull Requestでは、GitHub Actionsが`pnpm check`、カバレッジ検証、integration、E2E、ビルドを実行します。`main`が更新されると、Cloudflare Workers BuildsがWorkerを自動でデプロイします。拡張機能は、安定版のGitHub Releaseを公開するとChrome Web StoreとFirefox Add-onsへ提出されます。
+`develop`と`main`へのpushとPull Requestでは、GitHub Actionsが`pnpm check`、カバレッジ検証、integration、E2E、ビルドを実行します。`main`が更新されると、同じCIが品質検査の成功後にWorkerをデプロイします。拡張機能は、安定版のGitHub Releaseを公開するとChrome Web StoreとFirefox Add-onsへ提出されます。
 
 Cloudflare、R2、Custom Domain、各ストアの初回設定は、リポジトリの外で行う作業です。手順は[デプロイとストア公開](docs/deployment.md)にあります。

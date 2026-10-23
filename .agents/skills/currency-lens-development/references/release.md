@@ -18,7 +18,7 @@ squash すると、merge 済みのブランチの上に作ったブランチで�
 
 ## Worker
 
-- `main` が更新されると、`ci.yml` の `deploy Worker` job が、同じ SHA の `quality` の成功後に `pnpm --filter @cl/server run deploy` を実行します。
+- `main` が更新されると、`ci.yml` の `deploy Worker` job が、同じ SHA の `CI Check Result` の成功後に `pnpm --filter @cl/server run deploy` を実行します。
 - `CLOUDFLARE_ACCOUNT_ID` と `CLOUDFLARE_API_TOKEN` は、`main` だけに制限した `production` Environment の secret に置きます。Repository secrets には置きません。
 - Cloudflare Workers Builds の Git 連携は使いません。連携が残っていると Worker が二重にデプロイされます。
 - `OPEN_EXCHANGE_RATE_APP_ID` は Cloudflare Worker secret だけに置きます。Wrangler の `secrets.required` が、secret があることを検査します。

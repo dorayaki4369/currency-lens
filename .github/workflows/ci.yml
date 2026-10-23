@@ -91,10 +91,8 @@ jobs:
     name: testing (unit)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
-      # Comments the coverage report on the pull request.
-      pull-requests: write
+    outputs:
+      has-coverage: ${{ steps.upload-coverage.outcome == 'success' }}
     steps:
       - *checkout
       - *reject-environment-files
@@ -105,9 +103,39 @@ jobs:
       - name: Test with coverage
         run: pnpm test:coverage
 
+      - name: Upload coverage
+        id: upload-coverage
+        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: unit-coverage
+          path: |
+            coverage/coverage-summary.json
+            coverage/coverage-final.json
+          if-no-files-found: error
+          retention-days: 1
+
+  # Holds the pull request write token apart from the job that runs dependency code.
+  coverage-report:
+    name: coverage report
+    needs: unit
+    if: ${{ !cancelled() && needs.unit.outputs.has-coverage == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - *checkout
+
+      - name: Download coverage
+        uses: actions/download-artifact@v8.0.2
+        with:
+          name: unit-coverage
+          path: coverage
+
       # Fork pull requests get a read-only token, so they only see the job summary.
       - name: Report coverage
-        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
         uses: davelosert/vitest-coverage-report-action@v2.13.0
         with:
           comment-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && 'pr' || 'none' }}

@@ -28,16 +28,16 @@ PDF、canvas、フォーム入力、ブラウザ内部ページ、クロスオ�
 
 パッケージ管理には pnpm だけを使い、ルートで実行します。
 
-| コマンド                | 内容                                                                                         |
-| ----------------------- | -------------------------------------------------------------------------------------------- |
-| `pnpm dev`              | 拡張機能と Worker の開発サーバーを起動します。                                               |
-| `pnpm test:unit`        | Vitest で unit テストを一度実行します。`pnpm test` も同じです。                              |
-| `pnpm test:integration` | Vitest の Browser Mode で、実ブラウザの結合テストを実行します。                              |
-| `pnpm test:coverage`    | unit を実行し、4指標がファイルごとに100%であることを検証します。                             |
-| `pnpm test:e2e`         | Chrome 向けにビルドし、成果物の構成と、Chromium へ読み込んだ拡張機能の主要導線を検証します。 |
-| `pnpm build`            | 拡張機能と Worker をビルドします。環境変数 `API_ENDPOINT` が必要です。                       |
-| `pnpm check`            | 整形、lint、型検査をまとめて確認します。`pnpm check --fix` で自動修正します。                |
-| `pnpm validate`         | check、coverage、integration、build を順に実行します。`API_ENDPOINT` が必要です。            |
+| コマンド                | 内容                                                                                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`              | 拡張機能と Worker の開発サーバーを起動します。                                                                          |
+| `pnpm test:unit`        | Vitest で unit テストを一度実行します。`pnpm test` も同じです。                                                         |
+| `pnpm test:integration` | Vitest の Browser Mode で、実ブラウザの結合テストを実行します。                                                         |
+| `pnpm test:coverage`    | unit を実行し、4指標がファイルごとに100%であることを検証します。                                                        |
+| `pnpm test:e2e`         | Chrome 向けにビルドし、成果物の構成と、Chromium へ読み込んだ拡張機能の主要導線を検証します。`API_ENDPOINT` が必要です。 |
+| `pnpm build`            | 拡張機能と Worker をビルドします。環境変数 `API_ENDPOINT` が必要です。                                                  |
+| `pnpm check`            | 整形、lint、型検査をまとめて確認します。`pnpm check --fix` で自動修正します。                                           |
+| `pnpm validate`         | check、coverage、integration、build を順に実行します。`API_ENDPOINT` が必要です。                                       |
 
 依存を変更したら、`pnpm install --frozen-lockfile=false` で lockfile を同期します。
 

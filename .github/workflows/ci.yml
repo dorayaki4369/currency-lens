@@ -182,8 +182,10 @@ jobs:
       - name: Test integration
         run: pnpm test:integration
 
+  # Tests the extension that `build` produced with the production API endpoint.
   e2e:
     name: testing (e2e)
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -196,8 +198,14 @@ jobs:
       - *cache-playwright-browsers
       - *install-playwright-browsers
 
+      - name: Download the built Chrome extension
+        uses: actions/download-artifact@v8.0.2
+        with:
+          name: chrome-extension
+          path: apps/browser-extension/.output/chrome-mv3
+
       - name: Test built Chrome extension
-        run: pnpm test:e2e
+        run: pnpm exec playwright test
 
   build:
     name: build
@@ -212,6 +220,15 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Upload the built Chrome extension
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: chrome-extension
+          path: apps/browser-extension/.output/chrome-mv3
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 1
 
   result:
     name: CI Check Result

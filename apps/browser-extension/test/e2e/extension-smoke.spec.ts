@@ -1,19 +1,17 @@
-import type { BrowserContext, Locator } from "@playwright/test";
-import type { Config } from "@/lib/currency";
-import type { ExchangeRateCache } from "@/lib/rates";
+import type { Locator, Page } from "@playwright/test";
 import { expectNoAutomatedAccessibilityViolations } from "@/test/accessibility";
 import { expect, HOST_PAGE_URL, saveReviewScreenshot, test } from "@/test/e2e/fixtures";
 
 const localized = {
+  addTarget: /^(?:Add a target|換算通貨を追加)$/u,
   amount: /^(?:Amount|金額)$/u,
   conversionResult: /^(?:Conversion result|換算結果)$/u,
   convertSelection: /^(?:Convert selected price|選択した金額を換算)$/u,
   converted: /^(?:Converted|換算後)$/u,
+  currencySearch: /^(?:Code, name, or region|コード・通貨名・地域)$/u,
+  editTargets: /^(?:Edit conversion targets|換算後を編集)$/u,
+  finishTargetEditing: /^(?:Finish editing conversion targets|換算後の編集を終了)$/u,
 } as const;
-
-interface ChromeStorageArea {
-  set(items: Readonly<Record<string, unknown>>): Promise<void>;
-}
 
 interface ChromeExtensionGlobal {
   readonly chrome: {
@@ -23,16 +21,8 @@ interface ChromeExtensionGlobal {
     readonly extension: {
       getViews(properties: { readonly type: "popup" }): Window[];
     };
-    readonly storage: {
-      readonly local: ChromeStorageArea;
-      readonly sync: ChromeStorageArea;
-    };
   };
 }
-
-test.beforeEach(async ({ context, extensionId }) => {
-  await seedExtensionState(context, extensionId);
-});
 
 test("the toolbar popup opens at its full size", async ({ context, extensionId }) => {
   const controller = await context.newPage();
@@ -54,6 +44,7 @@ test("the toolbar popup opens at its full size", async ({ context, extensionId }
 });
 
 test("the built extension exposes an accessible popup and content flow", async ({
+  apiRequests,
   context,
   extensionId,
   page,
@@ -63,6 +54,13 @@ test("the built extension exposes an accessible popup and content flow", async (
   await expect(popup.getByRole("heading", { name: "Currency Lens" })).toBeVisible();
   await expectAppLogoLoaded(popup.locator('[data-slot="app-logo"]'));
   await expect(popup.getByRole("spinbutton", { name: localized.amount })).toBeFocused();
+  expect(apiRequests).toContain("/v1/latest");
+
+  await popup.getByRole("button", { name: localized.editTargets }).click();
+  await addConversionTarget(popup, "JPY");
+  await addConversionTarget(popup, "EUR");
+  await addConversionTarget(popup, "GBP");
+  await finishTargetEditing(popup);
   await expect(popup.getByText("149.00", { exact: true })).toBeVisible();
   await saveReviewScreenshot(popup, "e2e-popup");
 
@@ -95,6 +93,23 @@ test("the built extension exposes an accessible popup and content flow", async (
   });
 });
 
+/** Adds one conversion target through the popup editor, as a new user would after installing. */
+async function addConversionTarget(popup: Page, currencyCode: string): Promise<void> {
+  await popup.getByRole("combobox", { name: localized.addTarget }).click();
+  await popup.getByPlaceholder(localized.currencySearch).fill(currencyCode);
+  await popup.getByRole("option", { name: new RegExp(`^${currencyCode}\\b`, "u") }).click();
+  await expect(popup.getByRole("listbox")).toHaveCount(0);
+}
+
+/** Leaves the popup editor and returns it to the converter view without overlays. */
+async function finishTargetEditing(popup: Page): Promise<void> {
+  await popup.getByRole("button", { name: localized.finishTargetEditing }).click();
+  await expect(popup.getByRole("button", { name: localized.editTargets })).toBeVisible();
+  // The pointer still rests on the editor toggle, so move it away to close its hover tooltip.
+  await popup.mouse.move(0, 0);
+  await expect(popup.getByRole("tooltip")).toHaveCount(0);
+}
+
 /** Verifies bundled artwork actually decodes in popup and host-page execution contexts. */
 async function expectAppLogoLoaded(logo: Locator): Promise<void> {
   await expect(logo).toBeVisible();
@@ -109,47 +124,4 @@ async function expectAppLogoLoaded(logo: Locator): Promise<void> {
       ),
     )
     .toBe(true);
-}
-
-/** Seeds validated config and rates so E2E rendering never depends on an external API. */
-async function seedExtensionState(
-  context: BrowserContext,
-  extensionId: string,
-): Promise<void> {
-  const storagePage = await context.newPage();
-  await storagePage.goto(`chrome-extension://${extensionId}/popup.html`);
-  await storagePage.evaluate(async (state) => {
-    const extensionGlobal = globalThis as typeof globalThis & ChromeExtensionGlobal;
-    await extensionGlobal.chrome.storage.sync.set({ config: state.config });
-    await extensionGlobal.chrome.storage.local.set({
-      exchangeRateCache: state.rateCache,
-    });
-  }, createExtensionState());
-  await storagePage.close();
-}
-
-/** Creates a recent, schema-valid state for deterministic popup and content conversion. */
-function createExtensionState(): {
-  readonly config: Config;
-  readonly rateCache: ExchangeRateCache;
-} {
-  const now = Date.now();
-  return {
-    config: {
-      favorites: ["JPY", "EUR", "GBP"],
-      symbolOverrides: { $: "USD" },
-      theme: "light",
-    },
-    rateCache: {
-      base: "USD",
-      fetchedAt: now,
-      rates: {
-        EUR: "0.8621",
-        GBP: "0.7428",
-        JPY: "149.45",
-        USD: "1",
-      },
-      sourceTimestamp: now,
-    },
-  };
 }

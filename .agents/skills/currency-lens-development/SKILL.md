@@ -59,7 +59,7 @@ UI を変更するときは、frontend-design と browser の Skill も使いま
 ```text
 pnpm check --fix
 API_ENDPOINT=https://cl.dryk.net pnpm validate
-pnpm test:e2e
+API_ENDPOINT=https://cl.dryk.net pnpm test:e2e
 ```
 
 `pnpm validate` は、check、unit のカバレッジ、integration、build をまとめて実行します。

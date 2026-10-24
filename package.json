@@ -22,11 +22,11 @@
     "validate": "vp check && pnpm test:coverage && pnpm test:integration && vp run -r build"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.62.1",
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "^7.0.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@vitest/browser-playwright": "^4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
     "axe-core": "^4.14.0",

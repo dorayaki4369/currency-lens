@@ -154,9 +154,30 @@ jobs:
       - *set-up-node
       - *install-dependencies
 
+      - &resolve-playwright-version
+        name: Resolve the Playwright version
+        id: playwright-version
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >>"$GITHUB_OUTPUT"
+
+      # The browsers are cached per Playwright version, but the OS packages they need are not.
+      - &cache-playwright-browsers
+        name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright-version.outputs.version }}-chromium
+
       - &install-playwright-browsers
         name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+        env:
+          CACHE_HIT: ${{ steps.playwright-cache.outputs.cache-hit }}
+        run: |
+          if [[ "$CACHE_HIT" == "true" ]]; then
+            pnpm exec playwright install-deps chromium
+          else
+            pnpm exec playwright install --with-deps chromium
+          fi
 
       - name: Test integration
         run: pnpm test:integration
@@ -171,6 +192,8 @@ jobs:
       - *install-pnpm
       - *set-up-node
       - *install-dependencies
+      - *resolve-playwright-version
+      - *cache-playwright-browsers
       - *install-playwright-browsers
 
       - name: Test built Chrome extension

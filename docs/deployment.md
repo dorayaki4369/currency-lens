@@ -10,14 +10,26 @@ GitHub Actionsの各Workflowは、依存関係を入れる前に環境ファイ�
 
 Node.jsのバージョンは`.node-version`、pnpmのバージョンは`package.json`の`packageManager`が正本です。ローカル（mise）とGitHub Actionsは、どちらもここから読みます。
 
-| Workflow                | job             | 起動条件                                                       | 処理                                                                                |
-| ----------------------- | --------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `ci.yml`                | `quality`       | `develop`または`main`へのpushとPull Request                    | format、lint、型検査、テスト、ビルド                                                |
-| `ci.yml`                | `deploy Worker` | `main`へのpushで`quality`が成功した後                          | productionへWorkerをデプロイ                                                        |
-| `publish-extension.yml` | `preflight`ほか | `vMAJOR.MINOR.PATCH`の安定版GitHub Release公開、または手動実行 | Worker成功と公開API契約を確認後、Chrome版とFirefox版をビルドしてWXTで両ストアへ提出 |
+| Workflow                | job                     | 起動条件                                                       | 処理                                                                                                          |
+| ----------------------- | ----------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                | `code quality check`    | `develop`または`main`へのpushとPull Request                    | `main`向けPull Requestのhead、routeの生成差分、lockfile、format、lint、型検査                                 |
+| `ci.yml`                | `testing (unit)`        | 同上                                                           | カバレッジ付きのunitテスト。テストが失敗してもカバレッジを出力する                                            |
+| `ci.yml`                | `testing (integration)` | 同上                                                           | 実ブラウザの結合テスト                                                                                        |
+| `ci.yml`                | `testing (e2e)`         | `build`が成功した後                                            | `build`が作ったChrome向け拡張機能と、`wrangler dev`で動かしたWorkerを組み合わせたE2Eテスト                    |
+| `ci.yml`                | `build`                 | `develop`または`main`へのpushとPull Request                    | 本番の`API_ENDPOINT`で拡張機能とWorkerをビルドし、Chrome向け拡張機能をartifactで`testing (e2e)`へ渡す         |
+| `ci.yml`                | `coverage report`       | `testing (unit)`がカバレッジを出力した後                       | 同じリポジトリからのPull Requestへカバレッジをコメント。forkからのPull Requestとpushではjob summaryだけに出す |
+| `ci.yml`                | `CI Check Result`       | `code quality check`から`build`までの5つのjobが終わった後      | 5つのjobのどれかが成功しなければ失敗する                                                                      |
+| `ci.yml`                | `deploy Worker`         | `main`へのpushで`CI Check Result`が成功した後                  | productionへWorkerをデプロイ                                                                                  |
+| `publish-extension.yml` | `preflight`ほか         | `vMAJOR.MINOR.PATCH`の安定版GitHub Release公開、または手動実行 | Worker成功と公開API契約を確認後、Chrome版とFirefox版をビルドしてWXTで両ストアへ提出                           |
 
-- 外部のActionはcommit SHAで固定し、Dependabotが更新を提案します。
-- `deploy Worker`は、同じSHAで`quality`が成功したときだけ実行します。`main`へのpushで動くCIは、実行中のrunを新しいpushで取り消しません。デプロイは`worker-production`のconcurrency groupで1件ずつ実行し、待機中の古いrunは新しいpushのrunに置き換わります。
+- 外部のActionは、`.github/workflows/actions.lock`に記録したcommitで実行します。Workflowの`uses`にはタグを書き、GitHub Actionsはタグが今指すcommitではなくlockfileのcommitを取得します。lockfileにない参照を含むWorkflowは起動しません。
+- `uses`を追加・変更したら、[gh-actions-lock](https://github.com/github/gh-actions-lock)の`gh actions-lock`でlockfileを更新し、Workflowと同じcommitに含めます。lockfileは手で編集しません。`code quality check`が`gh actions-lock --verify`でlockfileとWorkflowの一致を検査します。
+- Dependabotは、Actionの更新を提案するPull Requestでlockfileも更新します。
+- 検証のjobは、`testing (e2e)`を除いて並列に動き、どれかが失敗しても他のjobは最後まで実行します。`testing (e2e)`は本番と同じビルドを検証するため`build`の成果物を使い、`build`が失敗すると実行されません。失敗したjobは、終わった時点でPull Requestのcheckに表示されます。
+- integrationとE2Eで使うPlaywrightのブラウザは、Playwrightの版ごとにキャッシュします。ブラウザが動くのに必要なOSのパッケージは、毎回installします。
+- `coverage report`は、依存パッケージを実行しないjobだけにPull Requestへの書き込み権限を渡すため、`testing (unit)`と分けています。カバレッジはartifactで受け渡します。検証のjobではないので、`CI Check Result`の対象に含めません。
+- `CI Check Result`は、検証のjobがすべて終わるのを待ってから成否を決めます。必須checkがskipされると合格扱いになるため、前のjobが失敗しても必ず実行し、自分で失敗します。Rulesetはこのjobだけを必須にするので、検証のjobを増減してもRulesetは変えません。
+- `deploy Worker`は、同じSHAで`CI Check Result`が成功したときだけ実行します。`main`へのpushで動くCIは、実行中のrunを新しいpushで取り消しません。デプロイは`worker-production`のconcurrency groupで1件ずつ実行し、待機中の古いrunは新しいpushのrunに置き換わります。
 - ストア公開Workflowには、権限として`checks: read`だけを追加します。release commitと同じSHAで、`deploy Worker`のCheck Runが成功していることを確かめるためです。
 
 ## GitHubの設定
@@ -30,7 +42,7 @@ Node.jsのバージョンは`.node-version`、pnpmのバージョンは`package.
 | ----------------------------------- | --------- | ------ | ------------------------------------------------ |
 | Pull Request必須                    | 有効      | 有効   | 直接pushを禁止する                               |
 | 必須承認数                          | 0         | 0      | 個人開発でもPR経由を強制し、自己承認待ちを避ける |
-| 必須check `CI / quality`            | 有効      | 有効   | format、lint、型、テスト、buildを必須にする      |
+| 必須check `CI Check Result`         | 有効      | 有効   | format、lint、型、テスト、buildを必須にする      |
 | head branchを最新にする             | 無効      | 無効   | PRのmerge結果をCIし、最新化を待たずにmergeする   |
 | 未解決conversationを残したmerge禁止 | 有効      | 有効   | 指摘を解消してからmergeする                      |
 | 許可するmerge方法                   | merge     | merge  | 積み上げたbranchでも同じcommitを共有できる       |

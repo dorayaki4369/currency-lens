@@ -116,16 +116,16 @@ pnpm -C apps/server dev                     # Worker
 
 ルートで実行します。
 
-| コマンド                | 用途                                                                    |
-| ----------------------- | ----------------------------------------------------------------------- |
-| `pnpm dev`              | 拡張機能とWorkerの開発サーバーを起動する                                |
-| `pnpm check`            | 整形、lint、型検査をまとめて確認する。`--fix`を付けると自動修正する     |
-| `pnpm test`             | unitテストを実行する（`pnpm test:unit`と同じ）                          |
-| `pnpm test:integration` | 実ブラウザで結合テストを実行する                                        |
-| `pnpm test:coverage`    | unitテストのカバレッジ4指標が全ファイルで100%であることを検証する       |
-| `pnpm test:e2e`         | 拡張機能をビルドし、Chromiumへ読み込んで主要な操作を検証する            |
-| `pnpm build`            | 拡張機能とWorkerをビルドする。`API_ENDPOINT`が必要                      |
-| `pnpm validate`         | check、coverage、integration、buildを順に実行する。`API_ENDPOINT`が必要 |
+| コマンド                | 用途                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| `pnpm dev`              | 拡張機能とWorkerの開発サーバーを起動する                                           |
+| `pnpm check`            | 整形、lint、型検査をまとめて確認する。`--fix`を付けると自動修正する                |
+| `pnpm test`             | unitテストを実行する（`pnpm test:unit`と同じ）                                     |
+| `pnpm test:integration` | 実ブラウザで結合テストを実行する                                                   |
+| `pnpm test:coverage`    | unitテストのカバレッジ4指標が全ファイルで100%であることを検証する                  |
+| `pnpm test:e2e`         | 拡張機能をビルドし、Chromiumへ読み込んで主要な操作を検証する。`API_ENDPOINT`が必要 |
+| `pnpm build`            | 拡張機能とWorkerをビルドする。`API_ENDPOINT`が必要                                 |
+| `pnpm validate`         | check、coverage、integration、buildを順に実行する。`API_ENDPOINT`が必要            |
 
 拡張機能のビルドとストア提出用ZIPの作成は、[ブラウザ拡張機能のREADME](apps/browser-extension/README.md#ビルド)を参照してください。
 
@@ -139,6 +139,6 @@ pnpm -C apps/server dev                     # Worker
 
 通常の開発は`develop`へのPull Requestで行い、リリース時に`develop`から`main`へのPull Requestで昇格させます。`main`へ直接変更を入れることはありません。
 
-`develop`と`main`へのpushとPull Requestでは、GitHub Actionsが`pnpm check`、カバレッジ検証、integration、E2E、ビルドを実行します。`main`が更新されると、同じCIが品質検査の成功後にWorkerをデプロイします。拡張機能は、安定版のGitHub Releaseを公開するとChrome Web StoreとFirefox Add-onsへ提出されます。
+`develop`と`main`へのpushとPull Requestでは、GitHub Actionsが`pnpm check`、カバレッジ検証、integration、E2E、ビルドを別々のjobとして並列に実行し、unitのカバレッジをPull Requestへコメントします。`main`が更新されると、同じCIがすべてのjobの成功後にWorkerをデプロイします。拡張機能は、安定版のGitHub Releaseを公開するとChrome Web StoreとFirefox Add-onsへ提出されます。
 
 Cloudflare、R2、Custom Domain、各ストアの初回設定は、リポジトリの外で行う作業です。手順は[デプロイとストア公開](docs/deployment.md)にあります。

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RATE_REFRESH_ALARM_NAME, RATE_REFRESH_PERIOD_MINUTES } from "./rate-refresh";
+import { RATE_REFRESH_ALARM_NAME, RATE_REFRESH_PERIOD_MINUTES } from "@/lib/rate-refresh";
 
 const TEST_RATE_ENDPOINT = "https://cl.dryk.net/v1/latest";
 
@@ -33,7 +33,7 @@ describe("background lifecycle", () => {
     );
     const harness = installBrowserHarness(fetchRates);
 
-    await import("../entrypoints/background");
+    await import("@/entrypoints/background");
     await vi.waitFor(() => expect(harness.alarmGet).toHaveBeenCalledTimes(1));
     await vi.waitFor(() => expect(harness.localGet).toHaveBeenCalledTimes(1));
 
@@ -67,7 +67,7 @@ describe("background lifecycle", () => {
     const harness = installBrowserHarness(fetchRates, initialState);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    await import("../entrypoints/background");
+    await import("@/entrypoints/background");
     await vi.waitFor(() => expect(harness.alarmGet).toHaveBeenCalledTimes(1));
     await vi.waitFor(() => expect(harness.localGet).toHaveBeenCalledTimes(1));
 
@@ -82,7 +82,7 @@ describe("background lifecycle", () => {
   it("validates messages and converts against the retained cache", async () => {
     const fetchRates = vi.fn(() => Promise.resolve(createRateResponse()));
     const harness = installBrowserHarness(fetchRates);
-    const { handleMessage } = await import("../entrypoints/background");
+    const { handleMessage } = await import("@/entrypoints/background");
     await vi.waitFor(() => expect(harness.localGet).toHaveBeenCalledTimes(1));
 
     const sendResponse = vi.fn();
@@ -120,6 +120,163 @@ describe("background lifecycle", () => {
     });
     expect(fetchRates).not.toHaveBeenCalled();
   });
+
+  it("routes configuration writes and returns retained rate snapshots", async () => {
+    const fetchRates = vi.fn(() => Promise.resolve(createRateResponse()));
+    const harness = installBrowserHarness(fetchRates);
+    const { handleMessage } = await import("@/entrypoints/background");
+    const config = {
+      favorites: ["USD"],
+      symbolOverrides: {},
+      theme: "dark",
+    };
+
+    await expect(handleMessage({ type: "SET_CONFIG", payload: config })).resolves.toEqual({
+      success: true,
+      data: config,
+    });
+    expect(harness.syncSet).toHaveBeenCalledWith({ config });
+    await expect(handleMessage({ type: "GET_RATES" })).resolves.toMatchObject({
+      success: true,
+      data: {
+        base: "USD",
+        isStale: false,
+        rates: { USD: "1", EUR: "0.9" },
+      },
+    });
+  });
+
+  it("waits for an active stale-rate refresh and returns the replacement snapshot", async () => {
+    const response = Promise.withResolvers<Response>();
+    const fetchRates = vi.fn(() => response.promise);
+    const harness = installBrowserHarness(fetchRates, createStaleLocalState());
+    const { handleMessage } = await import("@/entrypoints/background");
+    await vi.waitFor(() => expect(fetchRates).toHaveBeenCalledOnce());
+
+    const ratesResponse = handleMessage({ type: "GET_RATES" });
+    response.resolve(createRateResponse({ USD: "1", EUR: "0.8" }));
+
+    await expect(ratesResponse).resolves.toMatchObject({
+      success: true,
+      data: {
+        isStale: false,
+        rates: { USD: "1", EUR: "0.8" },
+      },
+    });
+    expect(fetchRates).toHaveBeenCalledOnce();
+    expect(harness.localSet).toHaveBeenCalledOnce();
+  });
+
+  it("retains the stale snapshot if refreshed storage disappears before it is reread", async () => {
+    const response = Promise.withResolvers<Response>();
+    const fetchRates = vi.fn(() => response.promise);
+    const harness = installBrowserHarness(fetchRates, createStaleLocalState());
+    const { handleMessage } = await import("@/entrypoints/background");
+    await vi.waitFor(() => expect(fetchRates).toHaveBeenCalledOnce());
+
+    const ratesResponse = handleMessage({ type: "GET_RATES" });
+    await vi.waitFor(() => expect(harness.localGet).toHaveBeenCalledTimes(2));
+    harness.localGet.mockResolvedValueOnce({ exchangeRateCache: undefined });
+    response.resolve(createRateResponse({ USD: "1", EUR: "0.8" }));
+
+    await expect(ratesResponse).resolves.toMatchObject({
+      success: true,
+      data: {
+        isStale: true,
+        rates: { USD: "1", EUR: "0.7" },
+      },
+    });
+    expect(harness.localSet).toHaveBeenCalledOnce();
+  });
+
+  it("returns the retained stale snapshot when an on-demand refresh fails", async () => {
+    const fetchRates = vi.fn(() => Promise.reject(new Error("offline")));
+    const harness = installBrowserHarness(fetchRates, createStaleLocalState());
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { handleMessage } = await import("@/entrypoints/background");
+    await vi.waitFor(() => expect(consoleError).toHaveBeenCalledOnce());
+
+    await expect(handleMessage({ type: "GET_RATES" })).resolves.toMatchObject({
+      success: true,
+      data: {
+        isStale: true,
+        rates: { USD: "1", EUR: "0.7" },
+      },
+    });
+    expect(fetchRates).toHaveBeenCalledTimes(2);
+    expect(harness.localSet).not.toHaveBeenCalled();
+  });
+
+  it("reports unavailable rates before the first refresh completes", async () => {
+    const fetchRates = vi.fn(() => new Promise<Response>(() => undefined));
+    installBrowserHarness(fetchRates, {});
+    const { handleMessage } = await import("@/entrypoints/background");
+
+    await expect(
+      handleMessage({
+        type: "CONVERT_CURRENCIES",
+        payload: {
+          amounts: [{ amount: 10, currencyCode: "USD" }],
+          targetCurrencies: ["EUR"],
+        },
+      }),
+    ).resolves.toEqual({ success: false, error: "Exchange rates are not available yet." });
+    await expect(handleMessage({ type: "GET_RATES" })).resolves.toEqual({
+      success: false,
+      error: "Exchange rates are not available yet.",
+    });
+  });
+
+  it("turns expected and unknown storage failures into safe message errors", async () => {
+    const harness = installBrowserHarness(() => Promise.resolve(createRateResponse()));
+    const { handleMessage } = await import("@/entrypoints/background");
+    const request = {
+      type: "SET_CONFIG",
+      payload: {
+        favorites: ["USD"],
+        symbolOverrides: {},
+        theme: "system",
+      },
+    };
+
+    harness.syncSet.mockRejectedValueOnce(new Error("storage offline"));
+    await expect(handleMessage(request)).resolves.toEqual({
+      success: false,
+      error: "storage offline",
+    });
+
+    harness.syncSet.mockRejectedValueOnce("storage offline");
+    await expect(handleMessage(request)).resolves.toEqual({
+      success: false,
+      error: "Unexpected background error",
+    });
+  });
+
+  it("responds through the listener catch boundary if error serialization fails", async () => {
+    const harness = installBrowserHarness(() => Promise.resolve(createRateResponse()));
+    const sendResponse = vi.fn();
+    await import("@/entrypoints/background");
+    harness.syncSet.mockRejectedValueOnce(new Error(""));
+
+    expect(
+      harness.listeners.message?.(
+        {
+          type: "SET_CONFIG",
+          payload: {
+            favorites: ["USD"],
+            symbolOverrides: {},
+            theme: "system",
+          },
+        },
+        {},
+        sendResponse,
+      ),
+    ).toBe(true);
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalledOnce());
+    expect(sendResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, error: expect.any(String) }),
+    );
+  });
 });
 
 /** Installs a minimal WebExtension environment and exposes its observable boundaries. */
@@ -140,6 +297,7 @@ function installBrowserHarness(
     localState = { ...localState, ...values };
     return Promise.resolve();
   });
+  const syncSet = vi.fn(() => Promise.resolve());
 
   vi.stubGlobal("fetch", fetchImplementation);
   vi.stubGlobal("browser", {
@@ -172,7 +330,7 @@ function installBrowserHarness(
     storage: {
       sync: {
         get: vi.fn(() => Promise.resolve({})),
-        set: vi.fn(() => Promise.resolve()),
+        set: syncSet,
       },
       local: {
         get: localGet,
@@ -191,16 +349,19 @@ function installBrowserHarness(
     alarmGet,
     localGet,
     localSet,
+    syncSet,
     readLocalState: () => localState,
   };
 }
 
 /** Creates a valid API response for completing one deferred refresh. */
-function createRateResponse(): Response {
+function createRateResponse(
+  rates: Record<string, string> = { USD: "1", EUR: "0.9" },
+): Response {
   return new Response(
     JSON.stringify({
       base: "USD",
-      rates: { USD: "1", EUR: "0.9" },
+      rates,
       timestamp: Math.floor(Date.now() / 1_000),
     }),
     { status: 200 },
@@ -216,6 +377,19 @@ function createFreshLocalState(): Record<string, unknown> {
       rates: { USD: "1", EUR: "0.9" },
       sourceTimestamp: now,
       fetchedAt: now,
+    },
+  };
+}
+
+/** Creates retained data old enough to require refresh before it is presented. */
+function createStaleLocalState(): Record<string, unknown> {
+  const sourceTimestamp = Date.now() - 25 * 60 * 60 * 1_000;
+  return {
+    exchangeRateCache: {
+      base: "USD",
+      rates: { USD: "1", EUR: "0.7" },
+      sourceTimestamp,
+      fetchedAt: sourceTimestamp,
     },
   };
 }

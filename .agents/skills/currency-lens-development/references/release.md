@@ -1,57 +1,48 @@
 # Release
 
+Workflow の挙動は `.github/workflows/`、GitHub の設定はリポジトリの Settings、リポジトリの外で行う作業は `docs/deployment.md` が正本です。
+この文書は、リリースに関わる作業で Agent が守る条件だけをまとめます。
+
 ## ブランチ
 
 1. `feature/*` から `develop` へ Pull Request を作ります。
-2. 必須 CI と会話解決を通し、feature は squash merge します。
+2. 必須 CI を通し、未解決の conversation をなくしてから merge commit で取り込みます。
 3. `develop` から `main` へ Pull Request を作ります。
-4. `main` への head branch guard と必須 CI を通し、merge commit で昇格します。
+4. 必須 CI を通し、merge commit で `main` へ取り込みます。
 
-一人開発では self approval ができないため、required approval は0件にします。
-Pull Request と CI は必須のままです。
-`develop` の必須 status check は head branch の最新化を要求し、`main` では要求しません。
-昇格時の merge commit は `main` だけに作られて `develop` が履歴上古くなるため、`main` でも最新化を要求すると次の昇格が停止します。
-`main` 向け Pull Request の CI は GitHub の merge branch を検査し、head branch guard により取り込み元を同じリポジトリの `develop` へ限定します。
+squash merge は使いません。
+merge 済みのブランチの上に作ったブランチで同じ変更が別の commit として残り、conflict の原因になるためです。
 
 ## Worker
 
-`main` 更新で Cloudflare Workers Builds が `pnpm --filter @cl/server run deploy` を実行します。
-GitHub Actions からは Worker をデプロイせず、`CLOUDFLARE_ACCOUNT_ID` と `CLOUDFLARE_API_TOKEN` を GitHub secrets に置きません。
-Cloudflare の production branch は `main`、root directory はリポジトリ直下、build command は空、deploy command は上記コマンドとします。
-Node.js はリポジトリ直下の `.node-version` から検出させ、Build variable は `PNPM_VERSION=11.13.0` だけを設定します。
-`OPEN_EXCHANGE_RATE_APP_ID` は Cloudflare Worker secret を正本とし、Wrangler の `secrets.required` で存在を検査します。
-R2 bucket、custom domain、GitHub 連携は初回だけ人間が確認・作成します。
-Build watch paths は設定せず、`main` の全 commit に Cloudflare Check Run を作ります。
-Cloudflare 側の設定変更は過去の `main` push を再処理しません。
-既存 SHA に check がない場合は、設定を修正したうえで通常の Pull Request 経路から新しい `main` push を発生させ、その SHA の check 成功を確認します。
-Deploy Hook は build の起動に使えても、既存 SHA への GitHub Check Run の追加を前提にした復旧手段として扱いません。
-Deploy Hook URL は認証情報として扱い、リポジトリ、Issue、Pull Request、チャット、CI ログへ記録しません。
+- Worker は `ci.yml` の `deploy Worker` がデプロイします。Cloudflare Workers Builds の Git 連携は使いません。
+- Cloudflare の認証情報は `production` Environment の secret だけに置き、Repository secrets には置きません。
+- `OPEN_EXCHANGE_RATE_APP_ID` は Cloudflare Worker secret だけに置きます。
+
+デプロイが失敗したときは、`docs/deployment.md` の「デプロイが失敗した場合」に従います。
 
 ## ブラウザストア
 
-`v*` の GitHub Release 公開で Chrome／Firefox の ZIP を作り、WXT submit で審査へ提出します。
-タグの version と `apps/browser-extension/package.json` の version を一致させます。
-release tag は現在の `main` HEAD と一致させます。
-提出 job より先に、同じ commit の `Workers Builds: currency-lens` 成功を待ち、公開中の `/v1/latest` と旧 `/latest` をクライアントの Zod schema で検証します。
-Cloudflare の check がない、失敗した、timeout した、または公開 API が契約を満たさない場合は、ストア credentials を参照する前に停止します。
+release tag は `v` と `apps/browser-extension/package.json` の version をつないだ名前にし、`deploy Worker` が成功した現在の `main` の HEAD に付けます。
+提出前の検査は `publish-extension.yml` が行うので、検査を省く手順を作りません。
+手動実行は dry-run だけにし、本番提出へ切り替える入力を足しません。同じ version を二重に提出しないためです。
 
-v1 の `base`、`rates`、`timestamp` は後方互換に保ちます。
-項目追加を含む破壊的変更は `/v2/latest` のような新しい route へ分け、旧 route の廃止は配布済み拡張機能の利用状況を確認してから人間が判断します。
+### API の互換性
 
-次の値は GitHub Actions の Repository secrets に登録します。
+`/v1/latest` の `base`、`rates`、`timestamp` は後方互換に保ちます。
+項目の追加も破壊的変更として扱い、`/v2/latest` のような新しい route へ分けます。
 
-Chrome Web Store:
+### Firefox の sources ZIP
 
-- `CHROME_EXTENSION_ID`
-- `CHROME_CLIENT_ID`
-- `CHROME_CLIENT_SECRET`
-- `CHROME_REFRESH_TOKEN`
+sources ZIP に秘密情報を含めません。
+展開した先で `pnpm install --frozen-lockfile` と Firefox 版のビルドを再現できることを確かめます。
 
-Firefox Add-ons:
+## 人間が行うこと
 
-- `FIREFOX_EXTENSION_ID`
-- `FIREFOX_JWT_ISSUER`
-- `FIREFOX_JWT_SECRET`
+Agent は次の作業を行わず、必要になったら人間に依頼します。
 
-初回 listing、説明、画像、プライバシー項目、公開範囲は各ストアの Dashboard で人間が設定します。
-Firefox の sources ZIP は、秘密ファイルを含まず、展開先で `pnpm install --frozen-lockfile` と Firefox build を再現できることを確認します。
+- R2 bucket、Custom Domain の初回設定
+- Cloudflare の API token の発行と、`production` Environment への secret の登録
+- ストアの credentials を GitHub Actions の Repository secrets に登録すること
+- 各ストアの初回 listing、説明、画像、プライバシー項目、公開範囲の設定
+- 旧 route を廃止するかどうかの判断（対応する配布済み拡張機能が使われなくなったことを確かめてから判断します）

@@ -6,7 +6,7 @@ import {
   getCurrencyMetadata,
 } from "./currency.ts";
 
-export const MAX_CONVERSION_AMOUNTS = 3;
+export const MAX_CONVERSION_AMOUNTS = 1;
 export const RATE_STALE_AFTER_MS = 24 * 60 * 60 * 1_000;
 
 const MAX_CRYPTO_FRACTION_DIGITS = 8;
@@ -14,6 +14,10 @@ const MIN_CRYPTO_FRACTION_DIGITS = 5;
 const RATE_FETCH_TIMEOUT_MS = 10_000;
 const rateCodeSchema = z.string().regex(/^[A-Z0-9][A-Z0-9_]{1,31}$/u);
 const rateValuePattern = /^(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/u;
+const finiteRateValueStringSchema = z
+  .string()
+  .regex(rateValuePattern)
+  .refine((value) => Number.isFinite(Number(value)));
 
 export const exchangeRateValueSchema = z
   .union([z.number().positive(), z.string().min(1)])
@@ -56,8 +60,8 @@ export const convertedResultSchema = z
     amount: z.number().positive(),
     fromCurrency: currencyCodeSchema,
     toCurrency: currencyCodeSchema,
-    convertedAmount: z.string(),
-    rate: z.string(),
+    convertedAmount: finiteRateValueStringSchema,
+    rate: finiteRateValueStringSchema,
     fractionDigits: z.number().int().min(0).max(MAX_CRYPTO_FRACTION_DIGITS),
   })
   .strict();
@@ -132,12 +136,12 @@ export async function fetchExchangeRateCache(
   return createExchangeRateCache(body, fetchedAt);
 }
 
-/** Returns whether the source data is more than 24 hours old. */
+/** Returns whether the source data is at least 24 hours old. */
 export function isExchangeRateCacheStale(
   cache: ExchangeRateCache,
   now: number = Date.now(),
 ): boolean {
-  return now - cache.sourceTimestamp > RATE_STALE_AFTER_MS;
+  return now - cache.sourceTimestamp >= RATE_STALE_AFTER_MS;
 }
 
 /** Builds timestamp metadata and machine-readable warnings for message responses. */
@@ -155,14 +159,14 @@ export function getRateSnapshot(
       ? [
           {
             code: "RATES_STALE",
-            message: "Exchange rates are more than 24 hours old.",
+            message: "Exchange rates are at least 24 hours old.",
           },
         ]
       : [],
   };
 }
 
-/** Converts up to three amounts into up to five targets while retaining unavailable pairs. */
+/** Converts one amount into up to five targets while retaining unavailable pairs. */
 export function convertCurrencyBatch(
   cache: ExchangeRateCache,
   amounts: readonly ConversionAmount[],
@@ -187,10 +191,6 @@ export function formatCurrencyAmount(
   }
 
   const metadata = getCurrencyMetadata(currencyCode);
-  if (!metadata) {
-    throw new RangeError(`Unsupported currency: ${currencyCode}`);
-  }
-
   const fractionDigits = Math.min(
     metadata.minorUnit ?? MAX_CRYPTO_FRACTION_DIGITS,
     MAX_CRYPTO_FRACTION_DIGITS,
@@ -255,7 +255,7 @@ function validateConversionBatch(
   targetCurrencies: readonly CurrencyCode[],
 ): void {
   if (amounts.length > MAX_CONVERSION_AMOUNTS) {
-    throw new RangeError(`At most ${MAX_CONVERSION_AMOUNTS} amounts can be converted`);
+    throw new RangeError("At most 1 amount can be converted");
   }
   if (targetCurrencies.length > MAX_FAVORITE_CURRENCIES) {
     throw new RangeError(`At most ${MAX_FAVORITE_CURRENCIES} targets can be converted`);
@@ -302,8 +302,5 @@ function validateUnitBaseRate(
 
 /** Removes insignificant fractional zeros from crypto-like display values. */
 function trimTrailingFractionZeros(value: string): string {
-  if (!value.includes(".")) {
-    return value;
-  }
   return value.replace(/(?:\.0+|(?<fraction>\.\d*?[1-9])0+)$/u, "$<fraction>");
 }

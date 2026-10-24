@@ -1,17 +1,19 @@
+import { fileURLToPath } from "node:url";
+import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vite-plus";
+import { getHeadlessChromiumLaunchArguments } from "./apps/browser-extension/test/chromium-launch";
+import { browserIntegrationCommands } from "./apps/browser-extension/test/integration/browser-commands";
+import {
+  integrationPublicDir,
+  integrationVitePlugins,
+} from "./apps/browser-extension/test/integration/vite-plugins";
 
 const MAX_CYCLOMATIC_COMPLEXITY = 12;
 const TEST_API_ENDPOINT = "https://cl.dryk.net";
-const SECRET_FILE_PATTERNS = [
-  ".env",
-  ".env.*",
-  ".dev.vars",
-  ".dev.vars.*",
-  "**/.env",
-  "**/.env.*",
-  "**/.dev.vars",
-  "**/.dev.vars.*",
-] as const;
+const BROWSER_EXTENSION_ROOT_URL = new URL("./apps/browser-extension/", import.meta.url);
+const BROWSER_EXTENSION_ROOT = fileURLToPath(BROWSER_EXTENSION_ROOT_URL);
+const SECRET_FILE_PATTERNS = [".env", ".dev.vars"] as const;
+const E2E_TESTS = "apps/browser-extension/test/e2e/**";
 
 /**
  * Centralizes formatting, strict static analysis, type checking, and tests for
@@ -20,6 +22,11 @@ const SECRET_FILE_PATTERNS = [
 export default defineConfig({
   // Repository commands never load local environment files. Runtime secrets belong to deployment boundaries.
   envDir: false,
+  resolve: {
+    alias: {
+      "@": BROWSER_EXTENSION_ROOT,
+    },
+  },
   define: {
     "import.meta.env.API_ENDPOINT": JSON.stringify(TEST_API_ENDPOINT),
   },
@@ -28,8 +35,12 @@ export default defineConfig({
       ...SECRET_FILE_PATTERNS,
       ".agents/**",
       "**/.output/**",
+      "**/.deps/**",
+      "**/.tmp/**",
       "**/.wxt/**",
       "**/coverage/**",
+      "**/*.d.{ts,mts,cts}",
+      "**/routeTree.gen.ts",
       "**/dist/**",
       "**/node_modules/**",
       "apps/server/worker-configuration.d.ts",
@@ -52,8 +63,12 @@ export default defineConfig({
       ...SECRET_FILE_PATTERNS,
       ".agents/**",
       "**/.output/**",
+      "**/.deps/**",
+      "**/.tmp/**",
       "**/.wxt/**",
       "**/coverage/**",
+      "**/*.d.{ts,mts,cts}",
+      "**/routeTree.gen.ts",
       "**/dist/**",
       "**/node_modules/**",
       "apps/server/worker-configuration.d.ts",
@@ -99,6 +114,36 @@ export default defineConfig({
         env: { browser: true, webextensions: true },
       },
       {
+        files: [
+          "apps/browser-extension/components/**/*.{ts,tsx}",
+          "apps/browser-extension/entrypoints/**/*.{ts,tsx}",
+          "apps/browser-extension/lib/**/*.{ts,tsx}",
+          "apps/browser-extension/stores/**/*.{ts,tsx}",
+          "apps/browser-extension/test/**/*.{ts,tsx}",
+          "apps/browser-extension/**/*.spec.{ts,tsx}",
+        ],
+        rules: {
+          "no-restricted-imports": [
+            "error",
+            {
+              patterns: [
+                {
+                  group: ["./*", "../*"],
+                  message: "Use the package-root @/ alias for internal imports.",
+                },
+              ],
+            },
+          ],
+        },
+      },
+      {
+        // The release-readiness CLI imports this module under plain Node, which has no @/ alias.
+        files: ["apps/browser-extension/lib/rates.ts"],
+        rules: {
+          "no-restricted-imports": "off",
+        },
+      },
+      {
         files: ["apps/server/**/*.ts"],
         env: { worker: true },
         rules: {
@@ -132,7 +177,7 @@ export default defineConfig({
           "typescript/prefer-readonly-parameter-types": "off",
           "typescript/promise-function-async": "off",
           "typescript/require-await": "off",
-          "vitest/expect-expect": "error",
+          "vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expect*"] }],
           "vitest/no-disabled-tests": "error",
           "vitest/no-focused-tests": "error",
         },
@@ -142,16 +187,6 @@ export default defineConfig({
         rules: {
           "max-lines": "off",
           "no-magic-numbers": "off",
-        },
-      },
-      {
-        files: [
-          "apps/browser-extension/lib/currency-detection.ts",
-          "apps/browser-extension/entrypoints/content/App.tsx",
-          "apps/browser-extension/entrypoints/popup/App.tsx",
-        ],
-        rules: {
-          complexity: ["error", 21],
         },
       },
       {
@@ -167,20 +202,102 @@ export default defineConfig({
     },
   },
   test: {
+    exclude: ["**/.deps/**", "**/.tmp/**", "**/node_modules/**"],
     coverage: {
       exclude: [
         "**/.output/**",
         "**/.wxt/**",
         "**/dist/**",
+        "**/*.d.{ts,mts,cts}",
+        "**/routeTree.gen.ts",
+        "**/*.{spec,test}.{ts,tsx,mjs}",
+        "**/test/**",
         "apps/server/worker-configuration.d.ts",
-        "packages/currency/src/index.ts",
+      ],
+      include: [
+        "apps/browser-extension/components/**/*.{ts,tsx}",
+        "apps/browser-extension/entrypoints/**/*.{ts,tsx}",
+        "apps/browser-extension/lib/**/*.ts",
+        "apps/browser-extension/scripts/**/*.{ts,mjs}",
+        "apps/browser-extension/stores/**/*.{ts,tsx}",
+        "apps/browser-extension/web-ext.config.ts",
+        "apps/browser-extension/wxt.config.ts",
+        "apps/server/src/**/*.ts",
+        "packages/*/src/**/*.ts",
       ],
       provider: "v8",
-      reporter: ["text", "json-summary", "html"],
+      // json and json-summary feed the coverage comment on pull requests, even when tests fail.
+      reporter: ["text", "json-summary", "json", "html"],
+      reportOnFailure: true,
+      reportsDirectory: "coverage",
+      thresholds: {
+        branches: 100,
+        functions: 100,
+        lines: 100,
+        perFile: true,
+        statements: 100,
+      },
     },
-    environment: "node",
-    include: ["apps/**/*.{spec,test}.{ts,tsx}", "packages/**/*.{spec,test}.{ts,tsx}"],
     passWithNoTests: false,
+    projects: [
+      {
+        extends: true,
+        test: {
+          environment: "node",
+          exclude: ["apps/browser-extension/test/integration/**", E2E_TESTS],
+          include: ["apps/**/*.{spec,test}.{ts,tsx}", "packages/**/*.{spec,test}.{ts,tsx}"],
+          name: "unit",
+        },
+      },
+      {
+        // Runs in real Chromium with the extension's build plugins,
+        // so layout, motion, Shadow DOM, and axe checks see real CSS.
+        cacheDir: fileURLToPath(
+          new URL("./node_modules/.vite/integration", BROWSER_EXTENSION_ROOT_URL),
+        ),
+        envDir: false,
+        optimizeDeps: {
+          // Pre-bundling these up front prevents a mid-run reload from loading React twice.
+          include: [
+            "@testing-library/react",
+            "axe-core",
+            "react",
+            "react-dom",
+            "react-dom/client",
+            "react/jsx-dev-runtime",
+            "react/jsx-runtime",
+          ],
+        },
+        plugins: integrationVitePlugins,
+        publicDir: integrationPublicDir,
+        resolve: {
+          alias: {
+            "@": BROWSER_EXTENSION_ROOT,
+          },
+        },
+        root: BROWSER_EXTENSION_ROOT,
+        test: {
+          browser: {
+            commands: browserIntegrationCommands,
+            enabled: true,
+            headless: true,
+            instances: [{ browser: "chromium" }],
+            provider: playwright({
+              launchOptions: {
+                args: getHeadlessChromiumLaunchArguments(),
+                channel: "chromium-headless-shell",
+              },
+            }),
+            screenshotFailures: false,
+          },
+          fileParallelism: false,
+          include: ["test/integration/**/*.spec.{ts,tsx}"],
+          name: "integration",
+          restoreMocks: true,
+          testTimeout: 60_000,
+        },
+      },
+    ],
     restoreMocks: true,
   },
 });

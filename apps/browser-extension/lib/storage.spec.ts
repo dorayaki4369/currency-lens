@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { currencyCodeSchema } from "./currency";
-import { createExchangeRateCache } from "./rates";
-import { getConfig, getDefaultConfig, getExchangeRateCache, setConfig } from "./storage";
+import { currencyCodeSchema } from "@/lib/currency";
+import { createExchangeRateCache } from "@/lib/rates";
+import {
+  clearExchangeRateCache,
+  getConfig,
+  getDefaultConfig,
+  getExchangeRateCache,
+  setConfig,
+  setExchangeRateCache,
+} from "@/lib/storage";
 
 let syncState: Record<string, unknown>;
 let localState: Record<string, unknown>;
@@ -32,9 +39,76 @@ beforeEach(() => {
 });
 
 describe("configuration storage", () => {
+  it("returns a current stored configuration unchanged", async () => {
+    const config = { ...getDefaultConfig(), theme: "dark" as const };
+    syncState["config"] = config;
+
+    await expect(getConfig()).resolves.toEqual(config);
+  });
+
   it("returns a fresh default when stored data fails runtime validation", async () => {
     syncState["config"] = { favorites: ["NOT_A_CURRENCY"] };
     await expect(getConfig()).resolves.toEqual(getDefaultConfig());
+  });
+
+  it("removes retired display preferences without resetting current settings", async () => {
+    syncState["config"] = {
+      favorites: ["USD", "EUR"],
+      symbolOverrides: { $: "CAD" },
+      theme: "dark",
+      showCurrencyIcon: false,
+      showCurrencyCode: false,
+    };
+
+    await expect(getConfig()).resolves.toEqual({
+      favorites: ["USD", "EUR"],
+      symbolOverrides: { $: "CAD" },
+      theme: "dark",
+    });
+  });
+
+  it("drops overrides for retired symbols without resetting current settings", async () => {
+    syncState["config"] = {
+      favorites: ["USD", "EUR"],
+      symbolOverrides: { $: "CAD", "💲": "CAD", "💴": "CNY", "💷": "EGP" },
+      theme: "dark",
+      showCurrencyIcon: false,
+      showCurrencyCode: false,
+    };
+
+    await expect(getConfig()).resolves.toEqual({
+      favorites: ["USD", "EUR"],
+      symbolOverrides: { $: "CAD" },
+      theme: "dark",
+    });
+  });
+
+  it("falls back when a previous symbol override is not a current candidate", async () => {
+    syncState["config"] = {
+      favorites: ["USD"],
+      symbolOverrides: { $: "JPY" },
+      theme: "dark",
+      showCurrencyIcon: true,
+      showCurrencyCode: true,
+    };
+
+    await expect(getConfig()).resolves.toEqual(getDefaultConfig());
+  });
+
+  it("drops retired symbols from the previous defaultConversions field", async () => {
+    syncState["config"] = {
+      favorites: ["USD"],
+      defaultConversions: { "¥": "JPY", "💴": "CNY" },
+      theme: "light",
+      showCurrencyIcon: true,
+      showCurrencyCode: true,
+    };
+
+    await expect(getConfig()).resolves.toEqual({
+      favorites: ["USD"],
+      symbolOverrides: { "¥": "JPY" },
+      theme: "light",
+    });
   });
 
   it("migrates the previous defaultConversions field to symbolOverrides", async () => {
@@ -50,8 +124,6 @@ describe("configuration storage", () => {
       favorites: ["USD", "EUR"],
       symbolOverrides: { $: "CAD", "¥": "JPY" },
       theme: "dark",
-      showCurrencyIcon: false,
-      showCurrencyCode: true,
     });
   });
 
@@ -65,6 +137,25 @@ describe("configuration storage", () => {
 
     await expect(setConfig(invalidConfig)).rejects.toThrow();
     expect(syncStorage.set).not.toHaveBeenCalled();
+  });
+
+  it("validates and persists a current configuration", async () => {
+    const config = { ...getDefaultConfig(), theme: "light" as const };
+
+    await expect(setConfig(config)).resolves.toBeUndefined();
+    expect(syncState["config"]).toEqual(config);
+  });
+
+  it("falls back when a legacy symbol mapping cannot satisfy current candidates", async () => {
+    syncState["config"] = {
+      favorites: ["USD"],
+      defaultConversions: { $: "JPY" },
+      theme: "system",
+      showCurrencyIcon: true,
+      showCurrencyCode: true,
+    };
+
+    await expect(getConfig()).resolves.toEqual(getDefaultConfig());
   });
 });
 
@@ -97,6 +188,19 @@ describe("rate storage", () => {
       sourceTimestamp: 1_700_000_000_000,
       fetchedAt: 1_700_000_000_000,
     });
+  });
+
+  it("validates replacement caches and clears them explicitly", async () => {
+    const cache = createExchangeRateCache(
+      { base: "USD", rates: { USD: "1", EUR: "0.9" }, timestamp: 1_700_000_000 },
+      1_700_000_005_000,
+    );
+
+    await expect(setExchangeRateCache(cache)).resolves.toBeUndefined();
+    expect(localState["exchangeRateCache"]).toEqual(cache);
+
+    await expect(clearExchangeRateCache()).resolves.toBeUndefined();
+    expect(localState).not.toHaveProperty("exchangeRateCache");
   });
 });
 

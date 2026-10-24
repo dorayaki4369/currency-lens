@@ -42,7 +42,7 @@ jobs:
 
       - &checkout
         name: Check out the repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
@@ -57,11 +57,11 @@ jobs:
 
       - &install-pnpm
         name: Install pnpm
-        uses: pnpm/action-setup@v6.0.9
+        uses: pnpm/action-setup@v6.1.0
 
       - &set-up-node
         name: Set up Node.js
-        uses: actions/setup-node@v7.0.0
+        uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -108,7 +108,7 @@ jobs:
         id: upload-coverage
         if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
         continue-on-error: true
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: unit-coverage
           path: |
@@ -139,7 +139,7 @@ jobs:
 
       # Fork pull requests get a read-only token, so they only see the job summary.
       - name: Report coverage
-        uses: davelosert/vitest-coverage-report-action@v2.13.0
+        uses: davelosert/vitest-coverage-report-action@v2.13.1
         with:
           comment-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && 'pr' || 'none' }}
 
@@ -222,7 +222,7 @@ jobs:
         run: pnpm build
 
       - name: Upload the built Chrome extension
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: chrome-extension
           path: apps/browser-extension/.output/chrome-mv3

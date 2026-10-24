@@ -28,16 +28,16 @@ PDF、canvas、フォーム入力、ブラウザ内部ページ、クロスオ�
 
 パッケージ管理には pnpm だけを使い、ルートで実行します。
 
-| コマンド                | 内容                                                                                         |
-| ----------------------- | -------------------------------------------------------------------------------------------- |
-| `pnpm dev`              | 拡張機能と Worker の開発サーバーを起動します。                                               |
-| `pnpm test:unit`        | Vitest で unit テストを一度実行します。`pnpm test` も同じです。                              |
-| `pnpm test:integration` | Vitest の Browser Mode で、実ブラウザの結合テストを実行します。                              |
-| `pnpm test:coverage`    | unit を実行し、4指標がファイルごとに100%であることを検証します。                             |
-| `pnpm test:e2e`         | Chrome 向けにビルドし、成果物の構成と、Chromium へ読み込んだ拡張機能の主要導線を検証します。 |
-| `pnpm build`            | 拡張機能と Worker をビルドします。環境変数 `API_ENDPOINT` が必要です。                       |
-| `pnpm check`            | 整形、lint、型検査をまとめて確認します。`pnpm check --fix` で自動修正します。                |
-| `pnpm validate`         | check、coverage、integration、build を順に実行します。`API_ENDPOINT` が必要です。            |
+| コマンド                | 内容                                                                                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`              | 拡張機能と Worker の開発サーバーを起動します。                                                                          |
+| `pnpm test:unit`        | Vitest で unit テストを一度実行します。`pnpm test` も同じです。                                                         |
+| `pnpm test:integration` | Vitest の Browser Mode で、実ブラウザの結合テストを実行します。                                                         |
+| `pnpm test:coverage`    | unit を実行し、4指標がファイルごとに100%であることを検証します。                                                        |
+| `pnpm test:e2e`         | Chrome 向けにビルドし、成果物の構成と、Chromium へ読み込んだ拡張機能の主要導線を検証します。`API_ENDPOINT` が必要です。 |
+| `pnpm build`            | 拡張機能と Worker をビルドします。環境変数 `API_ENDPOINT` が必要です。                                                  |
+| `pnpm check`            | 整形、lint、型検査をまとめて確認します。`pnpm check --fix` で自動修正します。                                           |
+| `pnpm validate`         | check、coverage、integration、build を順に実行します。`API_ENDPOINT` が必要です。                                       |
 
 依存を変更したら、`pnpm install --frozen-lockfile=false` で lockfile を同期します。
 
@@ -78,11 +78,11 @@ PDF、canvas、フォーム入力、ブラウザ内部ページ、クロスオ�
 テストは unit、integration、E2E の3階層です。
 UI 専用やアクセシビリティ専用の階層は作らず、各階層で次を検証します。
 
-| 階層        | 実行環境                          | 検証すること                                                                            |
-| ----------- | --------------------------------- | --------------------------------------------------------------------------------------- |
-| unit        | Vitest                            | 純粋関数、React コンポーネントの名前・role・状態・キーボード操作・focus・コールバック   |
-| integration | Vitest Browser Mode（実ブラウザ） | DOM をまたぐ処理、ライト・ダーク表示、配置、動き、画面遷移、Shadow DOM、axe-core の検査 |
-| E2E         | Playwright（ビルド済み拡張機能）  | Popup と Content Script の主要導線、ルート分割などビルド成果物の構成                    |
+| 階層        | 実行環境                                            | 検証すること                                                                                      |
+| ----------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| unit        | Vitest                                              | 純粋関数、React コンポーネントの名前・role・状態・キーボード操作・focus・コールバック             |
+| integration | Vitest Browser Mode（実ブラウザ）                   | DOM をまたぐ処理、ライト・ダーク表示、配置、動き、画面遷移、Shadow DOM、axe-core の検査           |
+| E2E         | Playwright（ビルド済み拡張機能、ローカルの Worker） | Popup と Content Script の主要導線、Worker を通したレートの取得、ルート分割などビルド成果物の構成 |
 
 読み上げ順、操作の分かりやすさ、実際のスクリーンリーダーでの案内は自動検査では分からないため、手動で確認します。
 

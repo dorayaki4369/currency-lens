@@ -226,7 +226,9 @@ export default defineConfig({
         "packages/*/src/**/*.ts",
       ],
       provider: "v8",
-      reporter: ["text", "json-summary", "html"],
+      // json and json-summary feed the coverage comment on pull requests, even when tests fail.
+      reporter: ["text", "json-summary", "json", "html"],
+      reportOnFailure: true,
       reportsDirectory: "coverage",
       thresholds: {
         branches: 100,

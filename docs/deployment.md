@@ -12,6 +12,10 @@
 - ストア用のsecretはRepository secretsに置きます。今は環境ごとに認証情報や承認者を分けていないためです。Environmentで守らない代わりに、`main`と`develop`のRulesetでWorkflowの書き換えを防ぎます。分けることになったら、ストア用のEnvironmentを考え直します。
 - `API_ENDPOINT`は公開されているURLなので、secretではなくRepository variableにしています。
 
+## Workflowを変更するとき
+
+外部のActionは`.github/workflows/actions.lock`に記録したcommitで実行します。`uses`を追加・変更したら、[gh-actions-lock](https://github.com/github/gh-actions-lock)の`gh actions-lock`でlockfileを更新し、Workflowと同じcommitに含めます。lockfileは手で編集しません。
+
 ## Cloudflareの初期設定
 
 1. `open-exchange-rates-data` R2 bucketを作成します。

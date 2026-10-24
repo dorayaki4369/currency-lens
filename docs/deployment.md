@@ -15,7 +15,7 @@ Node.jsのバージョンは`.node-version`、pnpmのバージョンは`package.
 | `ci.yml`                | `code quality check`    | `develop`または`main`へのpushとPull Request                    | `main`向けPull Requestのhead、routeの生成差分、lockfile、format、lint、型検査                                 |
 | `ci.yml`                | `testing (unit)`        | 同上                                                           | カバレッジ付きのunitテスト。テストが失敗してもカバレッジを出力する                                            |
 | `ci.yml`                | `testing (integration)` | 同上                                                           | 実ブラウザの結合テスト                                                                                        |
-| `ci.yml`                | `testing (e2e)`         | `build`が成功した後                                            | `build`が作ったChrome向け拡張機能のE2Eテスト                                                                  |
+| `ci.yml`                | `testing (e2e)`         | `build`が成功した後                                            | `build`が作ったChrome向け拡張機能と、`wrangler dev`で動かしたWorkerを組み合わせたE2Eテスト                    |
 | `ci.yml`                | `build`                 | `develop`または`main`へのpushとPull Request                    | 本番の`API_ENDPOINT`で拡張機能とWorkerをビルドし、Chrome向け拡張機能をartifactで`testing (e2e)`へ渡す         |
 | `ci.yml`                | `coverage report`       | `testing (unit)`がカバレッジを出力した後                       | 同じリポジトリからのPull Requestへカバレッジをコメント。forkからのPull Requestとpushではjob summaryだけに出す |
 | `ci.yml`                | `CI Check Result`       | `code quality check`から`build`までの5つのjobが終わった後      | 5つのjobのどれかが成功しなければ失敗する                                                                      |

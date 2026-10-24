@@ -7,10 +7,11 @@ const TEST_TIMEOUT_MILLISECONDS = 120_000;
 const SUITE_TIMEOUT_MILLISECONDS = 180_000;
 const repositoryRoot = fileURLToPath(new URL(".", import.meta.url));
 
-/** Runs critical flows against the built extension loaded into Chromium. */
+/** Runs critical flows against the built extension loaded into Chromium and the local Worker. */
 export default defineConfig({
   forbidOnly: true,
   fullyParallel: false,
+  globalSetup: resolve(repositoryRoot, "apps/browser-extension/test/e2e/global-setup.ts"),
   globalTimeout: SUITE_TIMEOUT_MILLISECONDS,
   outputDir: resolve(tmpdir(), "currency-lens-playwright-e2e"),
   reporter: "line",

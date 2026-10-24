@@ -8,8 +8,8 @@ import {
   type Route,
 } from "@playwright/test";
 import { z } from "zod";
-import { latestRatesApiResponseSchema } from "@/lib/rates";
 import { getHeadlessChromiumLaunchArguments } from "@/test/chromium-launch";
+import { E2E_WORKER_URL } from "@/test/e2e/global-setup";
 
 const extensionPath = fileURLToPath(new URL("../../.output/chrome-mv3", import.meta.url));
 const manifestPath = fileURLToPath(
@@ -25,14 +25,6 @@ const builtManifestSchema = z.object({
 
 /** A reserved-TLD page that the browser context answers locally, so no server is started. */
 export const HOST_PAGE_URL = "https://host.currency-lens.test/extension-host.html";
-
-/** The rates that the built extension receives from its configured API. */
-export const API_RATES = {
-  EUR: "0.8621",
-  GBP: "0.7428",
-  JPY: "149.45",
-  USD: "1",
-} as const;
 
 interface ExtensionFixtures {
   readonly apiRequests: string[];
@@ -52,7 +44,7 @@ export const test = base.extend<ExtensionFixtures>({
     const context = await chromium.launchPersistentContext("", {
       args: [
         ...getHeadlessChromiumLaunchArguments(),
-        // Requests that escape routing fail instead of reaching the real API.
+        // Requests that escape forwarding fail instead of reaching the production API.
         `--host-resolver-rules=MAP ${new URL(apiOrigin).hostname} ~NOTFOUND`,
         // Reserve enough screen space below the toolbar for a 37.5rem-tall popup.
         "--screen-info={1280x900}",
@@ -65,7 +57,7 @@ export const test = base.extend<ExtensionFixtures>({
       locale: "ja-JP",
       viewport: null,
     });
-    await context.route(`${apiOrigin}/**`, (route) => answerApiRequest(route, apiRequests));
+    await context.route(`${apiOrigin}/**`, (route) => forwardToWorker(route, apiRequests));
     const hostPage = await readFile(hostPagePath, "utf8");
     await context.route(HOST_PAGE_URL, (route) =>
       route.fulfill({ body: hostPage, contentType: "text/html; charset=utf-8" }),
@@ -94,21 +86,14 @@ async function readBuiltApiOrigin(): Promise<string> {
   return new URL(manifest.host_permissions[0].replace(/\*$/u, "")).origin;
 }
 
-/** Answers the rate endpoint with a schema-valid response and rejects every other API path. */
-async function answerApiRequest(route: Route, apiRequests: string[]): Promise<void> {
+/** Forwards an API request to the local Worker and relays its response unchanged. */
+async function forwardToWorker(route: Route, apiRequests: string[]): Promise<void> {
   const url = new URL(route.request().url());
   apiRequests.push(url.pathname);
-  if (url.pathname !== "/v1/latest") {
-    await route.abort();
-    return;
-  }
-
-  const body = latestRatesApiResponseSchema.parse({
-    base: "USD",
-    rates: API_RATES,
-    timestamp: Math.floor(Date.now() / 1_000),
+  const response = await route.fetch({
+    url: `${E2E_WORKER_URL}${url.pathname}${url.search}`,
   });
-  await route.fulfill({ contentType: "application/json", json: body });
+  await route.fulfill({ response });
 }
 
 export { expect } from "@playwright/test";

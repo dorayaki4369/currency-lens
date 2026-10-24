@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { currencyCodeSchema } from "./currency";
-import { detectCurrencies, parseMoneyAmount } from "./currency-detection";
+import { currencyLocalNames } from "@cl/currency";
+import { currencyCodeSchema } from "@/lib/currency";
+import { detectCurrencies, parseMoneyAmount } from "@/lib/currency-detection";
 
 describe("parseMoneyAmount", () => {
   it("parses US and European separators from explicit page locales", () => {
@@ -20,9 +21,57 @@ describe("parseMoneyAmount", () => {
     expect(parseMoneyAmount("1,23,456", { pageLocale: "en-US" })).toBeNull();
     expect(parseMoneyAmount("12 34,56", { pageLocale: "fr-FR" })).toBeNull();
   });
+
+  it("rejects non-money text, mixed grouping, and numeric overflow", () => {
+    expect(parseMoneyAmount("12 dollars")).toBeNull();
+    expect(parseMoneyAmount("1 234,567.89")).toBeNull();
+    expect(parseMoneyAmount("9".repeat(400))).toBeNull();
+  });
+
+  it("infers unambiguous decimals and conventional three-digit grouping", () => {
+    expect(parseMoneyAmount("0.5")).toBe(0.5);
+    expect(parseMoneyAmount("1234.56")).toBe(1_234.56);
+    expect(parseMoneyAmount("1,234")).toBe(1_234);
+    expect(parseMoneyAmount("1,234,567")).toBe(1_234_567);
+    expect(parseMoneyAmount("1,234", { pageLocale: "en-US" })).toBe(1_234);
+  });
+
+  it("ignores invalid locale hints and tries the next locale", () => {
+    expect(
+      parseMoneyAmount("1,25", { pageLocale: "not_a_locale", browserLocale: "de-DE" }),
+    ).toBe(1.25);
+  });
 });
 
 describe("detectCurrencies", () => {
+  it("detects every local-language amount supported by the currency package", () => {
+    for (const currency of currencyLocalNames) {
+      for (const localName of currency.names) {
+        for (const locale of localName.locales) {
+          expect(
+            detectCurrencies(localName.sample, { pageLocale: locale }),
+            `${currency.code}: ${localName.sample} (${locale})`,
+          ).toMatchObject([
+            {
+              amount: 100,
+              currencyCode: currency.code,
+              originalText: localName.sample,
+            },
+          ]);
+        }
+      }
+    }
+  });
+
+  it("uses the documented default when a local unit name has no locale hint", () => {
+    expect(detectCurrencies("100 dollars")).toMatchObject([
+      { amount: 100, currencyCode: "AUD", originalText: "100 dollars" },
+    ]);
+    expect(detectCurrencies("100 dollars", { pageLocale: "ja-JP" })).toMatchObject([
+      { amount: 100, currencyCode: "AUD", originalText: "100 dollars" },
+    ]);
+  });
+
   it("detects code and symbol forms before and after amounts", () => {
     const detected = detectCurrencies("USD 1,234.56; 2.345,67 EUR; £3 456.78", {
       pageLocale: "en-US",
@@ -83,9 +132,21 @@ describe("detectCurrencies", () => {
   });
 
   it("does not accept suffix fragments of longer codes, symbols, or malformed amounts", () => {
-    expect(
-      detectCurrencies("NOTUSD 100; 100 kroner; 1,23,456 USD; invoice123 USD"),
-    ).toEqual([]);
+    expect(detectCurrencies("NOTUSD 100; 100 money; 1,23,456 USD; invoice123 USD")).toEqual(
+      [],
+    );
+  });
+
+  it("accepts an amount at the start and rejects word-adjacent amount endings", () => {
+    expect(detectCurrencies("100 USD")[0]).toMatchObject({
+      amount: 100,
+      currencyCode: "USD",
+    });
+    expect(detectCurrencies("USD 100items")).toEqual([]);
+  });
+
+  it("rejects zero-valued detections", () => {
+    expect(detectCurrencies("USD 0; 0 EUR")).toEqual([]);
   });
 
   it("uses page and browser regions to resolve ambiguous symbols", () => {
@@ -97,6 +158,12 @@ describe("detectCurrencies", () => {
       detectCurrencies("$1,234.56", { pageLocale: "en", browserLocale: "en-AU" })[0]
         ?.currencyCode,
     ).toBe("AUD");
+  });
+
+  it("ignores invalid locale tags when resolving an ambiguous symbol", () => {
+    expect(detectCurrencies("$10", { pageLocale: "not_a_locale" })[0]?.currencyCode).toBe(
+      "USD",
+    );
   });
 
   it("gives a valid symbol override precedence over locale inference", () => {

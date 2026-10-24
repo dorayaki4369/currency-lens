@@ -8,7 +8,13 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-07-16",
   "observability": {
-    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": false,
+    },
   },
   "vars": {
     "OPEN_EXCHANGE_RATE_API_URL": "https://openexchangerates.org/api",

@@ -1,8 +1,8 @@
 import { z } from "zod/v4";
 import { latestRatesApiResponseSchema } from "../lib/rates.ts";
 
-export const CLOUDFLARE_CHECK_NAME = "Workers Builds: currency-lens";
-export const CLOUDFLARE_APP_SLUG = "cloudflare-workers-and-pages";
+export const WORKER_DEPLOY_CHECK_NAME = "deploy Worker";
+export const WORKER_DEPLOY_APP_SLUG = "github-actions";
 export const CURRENT_RATES_API_PATH = "v1/latest";
 export const LEGACY_RATES_API_PATH = "latest";
 
@@ -38,8 +38,7 @@ export type WorkerDeploymentState =
   | { readonly status: "pending"; readonly message: string }
   | {
       readonly status: "success";
-      readonly checkRunId: number;
-      readonly detailsUrl: string | null;
+      readonly checkRun: GithubCheckRun;
     }
   | { readonly status: "failure"; readonly message: string };
 
@@ -69,7 +68,7 @@ export interface VerifiedRatesRoute {
   readonly rateCount: number;
 }
 
-/** Waits until Cloudflare reports a successful deployment for the release commit. */
+/** Waits until the deploy job reports a successful Worker deployment for the release commit. */
 export async function waitForWorkerDeployment(
   options: Readonly<WaitForWorkerDeploymentOptions>,
 ): Promise<GithubCheckRun> {
@@ -88,11 +87,7 @@ export async function waitForWorkerDeployment(
     const state = evaluateWorkerDeployment(checkRuns);
 
     if (state.status === "success") {
-      const matchingCheck = checkRuns.find((checkRun) => checkRun.id === state.checkRunId);
-      if (!matchingCheck) {
-        throw new Error("The successful Cloudflare check could not be recovered.");
-      }
-      return matchingCheck;
+      return state.checkRun;
     }
     if (state.status === "failure") {
       throw new Error(state.message);
@@ -102,7 +97,7 @@ export async function waitForWorkerDeployment(
     const elapsedMs = now() - startedAt;
     if (elapsedMs >= timeoutMs) {
       throw new Error(
-        `Timed out waiting for ${CLOUDFLARE_CHECK_NAME} on ${options.commitSha}.`,
+        `Timed out waiting for ${WORKER_DEPLOY_CHECK_NAME} on ${options.commitSha}.`,
       );
     }
 
@@ -113,41 +108,40 @@ export async function waitForWorkerDeployment(
   return poll();
 }
 
-/** Interprets the newest Cloudflare check run for one exact commit. */
+/** Interprets the newest Worker deploy check run for one exact commit. */
 export function evaluateWorkerDeployment(
   checkRuns: readonly GithubCheckRun[],
 ): WorkerDeploymentState {
   const latestCheck = checkRuns
     .filter(
       (checkRun) =>
-        checkRun.name === CLOUDFLARE_CHECK_NAME &&
-        checkRun.app?.slug === CLOUDFLARE_APP_SLUG,
+        checkRun.name === WORKER_DEPLOY_CHECK_NAME &&
+        checkRun.app?.slug === WORKER_DEPLOY_APP_SLUG,
     )
     .toSorted((left, right) => right.id - left.id)[0];
 
   if (!latestCheck) {
     return {
       status: "pending",
-      message: `Waiting for ${CLOUDFLARE_CHECK_NAME} to be created.`,
+      message: `Waiting for ${WORKER_DEPLOY_CHECK_NAME} to be created.`,
     };
   }
   if (latestCheck.status !== "completed") {
     return {
       status: "pending",
-      message: `${CLOUDFLARE_CHECK_NAME} is ${latestCheck.status}.`,
+      message: `${WORKER_DEPLOY_CHECK_NAME} is ${latestCheck.status}.`,
     };
   }
   if (latestCheck.conclusion === "success") {
     return {
       status: "success",
-      checkRunId: latestCheck.id,
-      detailsUrl: latestCheck.details_url,
+      checkRun: latestCheck,
     };
   }
 
   return {
     status: "failure",
-    message: `${CLOUDFLARE_CHECK_NAME} completed with ${latestCheck.conclusion ?? "no conclusion"}.`,
+    message: `${WORKER_DEPLOY_CHECK_NAME} completed with ${latestCheck.conclusion ?? "no conclusion"}.`,
   };
 }
 
@@ -238,16 +232,33 @@ function validateDeploymentOptions(
     throw new Error("The release source must be a full Git commit SHA.");
   }
   if (options.githubToken.trim() === "") {
-    throw new Error("GITHUB_TOKEN is required to read Cloudflare check runs.");
+    throw new Error("GITHUB_TOKEN is required to read Worker deploy check runs.");
   }
-  if ((options.timeoutMs ?? DEFAULT_DEPLOYMENT_TIMEOUT_MS) < 0) {
-    throw new RangeError("Deployment timeout must not be negative.");
+  validateNonNegativeSafeInteger(
+    options.timeoutMs ?? DEFAULT_DEPLOYMENT_TIMEOUT_MS,
+    "Deployment timeout",
+  );
+  validatePositiveSafeInteger(
+    options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS,
+    "Deployment poll interval",
+  );
+  validatePositiveSafeInteger(
+    options.requestTimeoutMs ?? API_REQUEST_TIMEOUT_MS,
+    "Checks API request timeout",
+  );
+}
+
+/** Rejects invalid duration values while allowing an immediate zero timeout. */
+function validateNonNegativeSafeInteger(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError(`${name} must be a non-negative safe integer.`);
   }
-  if ((options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS) <= 0) {
-    throw new RangeError("Deployment poll interval must be positive.");
-  }
-  if ((options.requestTimeoutMs ?? API_REQUEST_TIMEOUT_MS) <= 0) {
-    throw new RangeError("Checks API request timeout must be positive.");
+}
+
+/** Rejects invalid interval values before passing them to timer APIs. */
+function validatePositiveSafeInteger(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new RangeError(`${name} must be a positive safe integer.`);
   }
 }
 

@@ -15,15 +15,17 @@ permissions:
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Never cancel a main run that may be deploying the Worker.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   API_ENDPOINT: "https://cl.dryk.net"
-  PNPM_VERSION: "11.13.0"
 
+# The verification jobs run in parallel and never cancel each other, so one run reports every
+# broken job. Rulesets require only `CI Check Result`, which keeps them independent of the job list.
 jobs:
-  quality:
-    name: quality
+  check:
+    name: code quality check
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -38,45 +40,254 @@ jobs:
             exit 1
           fi
 
-      - name: Check out the repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - &checkout
+        name: Check out the repository
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
-      - name: Reject environment files
+      - &reject-environment-files
+        name: Reject environment files
         run: |
-          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) -print -quit)"
+          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) ! -name '*.example' -print -quit)"
           if [[ -n "$blocked_path" ]]; then
             echo "::error title=Environment file in checkout::$blocked_path must not be present in the repository."
             exit 1
           fi
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-        with:
-          version: ${{ env.PNPM_VERSION }}
+      - &install-pnpm
+        name: Install pnpm
+        uses: pnpm/action-setup@v6.1.0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - &set-up-node
+        name: Set up Node.js
+        uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .node-version
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install dependencies
+      - &install-dependencies
+        name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check formatting
-        run: pnpm format:check
+      - name: Verify generated popup routes
+        run: |
+          pnpm -C apps/browser-extension routes:generate
+          git ls-files --error-unmatch apps/browser-extension/entrypoints/popup/routeTree.gen.ts
+          git diff --exit-code -- apps/browser-extension/entrypoints/popup/routeTree.gen.ts
 
-      - name: Lint
-        run: pnpm lint
+      - name: Verify the workflow lockfile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install github/gh-actions-lock --pin v0.2.0
+          gh actions-lock --verify
 
-      - name: Type-check
-        run: pnpm typecheck
+      - name: Check format, lint, and types
+        run: pnpm check
 
-      - name: Test
-        run: pnpm test
+  unit:
+    name: testing (unit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      has-coverage: ${{ steps.upload-coverage.outcome == 'success' }}
+    steps:
+      - *checkout
+      - *reject-environment-files
+      - *install-pnpm
+      - *set-up-node
+      - *install-dependencies
+
+      - name: Test with coverage
+        run: pnpm test:coverage
+
+      # Reporting is auxiliary, so an upload failure only skips the coverage comment.
+      - name: Upload coverage
+        id: upload-coverage
+        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: unit-coverage
+          path: |
+            coverage/coverage-summary.json
+            coverage/coverage-final.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 1
+
+  # Holds the pull request write token apart from the job that runs dependency code.
+  coverage-report:
+    name: coverage report
+    needs: unit
+    if: ${{ !cancelled() && needs.unit.outputs.has-coverage == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - *checkout
+
+      - name: Download coverage
+        uses: actions/download-artifact@v8.0.2
+        with:
+          name: unit-coverage
+          path: coverage
+
+      # Fork pull requests get a read-only token, so they only see the job summary.
+      - name: Report coverage
+        uses: davelosert/vitest-coverage-report-action@v2.13.1
+        with:
+          comment-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && 'pr' || 'none' }}
+
+  integration:
+    name: testing (integration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - *checkout
+      - *reject-environment-files
+      - *install-pnpm
+      - *set-up-node
+      - *install-dependencies
+
+      - &resolve-playwright-version
+        name: Resolve the Playwright version
+        id: playwright-version
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >>"$GITHUB_OUTPUT"
+
+      # The browsers are cached per Playwright version, but the OS packages they need are not.
+      - &cache-playwright-browsers
+        name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright-version.outputs.version }}-chromium
+
+      - &install-playwright-browsers
+        name: Install Playwright browsers
+        env:
+          CACHE_HIT: ${{ steps.playwright-cache.outputs.cache-hit }}
+        run: |
+          if [[ "$CACHE_HIT" == "true" ]]; then
+            pnpm exec playwright install-deps chromium
+          else
+            pnpm exec playwright install --with-deps chromium
+          fi
+
+      - name: Test integration
+        run: pnpm test:integration
+
+  # Tests the extension that `build` produced with the production API endpoint.
+  e2e:
+    name: testing (e2e)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - *checkout
+      - *reject-environment-files
+      - *install-pnpm
+      - *set-up-node
+      - *install-dependencies
+      - *resolve-playwright-version
+      - *cache-playwright-browsers
+      - *install-playwright-browsers
+
+      - name: Download the built Chrome extension
+        uses: actions/download-artifact@v8.0.2
+        with:
+          name: chrome-extension
+          path: apps/browser-extension/.output/chrome-mv3
+
+      - name: Test built Chrome extension
+        run: pnpm exec playwright test
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - *checkout
+      - *reject-environment-files
+      - *install-pnpm
+      - *set-up-node
+      - *install-dependencies
 
       - name: Build
         run: pnpm build
+
+      - name: Upload the built Chrome extension
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: chrome-extension
+          path: apps/browser-extension/.output/chrome-mv3
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 1
+
+  result:
+    name: CI Check Result
+    needs:
+      - check
+      - unit
+      - integration
+      - e2e
+      - build
+    # A skipped required check counts as passing, so this job must run and fail on its own.
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every verification job to succeed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          failed_jobs="$(jq -r 'to_entries[] | select(.value.result != "success") | "\(.key): \(.value.result)"' <<<"$NEEDS")"
+          if [[ -n "$failed_jobs" ]]; then
+            echo "::error title=CI failed::The following jobs did not succeed: $(paste -sd ',' <<<"$failed_jobs")"
+            exit 1
+          fi
+
+  deploy:
+    name: deploy Worker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'dorayaki4369/currency-lens'
+    needs: result
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: worker-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://cl.dryk.net
+    steps:
+      - *checkout
+      - *reject-environment-files
+      - *install-pnpm
+      - *set-up-node
+      - *install-dependencies
+
+      - name: Require the current main commit
+        run: |
+          main_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "::error title=Stale deployment source::$GITHUB_SHA is no longer the main HEAD ($main_sha). Deploy from the newest main run instead."
+            exit 1
+          fi
+
+      - name: Deploy the Worker
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [[ -z "$CLOUDFLARE_ACCOUNT_ID" || -z "$CLOUDFLARE_API_TOKEN" ]]; then
+            echo "::error title=Missing Cloudflare credentials::Configure the production environment secrets."
+            exit 1
+          fi
+
+          pnpm --filter @cl/server run deploy

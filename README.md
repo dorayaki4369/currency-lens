@@ -1,50 +1,38 @@
 # Currency Lens
 
-Currency Lensは、Webページで選択した金額をお気に入りの通貨へ換算するChrome・Firefox向けブラウザ拡張機能です。ページ内の価格を書き換えず、必要な箇所だけをGoogle翻訳のような小さな画面で確認できます。
-
-## できること
-
-- 通常のWebページで、通貨記号または通貨コードを含むテキストを選択して換算できます。
-- 1回の選択から最大3件の金額を検出し、最大5件のお気に入り通貨へまとめて換算します。結果は最大15件です。
-- `$`のように複数通貨で使われる記号は、ページやブラウザのロケールとユーザー設定を使って解釈します。
-- 表示用UIはShadow DOM内に置き、閲覧中のページとCurrency Lensのスタイルが互いに影響しないようにします。
-- 為替レートの取得に失敗しても、最後に検証できたレートを残します。レートの提供時刻から24時間を超えた場合は、古いレートであることを画面に表示します。
-
-Chrome Web StoreとFirefox Add-onsの公開ページは次のとおりです。
+Currency Lensは、Webページで選択した金額を、登録した通貨へその場で換算するChrome・Firefox向けの拡張機能です。ページ内の価格は書き換えず、選択した箇所の近くに小さな換算カードを開きます。
 
 - [Chrome Web Store](https://chrome.google.com/webstore/detail/currency-lens/cfpmgblhfmfomcgkpkghcgkcfblbpgkm)
 - [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/currency-lens)
 
 ## 使い方
 
-1. 拡張機能の設定画面で、換算先にしたい通貨を最大5件登録します。
+1. 拡張機能のPopupで、換算後に表示したい通貨を最大5件登録します。変更はその場で保存されます。
 2. Webページ上で、`$19.99`や`1,200 JPY`のような金額を含むテキストを選択します。
-3. 選択範囲の近くに表示されるCurrency Lensのアイコンを押します。
-4. 検出した金額とお気に入り通貨の組み合わせを換算結果で確認します。
+3. 選択範囲の近くに出るCurrency Lensのロゴ（青い虫眼鏡と黄色いドル記号）を押します。
+4. 換算カードに、登録した通貨での金額が表示されます。
 
-ブラウザの設定画面、拡張機能ストアなど、ブラウザがContent Scriptの実行を禁止しているページでは動作しません。
+ブラウザの設定画面や拡張機能ストアなど、ブラウザが拡張機能の実行を禁止しているページでは動作しません。
+
+## できること
+
+- **金額の検出**: 通貨記号、通貨コード、または「円」「dollars」のような各言語の通貨名を含むテキストから金額を見つけます。選択範囲に複数の金額がある場合は、最初の1件を換算します。
+- **曖昧な記号の解釈**: `$`のように複数の通貨で使われる記号は、ユーザー設定、ページの言語、ブラウザの言語の順に手がかりにして通貨を決めます。記号ごとの解釈はPopupの設定から変えられます。
+- **Popupでの換算**: Popupのトップでは、金額と換算元の通貨を自由に入力して換算できます。換算後の通貨の追加、削除、並べ替えも同じ画面でできます。
+- **換算カードでの再換算**: ページ上の換算カードでも、換算元の金額と通貨を書き換えて換算し直せます。
+- **表示**: 換算後の金額は小数点以下2桁に丸め、表示幅に収まらない場合は指数表記にします。UIは日本語と英語に対応し、ブラウザの言語に合わせて切り替えます。
+- **ページとの分離**: 換算カードはShadow DOMの中に描画するため、閲覧中のページとCurrency Lensのスタイルは互いに影響しません。
+- **レートの保持**: レートの取得に失敗しても、最後に取得できたレートで換算を続けます。レートの提供時刻から24時間以上たった場合は、古いレートであることを画面に表示します。
 
 ## プライバシー
 
-選択したテキストはContent Script内で解析し、Webページの外へ送りません。Background Scriptへ渡すのは、検出後の金額、通貨コード、換算先通貨だけです。Cloudflare Workerへの通信も為替レートの取得に限られ、選択テキストや閲覧ページの内容は送信しません。
+選択したテキストは拡張機能の中だけで解析し、外部へ送信しません。拡張機能がサーバーへ送る通信は為替レートの取得だけで、閲覧中のページの内容は含みません。
 
-設定は`browser.storage.sync`、検証済みの為替レートは`browser.storage.local`に保存します。Open Exchange Ratesの認証情報はCloudflare Workerだけが保持し、拡張機能には含めません。
+設定は`browser.storage.sync`、為替レートは`browser.storage.local`に保存します。Open Exchange Ratesの認証情報はCloudflare Workerだけが持ち、拡張機能には含めません。
 
-## 開発環境
+## 開発
 
-このリポジトリはpnpm workspaceによるモノリポです。タスク実行、整形、lint、型検査、テストにはVite+を使い、各アプリのビルドはWXTとWranglerが担当します。
-
-- Node.js 24.11.1
-- pnpm 11.13.0
-- TypeScript 7
-- Vite+
-- WXT、React 19、Shadow DOM向けのプレーンCSS
-- Cloudflare Workers、Hono、R2
-- Zod 4、Vitest 4
-
-Node.jsのバージョンは`.node-version`を正本とします。Volta用の`package.json`も同じ値に保ち、pnpmは`packageManager`とVolta設定で固定します。
-
-### 構成
+### ディレクトリ構成
 
 ```text
 currency-lens/
@@ -52,83 +40,105 @@ currency-lens/
 │   ├── browser-extension/  # WXTで構築するChrome・Firefox拡張機能
 │   └── server/             # 為替レートを配信するCloudflare Worker
 ├── packages/
-│   ├── currency/           # 検出・表示に使う通貨メタデータ
-│   └── oxr/                # Open Exchange Ratesクライアントと検証スキーマ
+│   ├── currency/           # 通貨コード、記号、表示桁のメタデータ
+│   └── oxr/                # Open Exchange Ratesのクライアント
 ├── docs/
-│   ├── architecture.md     # データフロー、正本、境界、失敗時の挙動
-│   └── deployment.md       # GitHub、Cloudflare、ストア公開の設定
-├── vite.config.ts          # Vite+の共通設定
+│   ├── architecture.md     # データフロー、正本、境界、失敗時の動作
+│   ├── deployment.md       # GitHub、Cloudflare、ストア公開の設定
+│   └── design-qa.md        # テストの配置と画面の確認手順
+├── vite.config.ts          # 整形、lint、テストの共通設定
 └── pnpm-workspace.yaml
 ```
 
-実装上の責務とデータフローは[アーキテクチャ](docs/architecture.md)、外部サービスの初期設定と公開手順は[デプロイとストア公開](docs/deployment.md)を参照してください。
+各アプリの詳細は[ブラウザ拡張機能のREADME](apps/browser-extension/README.md)と[WorkerのREADME](apps/server/README.md)にあります。
 
-## セットアップ
+### 使っている技術
 
-依存関係を導入します。
+- Node.js 24.11.1、pnpm 11.24.0、TypeScript 7
+- Vite+（タスク実行、整形、lint、型検査、テスト）
+- 拡張機能: WXT、React 19、Zustand、TanStack Router、Tailwind CSS、shadcn/ui
+- Worker: Cloudflare Workers、Hono、R2
+- 検証: Zod 4、Vitest 4、Playwright
+
+### セットアップ
+
+Node.jsとpnpmのバージョンは[mise](https://mise.jdx.dev/lang/node.html#nvmrc-node-version-and-package-json-support)で管理します。Node.jsは`.node-version`、pnpmは`package.json`の`packageManager`からバージョンを読みます。
 
 ```bash
-pnpm install --frozen-lockfile
+mise trust
+mise install
+mise exec -- pnpm install --frozen-lockfile
 ```
 
-人間がローカル開発を行う場合は、リポジトリ直下の`.env`へ必要な値を設定します。既存の項目がある場合は不足分だけ追加してください。
+シェルでmiseを有効にしている場合は、以降の`pnpm`コマンドをそのまま実行できます。有効にしていない場合は`mise exec -- pnpm …`で実行します。
+
+### 環境変数
+
+ローカル開発で使う値は、リポジトリ直下の`.env`に書きます。変数名の一覧は`.env.example`にあります。
 
 ```dotenv
 API_ENDPOINT=http://localhost:8787
 OPEN_EXCHANGE_RATE_APP_ID=your-app-id
 ```
 
-`API_ENDPOINT`はレートAPIのベースURLです。開発版と配布版は同じ変数名を使い、拡張機能が`/v1/latest`を付けて接続します。ローカル開発では`.env`、GitHub Actionsによるストア提出用ビルドではRepository variableから値を渡します。
+| 変数                        | 用途                                                                                         |
+| --------------------------- | -------------------------------------------------------------------------------------------- |
+| `API_ENDPOINT`              | 拡張機能が接続するレートAPIのベースURLです。拡張機能はこれに`/v1/latest`を付けて接続します。 |
+| `OPEN_EXCHANGE_RATE_APP_ID` | WorkerがOpen Exchange Ratesからレートを取得するためのApp IDです。                            |
 
-ブラウザ拡張機能だけを起動する場合は、対象ブラウザに合わせて次のいずれかを実行します。
+`.env`は必須ではありません。`.env`がない場合、開発サーバーは`API_ENDPOINT`をローカルWorkerの`http://localhost:8787`にして起動します。ただし、App IDがないためWorkerはレートを取得できず、ローカルのR2は空のままです。
 
-```bash
-pnpm ext dev
-pnpm ext dev:firefox
-```
+`pnpm build`と`pnpm validate`は`.env`を読みません。ローカルで実行するときは、`API_ENDPOINT=https://cl.dryk.net pnpm validate`のように値を直接渡します。GitHub Actionsでは、CIは本番のURL、ストア提出用のビルドはRepository variableの値を使います。
 
-Workerだけを起動する場合は、先に後述のローカル用secretを人間が用意してから実行します。
+環境ファイルは、リポジトリ直下の`.env`だけに置きます。アプリ配下に`.env`や`.dev.vars`を置いても、どのコマンドも読みません。`.env.example`と`.dev.vars.example`以外の環境ファイルは、`.gitignore`とCIの検査によってGitへ追加できないようにしています。
 
-```bash
-pnpm srv dev
-```
+AI Agentは、リポジトリ直下の`.env`と`.dev.vars`を読み書きできません。Claude Codeは`.claude/settings.json`の権限とサンドボックス、Codexは`.codex/config.toml`の権限で禁止しています。
 
-全workspaceの開発タスクをまとめて起動する場合は`pnpm dev`を使います。これらの人間向け開発コマンドは、ルートの`.env`を明示的に読み込みます。各アプリに固有の手順は[ブラウザ拡張機能のREADME](apps/browser-extension/README.md)と[WorkerのREADME](apps/server/README.md)にあります。
+### 開発サーバー
 
-### 機密情報
-
-ローカル開発に必要な変数名は、このREADMEと各アプリの文書を正本とします。`.env`の実際の値はGitへ追加しません。
-
-AI Agentは`.env`、`.env.*`、`.dev.vars`、`.dev.vars.*`を絶対に読み取りません。検索、内容表示、差分確認、コピー元としての参照も禁止です。Agentがローカル起動を必要とする場合は、環境ファイルを読まずに`API_ENDPOINT=http://localhost:8787`を渡す`pnpm dev:agent`を使います。このモードではOpen Exchange Ratesのsecretを渡さないため、空のローカルR2を自動初期化できません。
-
-Cloudflare Worker、R2 Bucket、Custom Domain、Chrome Web Store、Firefox Add-onsの初回設定は、リポジトリ内のコードだけでは完了しない外部作業です。[デプロイとストア公開](docs/deployment.md)に従い、Cloudflareの管理画面とGitHub ActionsのRepository variable／secretsで設定してください。
-
-## 開発コマンド
-
-| コマンド             | 用途                                                 |
-| -------------------- | ---------------------------------------------------- |
-| `pnpm dev`           | `.env`を読み、人間向けの開発タスクをまとめて起動する |
-| `pnpm dev:agent`     | 環境ファイルを読まずAgent向け開発タスクを起動する    |
-| `pnpm format`        | リポジトリ全体を整形する                             |
-| `pnpm format:check`  | 整形差分がないか確認する                             |
-| `pnpm lint`          | Vite+で静的解析する                                  |
-| `pnpm typecheck`     | TypeScript 7で型を検査する                           |
-| `pnpm test`          | Vitestのテストを実行する                             |
-| `pnpm test:coverage` | カバレッジを計測する                                 |
-| `pnpm build`         | 全workspaceをビルドする                              |
-| `pnpm validate`      | 品質検査、テスト、ビルドをまとめて実行する           |
-
-`pnpm build`と`pnpm validate`は環境ファイルを読みません。ローカルで実行するときは、`API_ENDPOINT`をprocess environmentへ明示的に渡してください。GitHub Actionsでは、CIは既知の本番URL、ストア提出用ビルドはRepository variableを使います。WorkerのデプロイはCloudflare Workers Buildsが担当し、`API_ENDPOINT`を必要としません。
-
-Chrome版とFirefox版を個別にビルドする場合は、次のコマンドを使います。
+拡張機能とWorkerをまとめて起動します。
 
 ```bash
-pnpm ext build
-pnpm ext build:firefox
+pnpm dev
 ```
+
+Chrome向けの開発サーバーは`http://localhost:3000/sandbox.html`を自動で開きます。片方だけを起動する場合は次のコマンドを使います。
+
+```bash
+pnpm -C apps/browser-extension dev          # 拡張機能（Chrome）
+pnpm -C apps/browser-extension dev:firefox  # 拡張機能（Firefox）
+pnpm -C apps/server dev                     # Worker
+```
+
+ローカルのWorkerは、R2に保存済みのレートを返します。レートを取得し直す手順は[Workerのローカル開発](apps/server/README.md#ローカル開発)にあります。
+
+### コマンド
+
+ルートで実行します。
+
+| コマンド                | 用途                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| `pnpm dev`              | 拡張機能とWorkerの開発サーバーを起動する                                           |
+| `pnpm check`            | 整形、lint、型検査をまとめて確認する。`--fix`を付けると自動修正する                |
+| `pnpm test`             | unitテストを実行する（`pnpm test:unit`と同じ）                                     |
+| `pnpm test:integration` | 実ブラウザで結合テストを実行する                                                   |
+| `pnpm test:coverage`    | unitテストのカバレッジ4指標が全ファイルで100%であることを検証する                  |
+| `pnpm test:e2e`         | 拡張機能をビルドし、Chromiumへ読み込んで主要な操作を検証する。`API_ENDPOINT`が必要 |
+| `pnpm build`            | 拡張機能とWorkerをビルドする。`API_ENDPOINT`が必要                                 |
+| `pnpm validate`         | check、coverage、integration、buildを順に実行する。`API_ENDPOINT`が必要            |
+
+拡張機能のビルドとストア提出用ZIPの作成は、[ブラウザ拡張機能のREADME](apps/browser-extension/README.md#ビルド)を参照してください。
+
+### テストと画面の確認
+
+テストはunit、integration、E2Eの3階層に分け、UI専用のテスト階層は作りません。どの階層で何を検証するか、UIを変更したときに何を確認するかは[画面品質の確認手順](docs/design-qa.md)にあります。
+
+データフロー、設定やレートの正本、CSSの設計方針は[アーキテクチャ](docs/architecture.md)にあります。
 
 ## ブランチと公開
 
-通常の開発は`develop`へPull Requestを作成し、リリース時は`develop`から`main`へのPull Requestで昇格させます。`main`へ直接変更を入れる運用は想定していません。
+通常の開発は`develop`へのPull Requestで行い、リリース時に`develop`から`main`へのPull Requestで昇格させます。`main`へ直接変更を入れることはありません。
 
-`develop`または`main`へのpushとPull Requestでは、GitHub Actionsがformat、lint、型検査、テスト、ビルドを実行します。必須CIを通って`main`が更新されると、Cloudflare Workers BuildsがWorkerを自動デプロイします。ブラウザ拡張機能は安定版GitHub Releaseを起点にChrome Web StoreとFirefox Add-onsへ提出します。
+`develop`と`main`へのpushとPull Requestでは、GitHub Actionsが`pnpm check`、カバレッジ検証、integration、E2E、ビルドを別々のjobとして並列に実行し、unitのカバレッジをPull Requestへコメントします。`main`が更新されると、同じCIがすべてのjobの成功後にWorkerをデプロイします。拡張機能は、安定版のGitHub Releaseを公開するとChrome Web StoreとFirefox Add-onsへ提出されます。
+
+Cloudflare、R2、Custom Domain、各ストアの初回設定は、リポジトリの外で行う作業です。手順は[デプロイとストア公開](docs/deployment.md)にあります。

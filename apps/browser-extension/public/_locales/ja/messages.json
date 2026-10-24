@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "Currency Lens"
+  },
+  "extensionDescription": {
+    "message": "選択した金額を、ページを離れずに指定通貨へ換算します。"
+  }
+}

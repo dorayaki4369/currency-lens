@@ -1,46 +1,66 @@
 # Currency Lens Worker
 
-`apps/server`は、Open Exchange Ratesから取得した為替レートを検証してR2へ保存し、ブラウザ拡張機能へ配信するCloudflare Workerです。役割は、検証済みのレートだけを拡張機能へ渡すことです。R2は公開しません。
+`apps/server`は、Open Exchange Ratesから取得した為替レートを検証してR2へ保存し、ブラウザ拡張機能へ配信するCloudflare Workerです。拡張機能が受け取るのは、検証済みのレートだけです。R2は外部に公開しません。
 
-リポジトリ全体の準備と共通コマンドは[ルートREADME](../../README.md)、外部サービスの設定は[デプロイとストア公開](../../docs/deployment.md)を参照してください。
+セットアップと共通のコマンドは[ルートのREADME](../../README.md)、外部サービスの設定は[デプロイとストア公開](../../docs/deployment.md)にあります。
 
 ## 動作
 
-1時間ごとのCron TriggerがOpen Exchange Ratesを呼び出し、レスポンスをZodで検証します。検証に通ったデータは、提供元の時刻を名前に含むアーカイブと`latest.json`の両方へ保存します。ログにレート本体やsecretは出さず、保存先、件数、提供元時刻などのメタデータだけを残します。
+### レートの取得と保存
 
-`GET /v1/latest`はR2の`latest.json`を読み、再度検証してから`base`、`rates`、`timestamp`を返します。旧版拡張機能向けの`GET /latest`も同じv1契約を返します。`timestamp`はWorkerが取得した時刻ではなく、Open Exchange Ratesが返した提供元時刻です。CORSで許可するのはChrome・Firefox拡張機能のoriginとGETだけです。
+Cron Triggerが1時間ごとにOpen Exchange Ratesからレートを取得し、Zodで検証します。検証に通ったレートは、R2の次の2か所へ保存します。
 
-R2が空で、`OPEN_EXCHANGE_RATE_APP_ID`が設定されている場合は、最初のレートAPIリクエストがOpen Exchange Ratesから取得してR2を初期化します。同時に複数の初回リクエストが来ても、同じWorkerインスタンス内では1回の取得にまとめます。
+- 提供元の時刻をファイル名に含むアーカイブ
+- 最新のレートを置く`latest.json`
 
-R2のデータが壊れている場合、secretがない場合、Open Exchange Ratesへの接続またはR2への保存に失敗した場合は`503`を返します。壊れたR2データを初回取得で上書きすることはありません。
+ログにはレートの値やsecretを出さず、保存先、件数、提供元の時刻などだけを残します。
+
+### レートの配信
+
+`GET /v1/latest`は、R2の`latest.json`を読んで検証し直し、`base`、`rates`、`timestamp`を返します。`timestamp`はWorkerが取得した時刻ではなく、Open Exchange Ratesが返した提供元の時刻です。旧版の拡張機能のため、`GET /latest`も同じ形式で返します。
+
+CORSで許可するのは、Chrome・Firefox拡張機能のoriginからのGETだけです。
+
+### R2が空のとき
+
+R2が空で`OPEN_EXCHANGE_RATE_APP_ID`が設定されている場合は、最初のリクエストでOpen Exchange Ratesから取得し、R2に保存してから返します。同時に複数のリクエストが来ても、同じWorkerインスタンスの中では取得を1回にまとめます。
+
+### 失敗したとき
+
+次の場合は`503`を返します。
+
+- R2の読み取りか検証に失敗した
+- R2が空で、secretがないか、取得・保存に失敗した
+
+R2のデータが壊れている場合は、初回取得の処理で上書きしません。
 
 ## ローカル開発
 
-最初にリポジトリ直下で依存関係を導入します。
+リポジトリ直下で依存関係を入れます。
 
 ```bash
 pnpm install --frozen-lockfile
 ```
 
-人間がローカル開発を行う場合は、リポジトリ直下の`.env`へOpen Exchange RatesのApp IDを設定します。`pnpm srv dev`はこのファイルを明示的に読み込みます。`wrangler.no-secrets`には値を追加しません。
+レートを取得するには、リポジトリ直下の`.env`にOpen Exchange RatesのApp IDを書きます。`pnpm -C apps/server dev`はこのファイルを読み込みます。
 
 ```dotenv
 OPEN_EXCHANGE_RATE_APP_ID=your-app-id
 ```
 
-AI Agentは`.env`、`.env.*`、`.dev.vars`、`.dev.vars.*`を絶対に読み取りません。AgentがWorkerを起動する場合は`pnpm srv dev:agent`を使います。このコマンドは環境ファイルを読みませんが、secretを渡さないため空のローカルR2を自動初期化できません。
+`.env`がなくてもWorkerは起動しますが、App IDがないためレートを取得できず、ローカルのR2は空のままです。`apps/server`の中に`.env`や`.dev.vars`を置いても読み込みません。
 
 ```bash
-pnpm srv dev
+pnpm -C apps/server dev
 ```
 
-Wranglerは`http://localhost:8787`でWorkerを起動します。現在のレート配信は次のリクエストで確認できます。
+Workerは`http://localhost:8787`で起動し、本番と同じ処理でR2に保存済みのレートを返します。
 
 ```bash
 curl --fail-with-body http://localhost:8787/v1/latest
 ```
 
-`--test-scheduled`を有効にしているため、ローカルのCron Triggerは次のリクエストで実行できます。
+ローカルではCronが自動で動かないため、レートを取得し直すときは次のリクエストで`scheduled`処理を手動で実行します。この入口は、開発コマンドに付けた`--test-scheduled`で有効になっています。
 
 ```bash
 curl --fail-with-body "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
@@ -48,26 +68,25 @@ curl --fail-with-body "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
 
 ## 検証とビルド
 
-通常はリポジトリ直下の共通コマンドを使います。
+ふだんはリポジトリ直下の共通コマンドを使います。
 
 ```bash
-pnpm format:check
-pnpm lint
-pnpm typecheck
+pnpm check
 pnpm test
 pnpm build
 ```
 
-Workerだけを扱うコマンドは次のとおりです。
+Workerだけをビルドする場合と、型定義を生成し直す場合は次のコマンドを使います。
 
 ```bash
-pnpm srv typecheck
-pnpm srv build
-pnpm srv typegen
+pnpm -C apps/server build
+pnpm -C apps/server typegen
 ```
 
-`typegen`は`wrangler.jsonc`から`worker-configuration.d.ts`を再生成します。R2 binding、変数、互換日などWranglerの設定を変更したときに実行してください。
+`typegen`は、`wrangler.jsonc`から`worker-configuration.d.ts`を生成し直します。R2のbinding、変数、互換日などを変えたときに実行します。
 
-## 外部設定とデプロイ
+## デプロイ
 
-R2 Bucketの作成、Open Exchange Ratesのsecret登録、Custom Domainの設定、CloudflareとGitHubの接続は外部作業です。Workerのデプロイは`main`更新後のCloudflare Workers Buildsを正規経路とし、初回設定と障害対応以外でローカルから本番デプロイしません。必要な設定と確認順は[デプロイとストア公開](../../docs/deployment.md)にまとめています。
+Workerは、`main`が更新されたときにGitHub ActionsのCIがデプロイします。初回設定と障害対応のとき以外は、ローカルから本番へデプロイしません。
+
+R2 Bucketの作成、Open Exchange Ratesのsecretの登録、Custom Domainの設定、デプロイ用のAPI tokenの登録は、リポジトリの外で行う作業です。手順は[デプロイとストア公開](../../docs/deployment.md)にあります。

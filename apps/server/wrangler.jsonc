@@ -37,4 +37,8 @@
       "binding": "DATA_BUCKET",
     },
   ],
+  // Static pages such as /privacy are served without invoking the Worker; headers live in public/_headers.
+  "assets": {
+    "directory": "./public",
+  },
 }

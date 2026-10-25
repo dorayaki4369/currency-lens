@@ -23,7 +23,9 @@ CORSで許可するのは、Chrome・Firefox拡張機能のoriginからのGETだ
 
 ### プライバシーポリシー
 
-`GET /privacy`は、ストアの掲載情報から参照するプライバシーポリシーをHTMLで返します。原本は`src/privacy.ts`で、R2やOpen Exchange Ratesには触れません。scriptや外部リソースを持たず、Content-Security-Policyで読み込みと埋め込みを禁止します。
+`GET /privacy`は、ストアの掲載情報から参照するプライバシーポリシーを返します。`public/privacy.html`をWorkersの静的アセットとして配信するため、Workerのコードは動きません。scriptや外部リソースを持たず、`public/_headers`のContent-Security-Policyで読み込みと埋め込みを禁止します。
+
+配信とヘッダーは、Wranglerの`createTestHarness()`で手元にWorkerを起動して確かめます（`test/static-assets.spec.ts`）。
 
 ### R2が空のとき
 

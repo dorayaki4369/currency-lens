@@ -30,7 +30,7 @@ Currency Lensは、Webページで選択した金額を、登録した通貨へ�
 
 設定は`browser.storage.sync`、為替レートは`browser.storage.local`に保存します。Open Exchange Ratesの認証情報はCloudflare Workerだけが持ち、拡張機能には含めません。
 
-ストアに掲載するプライバシーポリシーは、Workerが<https://cl.dryk.net/privacy>で配信します。原本は`apps/server/src/privacy.ts`です。拡張機能やWorkerが扱う情報を変えたときは、あわせて更新します。
+ストアに掲載するプライバシーポリシーは、Workerが<https://cl.dryk.net/privacy>で配信します。原本は`apps/server/public/privacy.html`です。拡張機能やWorkerが扱う情報を変えたときは、あわせて更新します。
 
 ## 開発
 

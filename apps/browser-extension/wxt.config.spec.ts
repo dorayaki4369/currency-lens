@@ -61,6 +61,19 @@ describe("WXT API endpoint configuration", () => {
     });
   });
 
+  it("requires a desktop Firefox that understands the data collection declaration", () => {
+    // `data_collection_permissions` is supported from Firefox 140; AMO warns about older minimums.
+    expect(
+      createManifest(PRODUCTION_ENV, PRODUCTION_API_ENDPOINT).browser_specific_settings,
+    ).toEqual({
+      gecko: {
+        data_collection_permissions: { required: ["none"] },
+        id: "currency-lens@dryk.net",
+        strict_min_version: "140.0",
+      },
+    });
+  });
+
   it("rejects missing or unsafe API endpoints for every build mode", () => {
     expect(() => resolveApiEndpoint(undefined)).toThrow("API_ENDPOINT is required");
     expect(() => resolveApiEndpoint(" ")).toThrow("API_ENDPOINT is required");

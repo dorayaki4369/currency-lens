@@ -2,6 +2,8 @@
 
 `apps/browser-extension`は、Webページで選択した金額を登録した通貨へ換算するChrome・Firefox向けの拡張機能です。WXT、React、Zustand、TanStack Router、Tailwind CSS、shadcn/uiで作っています。
 
+Firefoxの最低対応バージョンは140です。manifestの`data_collection_permissions`（データ収集をしないことの宣言）がFirefox 140から使えるため、`wxt.config.ts`の`strict_min_version`をこれに合わせています。Firefox for Androidは、実機での動作確認が済むまで対象にしません。
+
 セットアップと共通のコマンドは[ルートのREADME](../../README.md)、Workerを含むデータの流れは[アーキテクチャ](../../docs/architecture.md)にあります。
 
 ## 動作

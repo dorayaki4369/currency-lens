@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { fetchLatestRate } from "@cl/oxr";
 import { scheduledHandler } from "./scheduler";
 import { getLatestOxrResponse, putOxrLatestResponse } from "./bucket";
+import { servePrivacyPolicy } from "./privacy";
 
 type LatestRatesDependencies = {
   getLatestRates: typeof getLatestOxrResponse;
@@ -111,6 +112,7 @@ export function createApp(dependencies: LatestRatesDependencies = defaultDepende
 
   app.get("/v1/latest", serveLatestRates);
   app.get("/latest", serveLatestRates);
+  app.get("/privacy", servePrivacyPolicy);
 
   return app;
 }

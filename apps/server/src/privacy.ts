@@ -1,0 +1,119 @@
+import type { Context } from "hono";
+import { html } from "hono/html";
+
+const EFFECTIVE_DATE = "October 25, 2026";
+const CONTACT_NAME = "Ryuya Hirayama";
+const CONTACT_EMAIL = "ryuya.hirayama@dryk.net";
+const API_ORIGIN = "https://cl.dryk.net";
+
+const PRIVACY_POLICY_HEADERS = {
+  "Cache-Control": "public, max-age=3600",
+  "Content-Security-Policy":
+    "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+};
+
+/** Serves the privacy policy linked from the Chrome Web Store and addons.mozilla.org listings. */
+export function servePrivacyPolicy(c: Context): Response | Promise<Response> {
+  return c.html(renderPrivacyPolicy(), 200, PRIVACY_POLICY_HEADERS);
+}
+
+/** Renders the policy as a self-contained page without scripts or external resources. */
+function renderPrivacyPolicy() {
+  return html`<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Currency Lens Privacy Policy</title>
+        <style>
+          :root {
+            color-scheme: light dark;
+          }
+          body {
+            margin: 0 auto;
+            max-width: 42rem;
+            padding: 2.5rem 1.25rem 4rem;
+            font-family: system-ui, sans-serif;
+            line-height: 1.7;
+          }
+          h1 {
+            line-height: 1.3;
+          }
+          h2 {
+            margin-top: 2.25rem;
+          }
+          code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.9em;
+          }
+        </style>
+      </head>
+      <body>
+        <main>
+          <h1>Currency Lens Privacy Policy</h1>
+          <p>Effective date: ${EFFECTIVE_DATE}</p>
+          <p>
+            Currency Lens is a browser extension for Chrome and Firefox that converts prices
+            you select on a web page into the currencies you choose. This policy explains
+            what information the extension handles and where it goes.
+          </p>
+
+          <h2>Text you select on web pages</h2>
+          <p>
+            When you select text, Currency Lens looks for a price in it on your device. The
+            selected text and the content of the pages you visit are never sent to us or to
+            anyone else.
+          </p>
+
+          <h2>Settings stored in your browser</h2>
+          <p>
+            Your target currencies, display theme, and currency symbol preferences are
+            stored with the browser's <code>storage.sync</code> API. If you have turned on
+            sync in Chrome or Firefox, your browser syncs these settings through your Google
+            or Mozilla account. We cannot access them.
+          </p>
+          <p>
+            The most recently downloaded exchange rates are stored on your device with the
+            browser's
+            <code>storage.local</code> API so that conversions keep working when you are
+            offline.
+          </p>
+
+          <h2>Exchange-rate requests</h2>
+          <p>
+            The extension periodically downloads public exchange-rate data from our API at
+            <code>${API_ORIGIN}</code>. These requests contain no information about you,
+            your settings, or the pages you visit.
+          </p>
+          <p>
+            The API runs on Cloudflare Workers, and the exchange rates come from Open
+            Exchange Rates. As with any request on the internet, Cloudflare receives your IP
+            address and standard request information such as your browser's user agent. This
+            information may be kept for a limited period in operational logs, which we use
+            only to keep the service running and to investigate failures.
+          </p>
+
+          <h2>What we do not do</h2>
+          <ul>
+            <li>
+              We do not collect personal information, browsing history, or the content of
+              web pages.
+            </li>
+            <li>We do not use analytics, advertising, or tracking.</li>
+            <li>We do not sell or share any information with third parties.</li>
+          </ul>
+
+          <h2>Changes to this policy</h2>
+          <p>If this policy changes, we will update this page and its effective date.</p>
+
+          <h2>Contact</h2>
+          <p>
+            If you have questions about this policy, contact ${CONTACT_NAME} at
+            <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.
+          </p>
+        </main>
+      </body>
+    </html>`;
+}

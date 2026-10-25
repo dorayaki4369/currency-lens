@@ -21,6 +21,10 @@ Cron Triggerが1時間ごとにOpen Exchange Ratesからレートを取得し、
 
 CORSで許可するのは、Chrome・Firefox拡張機能のoriginからのGETだけです。
 
+### プライバシーポリシー
+
+`GET /privacy`は、ストアの掲載情報から参照するプライバシーポリシーをHTMLで返します。原本は`src/privacy.ts`で、R2やOpen Exchange Ratesには触れません。scriptや外部リソースを持たず、Content-Security-Policyで読み込みと埋め込みを禁止します。
+
 ### R2が空のとき
 
 R2が空で`OPEN_EXCHANGE_RATE_APP_ID`が設定されている場合は、最初のリクエストでOpen Exchange Ratesから取得し、R2に保存してから返します。同時に複数のリクエストが来ても、同じWorkerインスタンスの中では取得を1回にまとめます。

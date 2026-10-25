@@ -57,7 +57,7 @@ export default defineConfig({
   manifest: createManifest,
   zip: {
     sourcesRoot: repositoryRoot,
-    excludeSources: ["**/*"],
+    // WXT 0.21+ applies excludeSources after includeSources, so this allowlist alone selects the files.
     includeSources: [
       ".node-version",
       "package.json",

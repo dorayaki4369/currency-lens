@@ -15,5 +15,6 @@
 - 説明は CHANGELOG と GitHub Release にそのまま載るため、利用者が読んで分かる日本語で書きます。
 - 拡張機能の version を持つのは `@cl/browser-extension` だけです。`packages/currency` の変更が拡張機能の振る舞いを変える場合も、`@cl/browser-extension` の changeset を書きます。
 - Worker、CI、文書、テストだけの変更には不要です。
+- 拡張機能のコードを変えても利用者に見える変化がない場合（リファクタリング、ビルド設定の整理など）は、`pnpm changeset --empty` で空の changeset を追加します。CI はこれで通り、version と CHANGELOG は変わりません。
 
 リリースの手順は `docs/deployment.md` にあります。

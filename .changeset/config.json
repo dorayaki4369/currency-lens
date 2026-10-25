@@ -10,7 +10,7 @@
     "!**/*.{test,spec}.{ts,tsx}",
     "!test/**",
     "!package.json",
-    "!CHANGELOG.md"
+    "!**/*.md"
   ],
   "privatePackages": { "version": true, "tag": false },
   "updateInternalDependencies": "patch",

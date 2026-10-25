@@ -196,7 +196,7 @@ function promoPages(): Record<string, string> {
         ${brand}
         <h1>ツールバーから、<br><em>いつでも換算。</em></h1>
         <p>金額を入力するだけで、登録した通貨へまとめて換算します。レートは最新の取得時刻とあわせて表示します。</p>
-        <ul><li>ライト表示とダーク表示に対応</li><li>オフラインでも最後に取得したレートで換算</li></ul>
+        <ul><li>オフラインでも最後に取得したレートで換算</li></ul>
       </div>
       <div class="window">
         <div class="tabs"><span class="dots"><span class="dot" style="background:#f87171"></span><span class="dot" style="background:#fbbf24"></span><span class="dot" style="background:#34d399"></span></span><span class="tab">Example Travel</span></div>

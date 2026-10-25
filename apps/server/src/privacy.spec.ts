@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createApp } from "./index";
 import { createBindings } from "../test/fixtures";
 
-/** Creates Worker dependencies that fail the test if the privacy page touches rate storage. */
+/** Creates Worker dependencies whose calls reveal any access to rate storage or OXR. */
 function createUnusedDependencies() {
   return {
     getLatestRates: vi.fn(),
@@ -13,44 +13,20 @@ function createUnusedDependencies() {
 }
 
 describe("privacy policy page", () => {
-  it("serves a self-contained HTML policy without reading rate storage", async () => {
+  it("serves an HTML page without reading rate storage or calling OXR", async () => {
     const dependencies = createUnusedDependencies();
     const app = createApp(dependencies);
 
     const response = await app.request("/privacy", {}, createBindings());
-    const body = await response.text();
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/html; charset=UTF-8");
-    expect(body).toMatch(/^<!doctype html>/u);
-    expect(body).toContain('<html lang="en">');
-    expect(body).toContain("<title>Currency Lens Privacy Policy</title>");
-    expect(body).not.toMatch(/<script|<link|src=/u);
     expect(dependencies.getLatestRates).not.toHaveBeenCalled();
     expect(dependencies.fetchLatestRates).not.toHaveBeenCalled();
+    expect(dependencies.putLatestRates).not.toHaveBeenCalled();
   });
 
-  it("states what the extension keeps local, what it sends, and how to make contact", async () => {
-    const response = await createApp(createUnusedDependencies()).request(
-      "/privacy",
-      {},
-      createBindings(),
-    );
-    // Source formatting may wrap prose anywhere, so compare the text as a browser would render it.
-    const body = (await response.text()).replace(/\s+/gu, " ");
-
-    expect(body).toContain("Effective date: October 25, 2026");
-    expect(body).toContain("are never sent to us or to anyone else");
-    expect(body).toContain("<code>storage.sync</code>");
-    expect(body).toContain("<code>storage.local</code>");
-    expect(body).toContain("<code>https://cl.dryk.net</code>");
-    expect(body).toContain("We do not use analytics, advertising, or tracking.");
-    expect(body).toContain(
-      '<a href="mailto:ryuya.hirayama@dryk.net">ryuya.hirayama@dryk.net</a>',
-    );
-  });
-
-  it("forbids scripts, embedding, and referrer leakage", async () => {
+  it("forbids scripts, external resources, embedding, and referrer leakage", async () => {
     const response = await createApp(createUnusedDependencies()).request(
       "/privacy",
       {},

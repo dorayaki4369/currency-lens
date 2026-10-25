@@ -2,6 +2,8 @@
 
 Currency Lensは、Webページで選択した金額を、登録した通貨へその場で換算するChrome・Firefox向けの拡張機能です。ページ内の価格は書き換えず、選択した箇所の近くに小さな換算カードを開きます。
 
+対応ブラウザは、デスクトップ版のChromeと、Firefox 140以降です。Firefox for Androidには対応していません。
+
 - [Chrome Web Store](https://chrome.google.com/webstore/detail/currency-lens/cfpmgblhfmfomcgkpkghcgkcfblbpgkm)
 - [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/currency-lens)
 

@@ -204,6 +204,9 @@ jobs:
           name: chrome-extension
           path: apps/browser-extension/.output/chrome-mv3
 
+      - name: Build the Firefox package and its review sources
+        run: pnpm --dir apps/browser-extension zip:firefox
+
       - name: Test built Chrome extension
         run: pnpm exec playwright test
 

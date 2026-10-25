@@ -9,6 +9,7 @@
     "**",
     "!**/*.{test,spec}.{ts,tsx}",
     "!test/**",
+    "!store/**",
     "!package.json",
     "!**/*.md"
   ],

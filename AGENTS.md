@@ -37,6 +37,8 @@ PDF、canvas、フォーム入力、ブラウザ内部ページ、クロスオ�
 | `pnpm test:e2e`         | Chrome 向けにビルドし、Firefox 版と審査用 sources ZIP を作ったうえで、成果物の構成と、Chromium へ読み込んだ拡張機能の主要導線を検証します。`API_ENDPOINT` が必要です。 |
 | `pnpm build`            | 拡張機能と Worker をビルドします。環境変数 `API_ENDPOINT` が必要です。                                                                                                 |
 | `pnpm check`            | 整形、lint、型検査をまとめて確認します。`pnpm check --fix` で自動修正します。                                                                                          |
+| `pnpm store:images`     | ストア掲載用の宣伝画像を `apps/browser-extension/.output/store-images/` へ書き出します。CI ではリリース時に生成します。                                                |
+| `pnpm store:dev`        | ストア掲載用の宣伝画像をプレビューします。元になるレビュー用画像を、先に integration と E2E で保存しておきます。                                                       |
 | `pnpm validate`         | check、coverage、integration、build を順に実行します。`API_ENDPOINT` が必要です。                                                                                      |
 
 依存を変更したら、`pnpm install --frozen-lockfile=false` で lockfile を同期します。

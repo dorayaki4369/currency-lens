@@ -13,6 +13,8 @@
     "dev": "vp run --no-cache -r --parallel dev",
     "build": "vp run -r build",
     "check": "vp check",
+    "store:dev": "node --watch apps/browser-extension/store/promo-images.ts serve",
+    "store:images": "node apps/browser-extension/store/promo-images.ts render",
     "test": "pnpm test:unit",
     "test:unit": "vp test --run --project unit",
     "test:integration": "vp test --run --project integration",

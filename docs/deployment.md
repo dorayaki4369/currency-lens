@@ -43,7 +43,12 @@ Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必�
 
 `Publish browser extension`を`main`から手動で実行すると、提出せずにWorkerとの互換性、credentialの登録漏れ、成果物を確かめるdry-runになります。
 
-ChromeとFirefoxへの提出は一つのトランザクションではなく、一方だけ成功することがあります。この場合tagとReleaseは作られません。再実行する前にActions artifactと両ストアのdashboardを確認し、同じversionを再提出できる状態か判断してください。
+ChromeとFirefoxへの提出は一つのトランザクションではなく、一方だけ成功することがあります。提出かGitHub Releaseの作成が失敗すると、tagは作られません。tagがない間は、`main`へpushするたびに同じversionの提出を試み、ストアが同じversionを拒否して失敗します。
+
+この状態になったら、Actions artifactと両ストアのdashboardを確認し、次のどちらかで解消します。
+
+- まだ提出できていないストアがあれば、ストアのdashboardから同じZIPを手で提出します。
+- 両ストアに提出済みと確認できたら、そのcommitへ`gh release create v{version} --target <commit> --notes-file <CHANGELOGの該当節>`でtagとReleaseを作ります。tagを手で作るのは、この復旧のときだけです。
 
 Repository variable `API_ENDPOINT`の値を変えると、配布する拡張機能の接続先も変わります。変えるときは、WorkerのCustom Domain、Firefox審査用の`SOURCE_CODE_REVIEW.md`もあわせて確認します。
 

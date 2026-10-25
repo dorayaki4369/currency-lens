@@ -28,7 +28,7 @@ version は Changesets が決め、`publish-extension.yml` が `main` への pus
 拡張機能のコードを変える Pull Request には changeset を付けます。`packages/currency` の変更が拡張機能の振る舞いを変える場合も、`@cl/browser-extension` の changeset を書きます。
 提出前の検査は `publish-extension.yml` が行うので、検査を省く手順を作りません。
 手動実行は dry-run だけにし、本番提出へ切り替える入力を足しません。同じ version を二重に提出しないためです。
-ストア掲載用の宣伝画像は、`publish-extension.yml` の `promo-images` job がレビュー用画像から作り、Actions artifact に保存します。リポジトリへ画像をコミットせず、ストアへの掲載は人間が行います。
+ストア掲載用の宣伝画像は、`publish-extension.yml` の `render store promo images` job がレビュー用画像から作り、Actions artifact に保存します。リポジトリへ画像をコミットせず、ストアへの掲載は人間が行います。
 
 ### API の互換性
 

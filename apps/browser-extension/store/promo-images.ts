@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { currencies } from "@cl/currency";
 import { chromium } from "@playwright/test";
 
 const EXTENSION_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -125,37 +126,21 @@ function promoPages(): Record<string, string> {
   const pages = {
     "promo-1-select-and-convert": `
       <style>
-        .window{position:absolute;left:580px;top:70px;width:640px;height:660px;background:#fff;border-radius:16px;overflow:hidden;
-          box-shadow:0 40px 80px -24px rgba(15,23,42,.35),0 0 0 1px rgba(15,23,42,.08)}
-        .bar{height:44px;background:#f1f5f9;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid #e2e8f0}
-        .dot{width:12px;height:12px;border-radius:50%}
-        .url{margin-left:16px;flex:1;height:26px;border-radius:13px;background:#fff;font-size:13px;color:#64748b;display:flex;align-items:center;padding:0 14px}
-        .page{padding:36px 40px;display:flex;gap:32px}
-        .photo{width:200px;height:200px;border-radius:14px;flex:none;background:linear-gradient(135deg,#1e293b,#475569);position:relative}
-        .photo::after{content:"";position:absolute;inset:44px 50px;border:14px solid #e2e8f0;border-bottom:none;border-radius:60px 60px 0 0}
-        .photo::before{content:"";position:absolute;left:38px;right:38px;bottom:52px;height:56px;
-          background:radial-gradient(circle at 18px 28px,#e2e8f0 18px,transparent 19px),radial-gradient(circle at calc(100% - 18px) 28px,#e2e8f0 18px,transparent 19px)}
-        .meta .store{font-size:13px;color:#64748b;margin-bottom:6px}
-        .meta h2{font-size:22px;line-height:1.4;margin-bottom:14px}
-        .price{font-size:30px;font-weight:700}
-        .price mark{background:#b3d7ff;color:inherit;padding:0 2px}
-        .ship{font-size:14px;color:#64748b;margin-top:8px}
-        .card{position:absolute;left:228px;top:276px}
+        .copy{width:480px}
+        .stage{position:absolute;left:680px;top:0;bottom:0;right:80px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
+        .price{font-size:52px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+        .price mark{background:#b4d5fe;color:inherit;padding:0 1px}
+        .card{margin-top:20px;margin-left:56px}
       </style>
       <div class="copy">
         ${brand}
         <h1>選択した金額を、<br><em>その場で換算。</em></h1>
-        <p>海外サイトの価格を選択して、Lens ボタンを押すだけ。ページを離れずに、いつもの通貨で確かめられます。</p>
-        <ul><li>最大5通貨へ一度に換算</li><li>ページの表示は書き換えません</li><li>選択した文字は外部へ送信しません</li></ul>
+        <p>海外サイトの価格を選択して、ボタンを押すだけ。<br>ページを離れずに、いつもの通貨で確かめられます。</p>
+        <ul><li>${currencies.length}の通貨に対応</li><li>1時間ごとに更新される最新レートで換算</li><li>最大5通貨へ一度に換算</li><li>「$」「USD」「円」のどの書き方の金額も検出</li></ul>
       </div>
-      <div class="window">
-        <div class="bar"><span class="dot" style="background:#f87171"></span><span class="dot" style="background:#fbbf24"></span><span class="dot" style="background:#34d399"></span><span class="url">shop.example.com/headphones</span></div>
-        <div class="page">
-          <div class="photo"></div>
-          <div class="meta"><div class="store">Example Audio</div><h2>Wireless Noise-Cancelling Headphones</h2>
-            <div class="price"><mark>$249.00</mark></div><div class="ship">Free shipping · In stock</div></div>
-        </div>
-        <div class="card">${crop("e2e-conversion-card", 256, 219, 384, 353)}</div>
+      <div class="stage">
+        <div class="price"><mark>$249.00</mark></div>
+        <div class="card">${crop("e2e-conversion-card", 256, 219, 384, 400)}</div>
       </div>`,
 
     "promo-2-currency-picker": `
@@ -165,54 +150,48 @@ function promoPages(): Record<string, string> {
       </style>
       <div class="copy">
         ${brand}
-        <h1>180以上の通貨から、<br><em>換算先を選べる。</em></h1>
-        <p>通貨コード、通貨名、地域名で検索できます。換算先は最大5通貨まで登録し、ドラッグで並べ替えられます。</p>
-        <ul><li>主要な暗号資産にも対応</li><li>$ や ¥ がどの通貨かも設定できます</li></ul>
+        <h1>${currencies.length}の通貨から、<br><em>換算先を選べる。</em></h1>
+        <p>通貨コード、通貨名、地域名で検索して、換算先を最大5通貨まで登録できます。法定通貨のほか、暗号資産や貴金属にも換算できます。</p>
+        <ul><li>ビットコイン、イーサリアムなどの暗号資産にも対応</li><li>金・銀・プラチナ・パラジウムにも対応</li><li>「$」「¥」がどの通貨を指すかも設定可能</li></ul>
       </div>
-      <div class="stage">${crop("popup-light-target-picker", 0, 0, 333, 600)}</div>`,
+      <div class="stage">${crop("popup-light-target-picker", 0, 0, 321, 600)}</div>`,
 
     "promo-3-toolbar-popup": `
       <style>
-        .copy{width:400px}
-        .window{position:absolute;left:560px;top:100px;width:680px;height:600px;background:#fff;border-radius:16px;overflow:hidden;
-          box-shadow:0 40px 80px -24px rgba(15,23,42,.35),0 0 0 1px rgba(15,23,42,.08)}
-        .tabs{height:40px;background:#e2e8f0;display:flex;align-items:flex-end;gap:8px;padding:0 16px}
-        .dots{display:flex;gap:8px;align-self:center;margin-right:8px}
-        .dot{width:12px;height:12px;border-radius:50%}
-        .tab{width:220px;height:32px;background:#f8fafc;border-radius:10px 10px 0 0;font-size:13px;color:#334155;display:flex;align-items:center;padding:0 14px}
+        .copy{width:460px}
+        .window{position:absolute;left:600px;top:120px;width:640px;height:560px}
+        .chrome{position:absolute;inset:0;background:#fff;border-radius:16px;overflow:hidden;
+          box-shadow:0 40px 80px -24px rgba(15,23,42,.35),0 0 0 1px rgba(15,23,42,.08);
+          -webkit-mask-image:linear-gradient(to right,transparent,#000 140px);mask-image:linear-gradient(to right,transparent,#000 140px)}
         .toolbar{height:48px;background:#f8fafc;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid #e2e8f0}
         .icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
         .icon svg{width:18px;height:18px;fill:none;stroke:#475569;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-        .icon svg.filled{fill:#475569;stroke:none}
         .icon img{width:20px;height:20px}
         .icon.active{background:#dbeafe}
         .avatar{width:24px;height:24px;border-radius:50%;background:#94a3b8;margin:0 4px}
-        .url{flex:1;height:34px;border-radius:17px;background:#e2e8f0;font-size:14px;color:#475569;display:flex;align-items:center;padding:0 16px;margin:0 6px}
+        .url{flex:1;height:34px;border-radius:17px;background:#e2e8f0;margin-right:6px}
         .content{padding:32px 40px;display:grid;gap:14px}
         .line{height:14px;border-radius:7px;background:#f1f5f9}
-        .popup{position:absolute;left:228px;top:92px}
+        .popup{position:absolute;left:156px;top:52px}
         .popup .shot{border-radius:10px;box-shadow:0 20px 50px -12px rgba(15,23,42,.4),0 0 0 1px rgba(15,23,42,.1)}
       </style>
       <div class="copy">
         ${brand}
         <h1>ツールバーから、<br><em>いつでも換算。</em></h1>
-        <p>金額を入力するだけで、登録した通貨へまとめて換算します。レートは最新の取得時刻とあわせて表示します。</p>
-        <ul><li>オフラインでも最後に取得したレートで換算</li></ul>
+        <p>金額を入力するだけで、<br>登録した通貨へまとめて換算します。</p>
       </div>
       <div class="window">
-        <div class="tabs"><span class="dots"><span class="dot" style="background:#f87171"></span><span class="dot" style="background:#fbbf24"></span><span class="dot" style="background:#34d399"></span></span><span class="tab">Example Travel</span></div>
-        <div class="toolbar">
-          <span class="icon"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
-          <span class="icon"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
-          <span class="icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg></span>
-          <span class="url">travel.example.com</span>
-          <span class="icon"><svg class="filled" viewBox="0 0 24 24"><path d="M10.5 4.5c.28 0 .5.22.5.5v2h6v6h2c.28 0 .5.22.5.5s-.22.5-.5.5h-2v6h-2.12c-.68-1.75-2.39-3-4.38-3s-3.7 1.25-4.38 3H4v-2.12c1.75-.68 3-2.39 3-4.38 0-1.99-1.24-3.7-2.99-4.38L4 7h6V5c0-.28.22-.5.5-.5m0-2C9.12 2.5 8 3.62 8 5H4c-1.1 0-1.99.9-1.99 2v3.8h.29c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-.3c0-1.49 1.21-2.7 2.7-2.7s2.7 1.21 2.7 2.7v.3H17c1.1 0 2-.9 2-2v-4c1.38 0 2.5-1.12 2.5-2.5S20.38 11 19 11V7c0-1.1-.9-2-2-2h-4c0-1.38-1.12-2.5-2.5-2.5z"/></svg></span>
-          <span class="icon active"><img src="${logo}" alt=""></span>
-          <span class="avatar"></span>
-        </div>
-        <div class="content">
-          <div class="line" style="width:60%;height:22px"></div><div class="line"></div><div class="line" style="width:90%"></div>
-          <div class="line" style="width:75%"></div><div class="line" style="width:40%"></div>
+        <div class="chrome">
+          <div class="toolbar">
+            <span class="url"></span>
+            <span class="icon active"><img src="${logo}" alt=""></span>
+            <span class="icon"><svg viewBox="0 0 24 24"><path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"/><rect x="14" y="2" width="8" height="8" rx="1"/></svg></span>
+            <span class="avatar"></span>
+          </div>
+          <div class="content">
+            <div class="line" style="width:60%;height:22px"></div><div class="line"></div><div class="line" style="width:90%"></div>
+            <div class="line" style="width:75%"></div><div class="line" style="width:40%"></div>
+          </div>
         </div>
         <div class="popup">${crop("e2e-popup", 0, 0, 400, 440)}</div>
       </div>`,

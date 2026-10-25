@@ -16,8 +16,7 @@ const VIEWPORT = { width: 1280, height: 800 };
 /** Review screenshots the promo images crop, and the test that saves each of them. */
 const SOURCE_SCREENSHOTS = {
   "e2e-conversion-card": "pnpm test:e2e",
-  "popup-light-converter": "pnpm test:integration",
-  "popup-dark-converter": "pnpm test:integration",
+  "e2e-popup": "pnpm test:e2e",
   "popup-light-target-picker": "pnpm test:integration",
 } as const;
 
@@ -159,23 +158,7 @@ function promoPages(): Record<string, string> {
         <div class="card">${crop("e2e-conversion-card", 256, 219, 384, 353)}</div>
       </div>`,
 
-    "promo-2-toolbar-popup": `
-      <style>
-        .copy{width:400px}
-        .stage{position:absolute;left:530px;top:0;bottom:0;right:40px;display:flex;align-items:center;justify-content:center;gap:28px}
-      </style>
-      <div class="copy">
-        ${brand}
-        <h1>ツールバーから、<br><em>いつでも換算。</em></h1>
-        <p>金額を入力するだけで、登録した通貨へまとめて換算します。レートは最新の取得時刻とあわせて表示します。</p>
-        <ul><li>ライト表示とダーク表示に対応</li><li>オフラインでも最後に取得したレートで換算</li></ul>
-      </div>
-      <div class="stage">
-        <div>${crop("popup-light-converter", 0, 0, 333, 315)}<div class="label">ライト</div></div>
-        <div>${crop("popup-dark-converter", 0, 0, 333, 315)}<div class="label">ダーク</div></div>
-      </div>`,
-
-    "promo-3-currency-picker": `
+    "promo-2-currency-picker": `
       <style>
         .copy{width:480px}
         .stage{position:absolute;left:640px;top:0;bottom:0;right:0;display:flex;align-items:center;justify-content:center}
@@ -187,6 +170,51 @@ function promoPages(): Record<string, string> {
         <ul><li>主要な暗号資産にも対応</li><li>$ や ¥ がどの通貨かも設定できます</li></ul>
       </div>
       <div class="stage">${crop("popup-light-target-picker", 0, 0, 333, 600)}</div>`,
+
+    "promo-3-toolbar-popup": `
+      <style>
+        .copy{width:400px}
+        .window{position:absolute;left:560px;top:100px;width:680px;height:600px;background:#fff;border-radius:16px;overflow:hidden;
+          box-shadow:0 40px 80px -24px rgba(15,23,42,.35),0 0 0 1px rgba(15,23,42,.08)}
+        .tabs{height:40px;background:#e2e8f0;display:flex;align-items:flex-end;gap:8px;padding:0 16px}
+        .dots{display:flex;gap:8px;align-self:center;margin-right:8px}
+        .dot{width:12px;height:12px;border-radius:50%}
+        .tab{width:220px;height:32px;background:#f8fafc;border-radius:10px 10px 0 0;font-size:13px;color:#334155;display:flex;align-items:center;padding:0 14px}
+        .toolbar{height:48px;background:#f8fafc;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid #e2e8f0}
+        .icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+        .icon svg{width:18px;height:18px;fill:none;stroke:#475569;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+        .icon img{width:20px;height:20px}
+        .icon.active{background:#dbeafe}
+        .avatar{width:24px;height:24px;border-radius:50%;background:#94a3b8;margin:0 4px}
+        .url{flex:1;height:34px;border-radius:17px;background:#e2e8f0;font-size:14px;color:#475569;display:flex;align-items:center;padding:0 16px;margin:0 6px}
+        .content{padding:32px 40px;display:grid;gap:14px}
+        .line{height:14px;border-radius:7px;background:#f1f5f9}
+        .popup{position:absolute;left:228px;top:92px}
+        .popup .shot{border-radius:10px;box-shadow:0 20px 50px -12px rgba(15,23,42,.4),0 0 0 1px rgba(15,23,42,.1)}
+      </style>
+      <div class="copy">
+        ${brand}
+        <h1>ツールバーから、<br><em>いつでも換算。</em></h1>
+        <p>金額を入力するだけで、登録した通貨へまとめて換算します。レートは最新の取得時刻とあわせて表示します。</p>
+        <ul><li>ライト表示とダーク表示に対応</li><li>オフラインでも最後に取得したレートで換算</li></ul>
+      </div>
+      <div class="window">
+        <div class="tabs"><span class="dots"><span class="dot" style="background:#f87171"></span><span class="dot" style="background:#fbbf24"></span><span class="dot" style="background:#34d399"></span></span><span class="tab">Example Travel</span></div>
+        <div class="toolbar">
+          <span class="icon"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
+          <span class="icon"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          <span class="icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg></span>
+          <span class="url">travel.example.com</span>
+          <span class="icon"><svg viewBox="0 0 24 24"><path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.23 8.77c.24-.24.581-.353.917-.303.515.077.877.528 1.073 1.01a2.5 2.5 0 1 0 3.259-3.259c-.482-.196-.933-.558-1.01-1.073-.05-.336.062-.676.303-.917l1.525-1.525A2.402 2.402 0 0 1 12 1.998c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.967 1.02Z"/></svg></span>
+          <span class="icon active"><img src="${logo}" alt=""></span>
+          <span class="avatar"></span>
+        </div>
+        <div class="content">
+          <div class="line" style="width:60%;height:22px"></div><div class="line"></div><div class="line" style="width:90%"></div>
+          <div class="line" style="width:75%"></div><div class="line" style="width:40%"></div>
+        </div>
+        <div class="popup">${crop("e2e-popup", 0, 0, 400, 440)}</div>
+      </div>`,
   };
   return Object.fromEntries(
     Object.entries(pages).map(([name, body]) => [

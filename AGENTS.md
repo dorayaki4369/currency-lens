@@ -120,8 +120,14 @@ UI 専用やアクセシビリティ専用の階層は作らず、各階層で�
 ### デプロイ
 
 - `main` が更新されると、CI の `deploy Worker` job が、同じ commit の品質検査の成功後に Worker をデプロイします。
-- `v*` の GitHub Release を公開すると、Chrome Web Store と Firefox Add-ons へ提出します。
-- 提出の前に、release tag と同じ commit の `deploy Worker` の成功を待ちます。そのうえで、公開中の `/v1/latest` と旧 `/latest` を配布版クライアントの Zod schema で検証します。
+- `main` へ push された拡張機能の version に `v{version}` の tag がなければ、`Publish browser extension` が Chrome Web Store と Firefox Add-ons へ提出し、成功後に tag と GitHub Release を作ります。
+- 提出の前に、同じ commit の `deploy Worker` の成功を待ちます。そのうえで、公開中の `/v1/latest` と旧 `/latest` を配布版クライアントの Zod schema で検証します。
+
+### version と CHANGELOG
+
+- 拡張機能の version と `apps/browser-extension/CHANGELOG.md` は Changesets で更新し、手で書き換えません。tag も手で付けません。
+- 拡張機能の利用者に見える変更を含む Pull Request には、`pnpm changeset` で changeset を追加します。説明は利用者が読んで分かる日本語で書きます。
+- リリースでは `pnpm changeset version` の結果を `develop` への Pull Request にし、`develop` から `main` へ昇格させます。
 
 ### API の互換性
 

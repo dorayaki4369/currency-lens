@@ -23,7 +23,9 @@ merge 済みのブランチの上に作ったブランチで同じ変更が別�
 
 ## ブラウザストア
 
-release tag は `v` と `apps/browser-extension/package.json` の version をつないだ名前にし、`deploy Worker` が成功した現在の `main` の HEAD に付けます。
+version は Changesets が決め、`publish-extension.yml` が `main` への push で `v{version}` の tag がない version だけを提出し、成功後に tag と GitHub Release を作ります。
+`package.json` の version、`CHANGELOG.md`、tag、GitHub Release を手で作ったり書き換えたりしません。version を上げるときは `pnpm changeset version` の結果を `develop` への Pull Request にします。
+拡張機能のコードを変える Pull Request には changeset を付けます。`packages/currency` の変更が拡張機能の振る舞いを変える場合も、`@cl/browser-extension` の changeset を書きます。
 提出前の検査は `publish-extension.yml` が行うので、検査を省く手順を作りません。
 手動実行は dry-run だけにし、本番提出へ切り替える入力を足しません。同じ version を二重に提出しないためです。
 

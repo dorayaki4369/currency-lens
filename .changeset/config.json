@@ -1,0 +1,18 @@
+{
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [],
+  "linked": [],
+  "access": "restricted",
+  "baseBranch": "develop",
+  "changedFilePatterns": [
+    "**",
+    "!**/*.{test,spec}.{ts,tsx}",
+    "!test/**",
+    "!package.json",
+    "!**/*.md"
+  ],
+  "privatePackages": { "version": true, "tag": false },
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

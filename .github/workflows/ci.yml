@@ -71,6 +71,15 @@ jobs:
         name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # .changeset/config.json decides which files count as an extension change.
+      - name: Require a changeset for extension changes
+        if: github.event_name == 'pull_request' && github.base_ref == 'develop'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --unshallow origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          pnpm exec changeset status --since="origin/${BASE_REF}"
+
       - name: Verify generated popup routes
         run: |
           pnpm -C apps/browser-extension routes:generate

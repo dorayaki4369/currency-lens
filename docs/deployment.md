@@ -34,11 +34,16 @@ Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必�
 
 ## 公開手順
 
-1. `Publish browser extension`を`main`から手動で実行し、dry-runでWorkerとの互換性、credentialの登録漏れ、成果物を確かめます。
-2. `apps/browser-extension/package.json`のversionを更新し、`develop`から`main`へ反映します。
-3. `deploy Worker`が成功した現在のmain HEADへ`vMAJOR.MINOR.PATCH` tagを付け、同じtagで安定版GitHub Releaseを公開します。Workflowが検査に通ると、両ストアへ提出します。
+拡張機能のversionは[Changesets](https://changesets.dev/)で決めます。手で`package.json`のversionやtagを書くことはありません。
 
-ChromeとFirefoxへの提出は一つのトランザクションではなく、一方だけ成功することがあります。再実行する前にActions artifactと両ストアのdashboardを確認し、同じversionを再提出できる状態か判断してください。
+1. 利用者に見える変更を含むPull Requestには、`pnpm changeset`で`.changeset/*.md`を追加します。書き方は[.changeset/README.md](../.changeset/README.md)にあります。`develop`へのPull RequestのCIは、拡張機能のコードを変えたのにchangesetがない場合に失敗します。
+2. リリースするときは、`develop`から作ったブランチで`pnpm changeset version`を実行します。溜まったchangesetから拡張機能のversionと`apps/browser-extension/CHANGELOG.md`が更新されるので、そのcommitを`develop`へのPull Requestにします。
+3. `develop`から`main`へ昇格させます。
+4. `main`へのpushで`Publish browser extension`が動きます。`v{version}`のtagがまだなければ、`deploy Worker`の成功と公開中のAPIを確かめてから両ストアへ提出し、成功後に`v{version}`のtagとGitHub Releaseを作ります。Releaseの本文はCHANGELOGの該当version、添付は提出したZIPです。tagがすでにあれば何もしません。
+
+`Publish browser extension`を`main`から手動で実行すると、提出せずにWorkerとの互換性、credentialの登録漏れ、成果物を確かめるdry-runになります。
+
+ChromeとFirefoxへの提出は一つのトランザクションではなく、一方だけ成功することがあります。この場合tagとReleaseは作られません。再実行する前にActions artifactと両ストアのdashboardを確認し、同じversionを再提出できる状態か判断してください。
 
 Repository variable `API_ENDPOINT`の値を変えると、配布する拡張機能の接続先も変わります。変えるときは、WorkerのCustom Domain、Firefox審査用の`SOURCE_CODE_REVIEW.md`もあわせて確認します。
 

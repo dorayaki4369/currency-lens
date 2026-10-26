@@ -43,6 +43,12 @@ Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必�
 
 `Publish browser extension`を`main`から手動で実行すると、提出せずにWorkerとの互換性、credentialの登録漏れ、成果物を確かめるdry-runになります。
 
+### ストア掲載用の宣伝画像
+
+提出とdry-runのどちらでも、`render store promo images` jobが1280×800の宣伝画像を作り、Actions artifactの`store-promo-images-{run id}`へ保存します。画像はintegrationとE2Eが保存するレビュー用画像からpopupと換算カードを切り抜いて作るので、そのversionの画面がそのまま載ります。ストアへの掲載は自動化していないため、必要なときにartifactから取り出して各ストアのdashboardで差し替えます。このjobが失敗しても提出とGitHub Releaseは止まりません。ただしrunは失敗と表示されるため、提出とReleaseの結果は`publish Chrome and Firefox packages`と`record the release on GitHub`のjobで確かめます。
+
+画像の構成と文言は`apps/browser-extension/store/promo-images.ts`にあります。変えるときは、`pnpm test:integration`と`pnpm test:e2e`でレビュー用画像を作ってから`pnpm store:dev`でプレビューし、`pnpm store:images`で書き出した画像を確認します。ローカルとCIではフォントが異なり、macOSではヒラギノ、CIではNoto Sans CJK JPで描画されます。
+
 ChromeとFirefoxへの提出は一つのトランザクションではなく、一方だけ成功することがあります。提出かGitHub Releaseの作成が失敗すると、tagは作られません。tagがない間は、`main`へpushするたびに同じversionの提出を試み、ストアが同じversionを拒否して失敗します。
 
 この状態になったら、Actions artifactと両ストアのdashboardを確認し、次のどちらかで解消します。

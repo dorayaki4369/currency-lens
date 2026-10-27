@@ -32,7 +32,7 @@
     "@vitest/browser-playwright": "^4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
     "axe-core": "^4.14.0",
-    "happy-dom": "^20.10.6",
+    "happy-dom": "^21.0.4",
     "oxlint-tsgolint": "^7.0.2004",
     "typescript": "^7.0.2",
     "vite-plus": "^0.2.4",

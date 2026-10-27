@@ -308,6 +308,66 @@ jobs:
 
           pnpm run wxt -- "${submit_arguments[@]}"
 
+  # The store listing images are uploaded by hand, so a failure here never blocks a release.
+  promo-images:
+    name: render store promo images
+    if: needs.preflight.outputs.mode == 'release' || needs.preflight.outputs.mode == 'dry-run'
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      API_ENDPOINT: ${{ vars.API_ENDPOINT }}
+    steps:
+      - name: Check out the release
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.preflight.outputs.source_sha }}
+
+      - name: Reject environment files
+        run: |
+          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) ! -name '*.example' -print -quit)"
+          if [[ -n "$blocked_path" ]]; then
+            echo "::error title=Environment file in checkout::$blocked_path must not be present in the repository."
+            exit 1
+          fi
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6.1.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The runner has no Japanese font, so the copy and the popup would render with CJK fallbacks.
+      - name: Install Chromium and Japanese fonts
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          sudo apt-get install --yes --no-install-recommends fonts-noto-cjk
+
+      - name: Save the review screenshots the images crop
+        run: |
+          pnpm test:integration apps/browser-extension/test/integration/screen-accessibility.spec.ts
+          pnpm --dir apps/browser-extension build
+          pnpm exec playwright test extension-smoke
+
+      - name: Render the promo images
+        run: pnpm store:images
+
+      - name: Preserve the promo images
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: store-promo-images-${{ github.run_id }}
+          path: apps/browser-extension/.output/store-images/*.png
+          if-no-files-found: error
+          retention-days: 30
+
   record:
     name: record the release on GitHub
     if: needs.preflight.outputs.mode == 'release'

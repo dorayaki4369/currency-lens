@@ -109,7 +109,7 @@ export function createManifest(
           required: ["none"],
         },
         id: "currency-lens@dryk.net",
-        strict_min_version: "128.0",
+        strict_min_version: "140.0",
       },
     },
   };

@@ -2,6 +2,8 @@
 
 Currency Lensは、Webページで選択した金額を、登録した通貨へその場で換算するChrome・Firefox向けの拡張機能です。ページ内の価格は書き換えず、選択した箇所の近くに小さな換算カードを開きます。
 
+対応ブラウザは、デスクトップ版のChromeと、Firefox 140以降です。Firefox for Androidには対応していません。
+
 - [Chrome Web Store](https://chrome.google.com/webstore/detail/currency-lens/cfpmgblhfmfomcgkpkghcgkcfblbpgkm)
 - [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/currency-lens)
 
@@ -128,6 +130,8 @@ pnpm -C apps/server dev                     # Worker
 | `pnpm test:e2e`         | 拡張機能をビルドし、Chromiumへ読み込んで主要な操作を検証する。Firefox審査用のsources ZIPの中身も検証する。`API_ENDPOINT`が必要 |
 | `pnpm build`            | 拡張機能とWorkerをビルドする。`API_ENDPOINT`が必要                                                                             |
 | `pnpm validate`         | check、coverage、integration、buildを順に実行する。`API_ENDPOINT`が必要                                                        |
+| `pnpm store:dev`        | ストア掲載用の宣伝画像を`http://127.0.0.1:4310/`でプレビューする。元になるレビュー用画像が必要                                 |
+| `pnpm store:images`     | ストア掲載用の宣伝画像を`apps/browser-extension/.output/store-images/`へ書き出す。元になるレビュー用画像が必要                 |
 
 拡張機能のビルドとストア提出用ZIPの作成は、[ブラウザ拡張機能のREADME](apps/browser-extension/README.md#ビルド)を参照してください。
 

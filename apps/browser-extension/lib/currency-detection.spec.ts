@@ -184,6 +184,136 @@ describe("detectCurrencies", () => {
     ]);
   });
 
+  it.each([
+    ["5万円", "ja-JP", 50_000, "JPY"],
+    ["1.5万円", "ja-JP", 15_000, "JPY"],
+    ["3億円", "ja-JP", 300_000_000, "JPY"],
+    ["2兆円", "ja-JP", 2_000_000_000_000, "JPY"],
+    ["3億5000万円", "ja-JP", 350_000_000, "JPY"],
+    ["1億2千万円", "ja-JP", 120_000_000, "JPY"],
+    ["1万5000円", "ja-JP", 15_000, "JPY"],
+    ["5千円", "ja-JP", 5_000, "JPY"],
+    ["3百万円", "ja-JP", 3_000_000, "JPY"],
+    ["¥5万", "ja-JP", 50_000, "JPY"],
+    ["JPY 1.1億", "ja-JP", 110_000_000, "JPY"],
+    ["5万元", "zh-CN", 50_000, "CNY"],
+    ["3亿元", "zh-CN", 300_000_000, "CNY"],
+    ["1.2萬港元", "zh-HK", 12_000, "HKD"],
+    ["5만원", "ko-KR", 50_000, "KRW"],
+    ["3억 5천만 원", "ko-KR", 350_000_000, "KRW"],
+    ["₩1조", "ko-KR", 1_000_000_000_000, "KRW"],
+    ["1조 2천억 3천만 4천 원", "ko-KR", 1_200_030_004_000, "KRW"],
+    ["$1 million", "en-US", 1_000_000, "USD"],
+    ["$1.5 billion", "en-US", 1_500_000_000, "USD"],
+    ["$1 Billion", "en-US", 1_000_000_000, "USD"],
+    ["$2 trillion", "en-US", 2_000_000_000_000, "USD"],
+    ["USD 10 thousand", "en-US", 10_000, "USD"],
+    ["$5k", "en-US", 5_000, "USD"],
+    ["$5K", "en-US", 5_000, "USD"],
+    ["$2.5M", "en-US", 2_500_000, "USD"],
+    ["$3bn", "en-US", 3_000_000_000, "USD"],
+    ["USD 2 million 500 thousand", "en-US", 2_500_000, "USD"],
+    ["₹5 lakh", "en-IN", 500_000, "INR"],
+    ["₹2 crore", "en-IN", 20_000_000, "INR"],
+    ["5 लाख ₹", "hi-IN", 500_000, "INR"],
+    ["3 Mio. €", "de-DE", 3_000_000, "EUR"],
+    ["1,5 Mrd. EUR", "de-DE", 1_500_000_000, "EUR"],
+    ["1 Billion EUR", "de-DE", 1_000_000_000_000, "EUR"],
+    ["2 milliards €", "fr-FR", 2_000_000_000, "EUR"],
+    ["1 billion €", "fr-FR", 1_000_000_000_000, "EUR"],
+    ["5 M€", "fr-FR", 5_000_000, "EUR"],
+    ["€3 millones", "es-ES", 3_000_000, "EUR"],
+    ["USD 2 mil millones", "es-MX", 2_000_000_000, "USD"],
+    ["1 billón USD", "es-MX", 1_000_000_000_000, "USD"],
+    ["R$ 5 milhões", "pt-BR", 5_000_000, "BRL"],
+    ["R$ 2 bilhões", "pt-BR", 2_000_000_000, "BRL"],
+    ["€2 milioni", "it-IT", 2_000_000, "EUR"],
+    ["5 miliardi EUR", "it-IT", 5_000_000_000, "EUR"],
+    ["€3 miljoen", "nl-NL", 3_000_000, "EUR"],
+    ["₽5 млн", "ru-RU", 5_000_000, "RUB"],
+    ["10 тыс. ₽", "ru-RU", 10_000, "RUB"],
+    ["5 mln zł", "pl-PL", 5_000_000, "PLN"],
+    ["₺5 milyon", "tr-TR", 5_000_000, "TRY"],
+    ["Rp 5 juta", "id-ID", 5_000_000, "IDR"],
+    ["5 triệu đồng", "vi-VN", 5_000_000, "VND"],
+    ["5ล้านบาท", "th-TH", 5_000_000, "THB"],
+    ["5 مليون درهم", "ar-AE", 5_000_000, "AED"],
+  ])("detects the magnitude word in %s (%s)", (text, pageLocale, amount, currencyCode) => {
+    expect(detectCurrencies(text, { pageLocale })).toMatchObject([
+      { amount, currencyCode, originalText: text },
+    ]);
+  });
+
+  it.each([
+    ["5万ドル", 50_000, "USD"],
+    ["1.5万米ドル", 15_000, "USD"],
+    ["3億5000万ユーロ", 350_000_000, "EUR"],
+    ["5千ポンド", 5_000, "GBP"],
+    ["10万豪ドル", 100_000, "AUD"],
+    ["2億人民元", 200_000_000, "CNY"],
+    ["5万USD", 50_000, "USD"],
+    ["USD 5千", 5_000, "USD"],
+    ["5k円", 5_000, "JPY"],
+    ["1.5M円", 1_500_000, "JPY"],
+    ["3 millionドル", 3_000_000, "USD"],
+  ])("combines any magnitude with any currency in %s", (text, amount, currencyCode) => {
+    expect(detectCurrencies(text, { pageLocale: "ja-JP" })).toMatchObject([
+      { amount, currencyCode, originalText: text },
+    ]);
+  });
+
+  it.each([
+    ["価格は500円です", "ja-JP", 500, "JPY", "500円"],
+    ["約5万円です", "ja-JP", 50_000, "JPY", "5万円"],
+    ["価格は¥500です", "ja-JP", 500, "JPY", "¥500"],
+    ["3000円以上で送料無料", "ja-JP", 3_000, "JPY", "3000円"],
+    ["100円OFF", "ja-JP", 100, "JPY", "100円"],
+    ["5万ドルを送金", "ja-JP", 50_000, "USD", "5万ドル"],
+    ["单价USD100起", "zh-CN", 100, "USD", "USD100"],
+    ["价格500元起", "zh-CN", 500, "CNY", "500元"],
+    ["가격은 5000원이에요", "ko-KR", 5_000, "KRW", "5000원"],
+    ["ราคา500บาท", "th-TH", 500, "THB", "500บาท"],
+  ])(
+    "detects %s between words of a script written without spaces",
+    (text, pageLocale, amount, currencyCode, originalText) => {
+      expect(detectCurrencies(text, { pageLocale })).toMatchObject([
+        { amount, currencyCode, originalText },
+      ]);
+    },
+  );
+
+  it("keeps rejecting fragments of longer words next to unspaced scripts", () => {
+    expect(detectCurrencies("100ドルショップ", { pageLocale: "ja-JP" })).toEqual([]);
+    expect(detectCurrencies("紀元2000年", { pageLocale: "zh-CN" })).toEqual([]);
+    expect(detectCurrencies("abc100円", { pageLocale: "ja-JP" })).toEqual([]);
+    expect(detectCurrencies("100円5", { pageLocale: "ja-JP" })).toEqual([]);
+  });
+
+  it("prefers an explicit code when symbol and code surround a scaled amount", () => {
+    expect(detectCurrencies("$1 million CAD", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 1_000_000, currencyCode: "CAD", originalText: "1 million CAD" },
+    ]);
+  });
+
+  it("does not treat the start of a longer word as a magnitude", () => {
+    expect(detectCurrencies("$5 man", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 5, currencyCode: "USD", originalText: "$5" },
+    ]);
+    expect(detectCurrencies("$5 millionaire", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 5, currencyCode: "USD", originalText: "$5" },
+    ]);
+  });
+
+  it("rejects out-of-order magnitudes, missing currencies, and overflow", () => {
+    expect(detectCurrencies("5万3億円", { pageLocale: "ja-JP" })).toEqual([]);
+    expect(detectCurrencies("5千3千円", { pageLocale: "ja-JP" })).toEqual([]);
+    expect(detectCurrencies("1億万円", { pageLocale: "ja-JP" })).toEqual([]);
+    expect(detectCurrencies("5万千円", { pageLocale: "ja-JP" })).toEqual([]);
+    expect(detectCurrencies("1,23,456万円", { pageLocale: "ja-JP" })).toEqual([]);
+    expect(detectCurrencies("5万", { pageLocale: "ja-JP" })).toEqual([]);
+    expect(detectCurrencies(`${"9".repeat(300)}兆円`, { pageLocale: "ja-JP" })).toEqual([]);
+  });
+
   it("returns only the first three amounts in source order", () => {
     const detected = detectCurrencies("USD 1, EUR 2, GBP 3, JPY 4");
     expect(detected.map(({ currencyCode }) => currencyCode)).toEqual(["USD", "EUR", "GBP"]);

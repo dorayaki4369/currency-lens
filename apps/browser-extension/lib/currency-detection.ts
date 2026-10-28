@@ -26,7 +26,9 @@ const MAX_ADDITIONAL_MAGNITUDES = 8;
 const MAGNITUDE_SOURCE = buildMagnitudeSource();
 // A number optionally followed by magnitudes, such as "5", "1.5 million", or "3億5000万".
 // The bounded repetition keeps backtracking linear for long selections that repeat a magnitude.
-const AMOUNT_SOURCE = String.raw`${NUMBER_SOURCE}(?:\s?${MAGNITUDE_SOURCE}(?:\s?(?:${NUMBER_SOURCE}\s?)?${MAGNITUDE_SOURCE}){0,${MAX_ADDITIONAL_MAGNITUDES}}(?:${NUMBER_SOURCE})?)?`;
+// A spaced remainder is joined only after a magnitude such as "万", so "1万 5000" stays one amount
+// while the number in "$5 million 2024" stays separate.
+const AMOUNT_SOURCE = String.raw`${NUMBER_SOURCE}(?:\s?${MAGNITUDE_SOURCE}(?:\s?(?:${NUMBER_SOURCE}\s?)?${MAGNITUDE_SOURCE}){0,${MAX_ADDITIONAL_MAGNITUDES}}(?:(?:(?<=${UNSPACED_SCRIPT_SOURCE})\s)?${NUMBER_SOURCE})?)?`;
 const AMOUNT_PART_PATTERN = new RegExp(`(${NUMBER_SOURCE})|(${MAGNITUDE_SOURCE})`, "gu");
 const GROUPING_SPACE_PATTERN = /[\u00A0\u202F\u2009 ]/gu;
 const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}_]/u;

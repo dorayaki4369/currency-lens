@@ -192,6 +192,9 @@ describe("detectCurrencies", () => {
     ["3億5000万円", "ja-JP", 350_000_000, "JPY"],
     ["1億2千万円", "ja-JP", 120_000_000, "JPY"],
     ["1万5000円", "ja-JP", 15_000, "JPY"],
+    ["1万 5000円", "ja-JP", 15_000, "JPY"],
+    ["USD 1万 5000", "ja-JP", 15_000, "USD"],
+    ["1만 5000원", "ko-KR", 15_000, "KRW"],
     ["5千円", "ja-JP", 5_000, "JPY"],
     ["3百万円", "ja-JP", 3_000_000, "JPY"],
     ["¥5万", "ja-JP", 50_000, "JPY"],
@@ -310,6 +313,13 @@ describe("detectCurrencies", () => {
     ).toMatchObject([{ amount: 1_000_000_000 }]);
     expect(detectCurrencies("$1 billion", { browserLocale: "de-DE" })).toMatchObject([
       { amount: 1_000_000_000_000 },
+    ]);
+  });
+
+  it("does not join a spaced number after a word magnitude", () => {
+    // Spaced words are not written with a bare remainder, so the number belongs to the next phrase.
+    expect(detectCurrencies("$5 million 2024", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 5_000_000, currencyCode: "USD", originalText: "$5 million" },
     ]);
   });
 

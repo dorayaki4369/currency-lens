@@ -212,6 +212,7 @@ describe("detectCurrencies", () => {
     ["$5K", "en-US", 5_000, "USD"],
     ["$2.5M", "en-US", 2_500_000, "USD"],
     ["$3bn", "en-US", 3_000_000_000, "USD"],
+    ["$5 mil", "en-US", 5_000, "USD"],
     ["USD 2 million 500 thousand", "en-US", 2_500_000, "USD"],
     ["₹5 lakh", "en-IN", 500_000, "INR"],
     ["₹2 crore", "en-IN", 20_000_000, "INR"],

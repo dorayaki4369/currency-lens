@@ -234,6 +234,10 @@ function applyMagnitude(state: ScaledAmountState, magnitude: Magnitude): boolean
   }
 
   if (state.pendingNumber !== null) {
+    // A bare number after a within-group term, as in "5 thousand 3 million", would be scaled twice.
+    if (state.groupTerms.length > 0) {
+      return false;
+    }
     state.groupTerms.push({ value: state.pendingNumber, exponent: 0 });
   }
   if (state.groupTerms.length === 0 || magnitude.exponent >= state.lastGroupExponent) {

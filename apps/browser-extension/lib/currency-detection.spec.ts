@@ -273,6 +273,8 @@ describe("detectCurrencies", () => {
     ["价格500元起", "zh-CN", 500, "CNY", "500元"],
     ["가격은 5000원이에요", "ko-KR", 5_000, "KRW", "5000원"],
     ["ราคา500บาท", "th-TH", 500, "THB", "500บาท"],
+    ["100円abc", "ja-JP", 100, "JPY", "100円"],
+    ["ショップ100ドル", "ja-JP", 100, "USD", "100ドル"],
   ])(
     "detects %s between words of a script written without spaces",
     (text, pageLocale, amount, currencyCode, originalText) => {
@@ -292,6 +294,21 @@ describe("detectCurrencies", () => {
   it("prefers an explicit code when symbol and code surround a scaled amount", () => {
     expect(detectCurrencies("$1 million CAD", { pageLocale: "en-US" })).toMatchObject([
       { amount: 1_000_000, currencyCode: "CAD", originalText: "1 million CAD" },
+    ]);
+  });
+
+  it("detects Japanese currency names on pages in other languages", () => {
+    expect(
+      detectCurrencies("5万ドル", { pageLocale: "en-US", browserLocale: "en-US" }),
+    ).toMatchObject([{ amount: 50_000, currencyCode: "USD" }]);
+  });
+
+  it("reads billion by the page language before the browser language", () => {
+    expect(
+      detectCurrencies("$1 billion", { pageLocale: "en-US", browserLocale: "de-DE" }),
+    ).toMatchObject([{ amount: 1_000_000_000 }]);
+    expect(detectCurrencies("$1 billion", { browserLocale: "de-DE" })).toMatchObject([
+      { amount: 1_000_000_000_000 },
     ]);
   });
 

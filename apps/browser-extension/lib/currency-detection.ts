@@ -9,13 +9,32 @@ import {
   getCurrencyLocalNameDefinition,
   getCurrencyLocalNameDefinitions,
 } from "@/lib/currency-local-names";
+import {
+  getMagnitudeTokens,
+  resolveMagnitude,
+  type Magnitude,
+} from "@/lib/amount-magnitudes";
 
 export const MAX_DETECTED_AMOUNTS = 3;
 
 const MAX_SELECTION_LENGTH = 1_000;
 const NUMBER_SOURCE = String.raw`\p{Nd}+(?:[.,\u00A0\u202F\u2009 ]\p{Nd}+)*`;
+// Scripts that join words without spaces, so a neighboring letter does not extend a token.
+const UNSPACED_SCRIPT_SOURCE = String.raw`[\p{Script_Extensions=Han}\p{Script_Extensions=Hiragana}\p{Script_Extensions=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]`;
+// Enough for Korean amounts that combine six magnitudes, such as "1조 2천억 3천만 4천".
+const MAX_ADDITIONAL_MAGNITUDES = 8;
+const MAGNITUDE_SOURCE = buildMagnitudeSource();
+// A number optionally followed by magnitudes, such as "5", "1.5 million", or "3億5000万".
+// The bounded repetition keeps backtracking linear for long selections that repeat a magnitude.
+// A spaced remainder is joined only after a magnitude such as "万", so "1万 5000" stays one amount
+// while the number in "$5 million 2024" stays separate.
+const AMOUNT_SOURCE = String.raw`${NUMBER_SOURCE}(?:\s?${MAGNITUDE_SOURCE}(?:\s?(?:${NUMBER_SOURCE}\s?)?${MAGNITUDE_SOURCE}){0,${MAX_ADDITIONAL_MAGNITUDES}}(?:(?:(?<=${UNSPACED_SCRIPT_SOURCE})\s)?${NUMBER_SOURCE})?)?`;
+const AMOUNT_PART_PATTERN = new RegExp(`(${NUMBER_SOURCE})|(${MAGNITUDE_SOURCE})`, "gu");
 const GROUPING_SPACE_PATTERN = /[\u00A0\u202F\u2009 ]/gu;
 const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}_]/u;
+const DIGIT_PATTERN = /\p{N}/u;
+const KATAKANA_PATTERN = /\p{Script_Extensions=Katakana}/u;
+const UNSPACED_SCRIPT_PATTERN = new RegExp(UNSPACED_SCRIPT_SOURCE, "u");
 const DECIMAL_DIGIT_SETS = [
   "0123456789",
   "٠١٢٣٤٥٦٧٨٩",
@@ -53,6 +72,19 @@ interface DetectionPattern {
   readonly tokenKind: TokenKind;
 }
 
+interface ScaledTerm {
+  readonly value: string;
+  readonly exponent: number;
+}
+
+interface ScaledAmountState {
+  readonly completedTerms: ScaledTerm[];
+  groupTerms: ScaledTerm[];
+  pendingNumber: string | null;
+  lastGroupExponent: number;
+  lastWithinGroupExponent: number;
+}
+
 interface CandidateDetection extends DetectedCurrency {
   readonly amountStart: number;
   readonly amountEnd: number;
@@ -73,19 +105,21 @@ export function detectCurrencies(
   const detections = detectionPatterns.flatMap((pattern) =>
     collectPatternMatches(source, pattern, options),
   );
-  const uniqueDetections = new Map<string, CandidateDetection>();
+  const orderedDetections = detections.toSorted(
+    (left, right) =>
+      left.amountStart - right.amountStart || right.amountEnd - left.amountEnd,
+  );
+  const acceptedDetections: CandidateDetection[] = [];
 
-  for (const detection of detections) {
-    const key = `${detection.amountStart}:${detection.amountEnd}`;
-    if (!uniqueDetections.has(key)) {
-      uniqueDetections.set(key, detection);
+  // Pattern priority breaks ties, and the longest amount wins over overlapping fragments such as "5" in "$5K".
+  for (const detection of orderedDetections) {
+    const previous = acceptedDetections.at(-1);
+    if (previous === undefined || detection.amountStart >= previous.amountEnd) {
+      acceptedDetections.push(detection);
     }
   }
 
-  return [...uniqueDetections.values()]
-    .toSorted((left, right) => left.amountStart - right.amountStart)
-    .slice(0, MAX_DETECTED_AMOUNTS)
-    .map(toDetectedCurrency);
+  return acceptedDetections.slice(0, MAX_DETECTED_AMOUNTS).map(toDetectedCurrency);
 }
 
 /** Parses US, European, and space-grouped amount text using optional locale hints. */
@@ -93,6 +127,41 @@ export function parseMoneyAmount(
   amountText: string,
   options: Pick<CurrencyDetectionOptions, "pageLocale" | "browserLocale"> = {},
 ): number | null {
+  const normalizedNumber = normalizeMoneyNumber(amountText, options);
+  if (normalizedNumber === null) {
+    return null;
+  }
+
+  const amount = Number(normalizedNumber);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+/**
+ * Builds the magnitude alternation, requiring a word boundary after spaced words.
+ * The boundary appears once per group because each Unicode property class enlarges the
+ * compiled pattern, and repeating it per token made the first detection take about a second.
+ */
+function buildMagnitudeSource(): string {
+  const tokens = getMagnitudeTokens().toSorted(
+    (left, right) => right.token.length - left.token.length,
+  );
+  const spacedSource = tokens
+    .filter(({ spaced }) => spaced)
+    .map(({ token }) => escapeRegularExpression(token))
+    .join("|");
+  const attachedSource = tokens
+    .filter(({ spaced }) => !spaced)
+    .map(({ token }) => escapeRegularExpression(token))
+    .join("|");
+  // A spaced word may still touch an unspaced script, as in "5k円".
+  return String.raw`(?:(?:${spacedSource})(?!(?!${UNSPACED_SCRIPT_SOURCE})[\p{L}\p{M}\p{N}_])|${attachedSource})`;
+}
+
+/** Converts separator-grouped amount text into a dot-decimal string without rounding. */
+function normalizeMoneyNumber(
+  amountText: string,
+  options: Pick<CurrencyDetectionOptions, "pageLocale" | "browserLocale">,
+): string | null {
   const normalized = normalizeDecimalDigits(amountText).replace(
     GROUPING_SPACE_PATTERN,
     " ",
@@ -107,13 +176,103 @@ export function parseMoneyAmount(
     return null;
   }
 
-  const normalizedNumber = normalizeGroupedNumber(normalized, decimalSeparator);
-  if (normalizedNumber === null) {
-    return null;
+  return normalizeGroupedNumber(normalized, decimalSeparator);
+}
+
+/**
+ * Parses an amount that may contain magnitudes, such as "1.5 million" or "3億5千万".
+ * Group magnitudes must descend, and within-group magnitudes must descend inside a group.
+ */
+function parseScaledAmount(
+  amountText: string,
+  options: CurrencyDetectionOptions,
+): number | null {
+  const language = getPrimaryLanguage(options);
+  const state: ScaledAmountState = {
+    completedTerms: [],
+    groupTerms: [],
+    pendingNumber: null,
+    lastGroupExponent: Number.POSITIVE_INFINITY,
+    lastWithinGroupExponent: Number.POSITIVE_INFINITY,
+  };
+
+  for (const [, numberText, magnitudeText] of amountText.matchAll(AMOUNT_PART_PATTERN)) {
+    if (numberText !== undefined) {
+      state.pendingNumber = normalizeMoneyNumber(numberText, options);
+      if (state.pendingNumber === null) {
+        return null;
+      }
+    } else if (!applyMagnitude(state, resolveMagnitude(magnitudeText!, language))) {
+      return null;
+    }
   }
 
-  const amount = Number(normalizedNumber);
+  if (state.pendingNumber !== null) {
+    state.groupTerms.push({ value: state.pendingNumber, exponent: 0 });
+  }
+
+  // Exponent notation shifts the decimal point exactly, so "1.1" and 8 become 110000000.
+  const amount = [...state.completedTerms, ...state.groupTerms].reduce(
+    (sum, term) => sum + Number(`${term.value}e${term.exponent}`),
+    0,
+  );
   return Number.isFinite(amount) ? amount : null;
+}
+
+/** Applies one magnitude to the pending number, returning false for an out-of-order amount. */
+function applyMagnitude(state: ScaledAmountState, magnitude: Magnitude): boolean {
+  if (magnitude.rank === "within-group") {
+    if (
+      state.pendingNumber === null ||
+      magnitude.exponent >= state.lastWithinGroupExponent ||
+      magnitude.exponent >= state.lastGroupExponent
+    ) {
+      return false;
+    }
+    state.groupTerms.push({ value: state.pendingNumber, exponent: magnitude.exponent });
+    state.lastWithinGroupExponent = magnitude.exponent;
+    state.pendingNumber = null;
+    return true;
+  }
+
+  if (state.pendingNumber !== null) {
+    // A bare number after a within-group term, as in "5 thousand 3 million", would be scaled twice.
+    if (state.groupTerms.length > 0) {
+      return false;
+    }
+    state.groupTerms.push({ value: state.pendingNumber, exponent: 0 });
+  }
+  if (state.groupTerms.length === 0 || magnitude.exponent >= state.lastGroupExponent) {
+    return false;
+  }
+  state.completedTerms.push(
+    ...state.groupTerms.map((term) => ({
+      value: term.value,
+      exponent: term.exponent + magnitude.exponent,
+    })),
+  );
+  state.groupTerms = [];
+  state.pendingNumber = null;
+  state.lastGroupExponent = magnitude.exponent;
+  state.lastWithinGroupExponent = Number.POSITIVE_INFINITY;
+  return true;
+}
+
+/** Returns the language of the first valid locale hint for long-scale magnitudes. */
+function getPrimaryLanguage(options: CurrencyDetectionOptions): string | undefined {
+  for (const locale of [options.pageLocale, options.browserLocale]) {
+    if (locale === undefined || locale.length === 0) {
+      continue;
+    }
+
+    try {
+      return new Intl.Locale(locale).language;
+    } catch {
+      // An invalid page locale is only a hint, so the browser locale may still be used.
+    }
+  }
+
+  return undefined;
 }
 
 /** Creates code, symbol, and local-name patterns with longest tokens first. */
@@ -148,8 +307,8 @@ function createDetectionPattern(
 ): DetectionPattern {
   const source =
     placement === "currency-before"
-      ? `(${tokenSource})\\s*(${NUMBER_SOURCE})`
-      : `(${NUMBER_SOURCE})\\s*(${tokenSource})`;
+      ? `(${tokenSource})\\s*(${AMOUNT_SOURCE})`
+      : `(${AMOUNT_SOURCE})\\s*(${tokenSource})`;
 
   return { regex: new RegExp(source, "gu"), placement, tokenKind };
 }
@@ -185,7 +344,7 @@ function createDetection(
   if (
     first === undefined ||
     second === undefined ||
-    !isMatchBoundaryValid(text, match, pattern.placement)
+    !isMatchBoundaryValid(text, match, pattern)
   ) {
     return null;
   }
@@ -193,7 +352,7 @@ function createDetection(
   const token = pattern.placement === "currency-before" ? first : second;
   const amountText = pattern.placement === "currency-before" ? second : first;
   const currencyCode = resolveCurrencyToken(token, pattern.tokenKind, options);
-  const amount = parseMoneyAmount(amountText, options);
+  const amount = parseScaledAmount(amountText, options);
 
   if (currencyCode === undefined || amount === null || amount <= 0) {
     return null;
@@ -224,44 +383,48 @@ function toDetectedCurrency(candidate: CandidateDetection): DetectedCurrency {
   };
 }
 
-/** Ensures neither the currency token nor amount is a suffix of a longer token. */
+/** Ensures neither the currency token nor amount is a fragment of a longer token. */
 function isMatchBoundaryValid(
   text: string,
   match: RegExpExecArray,
-  placement: Placement,
+  pattern: DetectionPattern,
 ): boolean {
   const start = match.index;
   const end = start + match[0].length;
+  const previous = text[start - 1];
+  const next = text[end];
+  const isEndValid = isWordBoundary(next, match[0].at(-1)!);
 
-  if (placement === "currency-before") {
-    return isCurrencyStartBoundary(text, start) && isAmountEndBoundary(text, end);
+  // A local name such as 元 before an amount may be the end of a word, as in 紀元2000年.
+  if (pattern.placement === "currency-before" && pattern.tokenKind === "local-name") {
+    return isStrictWordBoundary(previous) && isEndValid;
   }
 
-  return isAmountStartBoundary(text, start) && isCurrencyEndBoundary(text, end);
+  return isWordBoundary(previous, match[0][0]!) && isEndValid;
 }
 
-/** Rejects a currency token that begins inside a larger word-like token. */
-function isCurrencyStartBoundary(text: string, start: number): boolean {
-  const previous = text[start - 1];
-  return previous === undefined || !WORD_CHARACTER_PATTERN.test(previous);
+/**
+ * Accepts a neighbor that separates words. Scripts written without spaces, such as
+ * Japanese, Chinese, and Thai, may touch a match, as in 価格は500円です, except where
+ * Katakana continues a Katakana token, as in 100ドルショップ.
+ */
+function isWordBoundary(neighbor: string | undefined, edge: string): boolean {
+  if (isStrictWordBoundary(neighbor)) {
+    return true;
+  }
+  if (DIGIT_PATTERN.test(neighbor!)) {
+    return false;
+  }
+  if (KATAKANA_PATTERN.test(neighbor!) && KATAKANA_PATTERN.test(edge)) {
+    return false;
+  }
+
+  return UNSPACED_SCRIPT_PATTERN.test(neighbor!) || UNSPACED_SCRIPT_PATTERN.test(edge);
 }
 
-/** Rejects a currency token that ends inside a larger word-like token. */
-function isCurrencyEndBoundary(text: string, end: number): boolean {
-  const next = text[end];
-  return next === undefined || !WORD_CHARACTER_PATTERN.test(next);
-}
-
-/** Rejects an amount whose beginning is a trailing fragment of another number. */
-function isAmountStartBoundary(text: string, start: number): boolean {
-  const previous = text[start - 1];
-  return previous === undefined || !WORD_CHARACTER_PATTERN.test(previous);
-}
-
-/** Rejects an amount whose end is a leading fragment of another number or word. */
-function isAmountEndBoundary(text: string, end: number): boolean {
-  const next = text[end];
-  return next === undefined || !WORD_CHARACTER_PATTERN.test(next);
+/** Accepts only the start or end of text, whitespace, and punctuation as a boundary. */
+function isStrictWordBoundary(neighbor: string | undefined): boolean {
+  return neighbor === undefined || !WORD_CHARACTER_PATTERN.test(neighbor);
 }
 
 /** Resolves an explicit code or a locale-sensitive symbol to a supported currency. */

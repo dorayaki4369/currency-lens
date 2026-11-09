@@ -1,8 +1,8 @@
 {
   "extensionName": {
-    "message": "Currency Lens"
+    "message": "Currency Lens – Currency Converter"
   },
   "extensionDescription": {
-    "message": "Convert selected prices into your chosen currencies without leaving the page."
+    "message": "Currency converter: select any price on a web page and convert it into up to 5 currencies with live exchange rates."
   }
 }

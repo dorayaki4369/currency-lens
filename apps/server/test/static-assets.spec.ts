@@ -16,6 +16,33 @@ afterAll(async () => {
   await server.close();
 });
 
+describe("static landing page", () => {
+  it("serves the page as HTML at /", async () => {
+    const response = await server.fetch("/");
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toMatch(/^text\/html\b/u);
+  });
+
+  it("forbids scripts, external resources, embedding, and referrer leakage", async () => {
+    const response = await server.fetch("/");
+
+    expect(response.headers.get("Content-Security-Policy")).toBe(
+      "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    );
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=3600");
+  });
+
+  it("does not publish the file name as a page", async () => {
+    const response = await server.fetch("/index.html", { redirect: "manual" });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("Location")).toBe("/");
+  });
+});
+
 describe("static privacy policy", () => {
   it("serves the page as HTML at /privacy", async () => {
     const response = await server.fetch("/privacy");

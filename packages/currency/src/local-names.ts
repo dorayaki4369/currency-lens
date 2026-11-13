@@ -90,6 +90,16 @@ export const currencyLocalNames = [
         sample: "100 dollars",
         locales: ["en-HM"],
       },
+      {
+        name: "豪ドル",
+        sample: "100豪ドル",
+        locales: ["ja-JP"],
+      },
+      {
+        name: "オーストラリアドル",
+        sample: "100オーストラリアドル",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -230,6 +240,11 @@ export const currencyLocalNames = [
         sample: "100 reais",
         locales: ["pt-BR"],
       },
+      {
+        name: "レアル",
+        sample: "100レアル",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -305,6 +320,11 @@ export const currencyLocalNames = [
         sample: "100 dollars",
         locales: ["fr-CA"],
       },
+      {
+        name: "カナダドル",
+        sample: "100カナダドル",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -340,6 +360,11 @@ export const currencyLocalNames = [
         sample: "100 franchi",
         locales: ["it-CH"],
       },
+      {
+        name: "スイスフラン",
+        sample: "100スイスフラン",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -359,6 +384,11 @@ export const currencyLocalNames = [
         name: "元",
         sample: "100元",
         locales: ["zh-CN"],
+      },
+      {
+        name: "人民元",
+        sample: "100人民元",
+        locales: ["ja-JP"],
       },
     ],
   },
@@ -629,6 +659,11 @@ export const currencyLocalNames = [
         sample: "100 евра",
         locales: ["sr-XK"],
       },
+      {
+        name: "ユーロ",
+        sample: "100ユーロ",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -663,6 +698,16 @@ export const currencyLocalNames = [
         name: "pounds",
         sample: "100 pounds",
         locales: ["en-GG", "en-IM", "en-JE"],
+      },
+      {
+        name: "ポンド",
+        sample: "100ポンド",
+        locales: ["ja-JP"],
+      },
+      {
+        name: "英ポンド",
+        sample: "100英ポンド",
+        locales: ["ja-JP"],
       },
     ],
   },
@@ -754,6 +799,11 @@ export const currencyLocalNames = [
         sample: "100 dollars",
         locales: ["en-HK"],
       },
+      {
+        name: "香港ドル",
+        sample: "100香港ドル",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -799,6 +849,11 @@ export const currencyLocalNames = [
         sample: "100 rupiah",
         locales: ["id-ID"],
       },
+      {
+        name: "ルピア",
+        sample: "100ルピア",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -833,6 +888,16 @@ export const currencyLocalNames = [
         name: "rupees",
         sample: "100 rupees",
         locales: ["en-IN"],
+      },
+      {
+        name: "ルピー",
+        sample: "100ルピー",
+        locales: ["ja-JP"],
+      },
+      {
+        name: "インドルピー",
+        sample: "100インドルピー",
+        locales: ["ja-JP"],
       },
     ],
   },
@@ -968,6 +1033,11 @@ export const currencyLocalNames = [
         name: "원",
         sample: "100원",
         locales: ["ko-KR"],
+      },
+      {
+        name: "ウォン",
+        sample: "100ウォン",
+        locales: ["ja-JP"],
       },
     ],
   },
@@ -1234,6 +1304,11 @@ export const currencyLocalNames = [
         sample: "100 pesos",
         locales: ["es-MX"],
       },
+      {
+        name: "メキシコペソ",
+        sample: "100メキシコペソ",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -1243,6 +1318,11 @@ export const currencyLocalNames = [
         name: "ringgit",
         sample: "100 ringgit",
         locales: ["ms-MY"],
+      },
+      {
+        name: "リンギット",
+        sample: "100リンギット",
+        locales: ["ja-JP"],
       },
     ],
   },
@@ -1324,6 +1404,16 @@ export const currencyLocalNames = [
         sample: "100 tāra",
         locales: ["mi-NZ"],
       },
+      {
+        name: "NZドル",
+        sample: "100NZドル",
+        locales: ["ja-JP"],
+      },
+      {
+        name: "ニュージーランドドル",
+        sample: "100ニュージーランドドル",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -1383,6 +1473,11 @@ export const currencyLocalNames = [
         name: "pesos",
         sample: "100 pesos",
         locales: ["en-PH"],
+      },
+      {
+        name: "フィリピンペソ",
+        sample: "100フィリピンペソ",
+        locales: ["ja-JP"],
       },
     ],
   },
@@ -1463,6 +1558,11 @@ export const currencyLocalNames = [
         name: "рублей",
         sample: "100 рублей",
         locales: ["ru-RU"],
+      },
+      {
+        name: "ルーブル",
+        sample: "100ルーブル",
+        locales: ["ja-JP"],
       },
     ],
   },
@@ -1569,6 +1669,11 @@ export const currencyLocalNames = [
         sample: "100 டாலர்கள்",
         locales: ["ta-SG"],
       },
+      {
+        name: "シンガポールドル",
+        sample: "100シンガポールドル",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -1674,6 +1779,11 @@ export const currencyLocalNames = [
         sample: "100 บาท",
         locales: ["th-TH"],
       },
+      {
+        name: "バーツ",
+        sample: "100バーツ",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -1734,6 +1844,11 @@ export const currencyLocalNames = [
         sample: "100 lira",
         locales: ["tr-TR"],
       },
+      {
+        name: "トルコリラ",
+        sample: "100トルコリラ",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -1758,6 +1873,11 @@ export const currencyLocalNames = [
         name: "元",
         sample: "100元",
         locales: ["zh-Hant-TW"],
+      },
+      {
+        name: "台湾ドル",
+        sample: "100台湾ドル",
+        locales: ["ja-JP"],
       },
     ],
   },
@@ -1864,6 +1984,21 @@ export const currencyLocalNames = [
         sample: "100 dola",
         locales: ["nd-ZW"],
       },
+      {
+        name: "ドル",
+        sample: "100ドル",
+        locales: ["ja-JP"],
+      },
+      {
+        name: "米ドル",
+        sample: "100米ドル",
+        locales: ["ja-JP"],
+      },
+      {
+        name: "USドル",
+        sample: "100USドル",
+        locales: ["ja-JP"],
+      },
     ],
   },
   {
@@ -1908,6 +2043,11 @@ export const currencyLocalNames = [
         name: "đồng",
         sample: "100 đồng",
         locales: ["vi-VN"],
+      },
+      {
+        name: "ベトナムドン",
+        sample: "100ベトナムドン",
+        locales: ["ja-JP"],
       },
     ],
   },
@@ -2063,6 +2203,11 @@ export const currencyLocalNames = [
         name: "rand",
         sample: "100 rand",
         locales: ["en-ZA"],
+      },
+      {
+        name: "南アフリカランド",
+        sample: "100南アフリカランド",
+        locales: ["ja-JP"],
       },
     ],
   },

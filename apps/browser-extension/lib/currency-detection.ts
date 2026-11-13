@@ -208,6 +208,9 @@ function parseScaledAmount(
   }
 
   if (state.pendingNumber !== null) {
+    if (!isBelowSmallestTerm(state, state.pendingNumber)) {
+      return null;
+    }
     state.groupTerms.push({ value: state.pendingNumber, exponent: 0 });
   }
 
@@ -217,6 +220,16 @@ function parseScaledAmount(
     0,
   );
   return Number.isFinite(amount) ? amount : null;
+}
+
+/** Checks that a trailing remainder fits below the last magnitude, so "1万20000" is rejected. */
+function isBelowSmallestTerm(state: ScaledAmountState, remainder: string): boolean {
+  const terms = [...state.completedTerms, ...state.groupTerms];
+  if (terms.length === 0) {
+    return true;
+  }
+  const smallestExponent = Math.min(...terms.map((term) => term.exponent));
+  return Number(remainder) < Number(`1e${smallestExponent}`);
 }
 
 /** Applies one magnitude to the pending number, returning false for an out-of-order amount. */

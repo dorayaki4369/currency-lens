@@ -341,6 +341,9 @@ describe("detectCurrencies", () => {
     expect(detectCurrencies("5万", { pageLocale: "ja-JP" })).toEqual([]);
     expect(detectCurrencies("1千5万円", { pageLocale: "ja-JP" })).toEqual([]);
     expect(detectCurrencies("$5 thousand 3 million", { pageLocale: "en-US" })).toEqual([]);
+    expect(detectCurrencies("1万20000円", { pageLocale: "ja-JP" })).toEqual([]);
+    expect(detectCurrencies("1万 10000円", { pageLocale: "ja-JP" })).toEqual([]);
+    expect(detectCurrencies("1万5千3000円", { pageLocale: "ja-JP" })).toEqual([]);
     expect(detectCurrencies(`${"9".repeat(300)}兆円`, { pageLocale: "ja-JP" })).toEqual([]);
   });
 

@@ -17,6 +17,9 @@ interface MockCurrencyComboboxProps {
     | { readonly currencyCode: CurrencyCode; readonly label: string }
     | undefined;
   readonly currencyCodes: readonly CurrencyCode[];
+  readonly nullOption?:
+    | { readonly label: string; readonly onSelect: () => void; readonly selected: boolean }
+    | undefined;
   readonly nullValueLabel?: string | undefined;
   readonly onValueChange: (currencyCode: CurrencyCode) => void;
   readonly value: CurrencyCode | null;
@@ -27,26 +30,17 @@ vi.mock("@/components/currency/CurrencyCombobox", () => ({
     ariaLabel,
     badge,
     currencyCodes,
+    nullOption,
     nullValueLabel,
     onValueChange,
     value,
   }: MockCurrencyComboboxProps) => {
-    const alternative = currencyCodes.find((currencyCode) => currencyCode !== value);
     return (
       <div>
         {badge === undefined ? null : <span>{badge.label}</span>}
         <span data-testid={`selection-${ariaLabel}`}>
           {value ?? nullValueLabel ?? "automatic"}
         </span>
-        <button
-          aria-label={`choose alternative ${ariaLabel}`}
-          onClick={() => {
-            if (alternative !== undefined) {
-              onValueChange(alternative);
-            }
-          }}
-          type="button"
-        />
         {currencyCodes.map((currencyCode) => (
           <button
             aria-label={`choose ${currencyCode} ${ariaLabel}`}
@@ -55,6 +49,14 @@ vi.mock("@/components/currency/CurrencyCombobox", () => ({
             type="button"
           />
         ))}
+        {nullOption === undefined ? null : (
+          <button
+            aria-label={`choose ${nullOption.label} ${ariaLabel}`}
+            aria-pressed={nullOption.selected}
+            onClick={nullOption.onSelect}
+            type="button"
+          />
+        )}
         <button
           aria-label={`choose outside ${ariaLabel}`}
           onClick={() => onValueChange("AED")}
@@ -94,10 +96,10 @@ describe("AmbiguousSymbolSettings", () => {
     renderSettings(CONFIG, updateConfig);
 
     expect(screen.getByTestId(`selection-${getLabel(group)}`).textContent).toBe(
-      group.defaultCurrency,
+      translate("en", "ambiguousAutomatic"),
     );
     fireEvent.click(
-      screen.getByRole("button", { name: `choose alternative ${getLabel(group)}` }),
+      screen.getByRole("button", { name: `choose ${alternative} ${getLabel(group)}` }),
     );
 
     const updated = applyUpdate(updateConfig, CONFIG);
@@ -106,7 +108,24 @@ describe("AmbiguousSymbolSettings", () => {
     );
   });
 
-  it("removes aliases for the default or an unsupported group currency", () => {
+  it("stores an explicit choice of the default currency", () => {
+    const group = getTestGroup();
+    const updateConfig = vi.fn<(update: (current: Config) => Config) => void>();
+    renderSettings(CONFIG, updateConfig);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `choose ${group.defaultCurrency} ${getLabel(group)}`,
+      }),
+    );
+
+    const updated = applyUpdate(updateConfig, CONFIG);
+    expect(group.tokens.map((token) => updated.symbolOverrides[token])).toEqual(
+      group.tokens.map(() => group.defaultCurrency),
+    );
+  });
+
+  it("removes aliases for automatic resolution or an unsupported group currency", () => {
     const group = getTestGroup();
     const alternative = getAlternative(group);
     const configured: Config = {
@@ -115,14 +134,15 @@ describe("AmbiguousSymbolSettings", () => {
         group.tokens.map((token) => [token, alternative]),
       ),
     };
+    const automaticLabel = translate("en", "ambiguousAutomatic");
     const updateConfig = vi.fn<(update: (current: Config) => Config) => void>();
     const { rerender } = renderSettings(configured, updateConfig);
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: `choose ${group.defaultCurrency} ${getLabel(group)}`,
-      }),
-    );
+    const automatic = screen.getByRole("button", {
+      name: `choose ${automaticLabel} ${getLabel(group)}`,
+    });
+    expect(automatic.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(automatic);
     expect(applyUpdate(updateConfig, configured).symbolOverrides).toEqual({});
 
     updateConfig.mockClear();

@@ -222,6 +222,29 @@ describe("ConversionEditor", () => {
     expect(onRemove).not.toHaveBeenCalled();
   });
 
+  it("keeps removal tooltips inside the editor when portals are disabled", async () => {
+    const { container } = render(
+      <ConversionEditor
+        amountText="1"
+        currencyCode="USD"
+        locale="en"
+        onAmountTextChange={() => undefined}
+        onCurrencyChange={() => undefined}
+        portalled={false}
+        targetAmounts={new Map([["JPY", { status: "placeholder" }]])}
+        targetCurrencies={["JPY", "EUR"]}
+        targetEditing={{ onAdd: () => undefined, onRemove: () => undefined }}
+        targetTitle="Converted"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit conversion targets" }));
+    fireEvent.mouseEnter(screen.getByRole("button", { name: "Remove JPY" }));
+
+    const tooltip = await screen.findByRole("tooltip");
+    expect(container.contains(tooltip)).toBe(true);
+  });
+
   it("keeps the deleted row's amount stable until its exit finishes", () => {
     const onRemove = vi.fn<(currencyCode: CurrencyCode) => void>();
     render(<StatefulDeletingConversionEditor onRemove={onRemove} />);

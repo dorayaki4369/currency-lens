@@ -77,11 +77,7 @@ function SymbolMappingRow({
   readonly value: string;
 }) {
   const selectId = useId();
-  const selectedCurrency = isKnownCurrencyCode(value)
-    ? value
-    : value === MIXED_OVERRIDE_VALUE
-      ? null
-      : group.defaultCurrency;
+  const selectedCurrency = isKnownCurrencyCode(value) ? value : null;
   return (
     <div
       className="grid min-w-0 grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-center gap-1"
@@ -106,12 +102,16 @@ function SymbolMappingRow({
           currencyCodes={group.currencyCodes}
           id={selectId}
           locale={locale}
-          nullValueLabel={
-            value === MIXED_OVERRIDE_VALUE ? translate(locale, "ambiguousMixed") : undefined
-          }
-          onValueChange={(currencyCode) =>
-            onChange(group, currencyCode === group.defaultCurrency ? "" : currencyCode)
-          }
+          nullOption={{
+            label: translate(locale, "ambiguousAutomatic"),
+            onSelect: () => onChange(group, ""),
+            selected: value === "",
+          }}
+          nullValueLabel={translate(
+            locale,
+            value === MIXED_OVERRIDE_VALUE ? "ambiguousMixed" : "ambiguousAutomatic",
+          )}
+          onValueChange={(currencyCode) => onChange(group, currencyCode)}
           placeholder={translate(locale, "targetChoose")}
           value={selectedCurrency}
           variant="row"

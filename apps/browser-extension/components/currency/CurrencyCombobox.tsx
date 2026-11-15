@@ -24,9 +24,17 @@ const CURRENCY_TRIGGER_CLASS_NAMES = {
   row: ROW_CONTROL_CLASS_NAME,
 } as const;
 
+const NULL_OPTION_VALUE_PREFIX = "__null_currency_option__:";
+
 interface CurrencyBadge {
   readonly currencyCode: CurrencyCode;
   readonly label: string;
+}
+
+interface NullOption {
+  readonly label: string;
+  readonly onSelect: () => void;
+  readonly selected: boolean;
 }
 
 interface CurrencyComboboxProps {
@@ -40,6 +48,7 @@ interface CurrencyComboboxProps {
   readonly disabledCurrencyCodes?: readonly CurrencyCode[] | undefined;
   readonly id?: string | undefined;
   readonly locale: UiLocale;
+  readonly nullOption?: NullOption | undefined;
   readonly nullValueLabel?: string | undefined;
   readonly onOpenChange?: ((open: boolean) => void) | undefined;
   readonly onValueChange: (currencyCode: CurrencyCode) => void;
@@ -62,6 +71,7 @@ export function CurrencyCombobox({
   disabledCurrencyCodes = [],
   id,
   locale,
+  nullOption,
   nullValueLabel,
   onOpenChange,
   onValueChange,
@@ -118,6 +128,12 @@ export function CurrencyCombobox({
     changeOpen(false);
   };
 
+  /** Reports the null choice and closes its options. */
+  const selectNull = () => {
+    nullOption?.onSelect();
+    changeOpen(false);
+  };
+
   return (
     <Popover onOpenChange={changeOpen} open={open}>
       <PopoverTrigger asChild>
@@ -155,8 +171,10 @@ export function CurrencyCombobox({
           currencyCodes={orderedCurrencyCodes}
           disabledCodes={disabledCodes}
           locale={locale}
+          nullOption={nullOption}
           onCloseAutoFocus={preservePointerTargetFocus}
           onSelectCurrency={selectValue}
+          onSelectNull={selectNull}
           portalled={portalled}
           ref={contentReference}
           value={value}
@@ -172,8 +190,10 @@ interface CurrencyOptionsProps {
   readonly currencyCodes: readonly CurrencyCode[];
   readonly disabledCodes: ReadonlySet<CurrencyCode>;
   readonly locale: UiLocale;
+  readonly nullOption: NullOption | undefined;
   readonly onCloseAutoFocus: (event: Event) => void;
   readonly onSelectCurrency: (currencyCode: CurrencyCode) => void;
+  readonly onSelectNull: () => void;
   readonly portalled: boolean;
   readonly ref: RefObject<HTMLDivElement | null>;
   readonly value: CurrencyCode | null;
@@ -186,8 +206,10 @@ function CurrencyOptions({
   currencyCodes,
   disabledCodes,
   locale,
+  nullOption,
   onCloseAutoFocus,
   onSelectCurrency,
+  onSelectNull,
   portalled,
   ref,
   value,
@@ -219,6 +241,17 @@ function CurrencyOptions({
         <CommandList>
           <CommandEmpty>{translate(locale, "currencyNoResults")}</CommandEmpty>
           <CommandGroup>
+            {nullOption === undefined ? null : (
+              <CommandItem
+                onSelect={onSelectNull}
+                value={`${NULL_OPTION_VALUE_PREFIX}${nullOption.label}`}
+              >
+                <span className="truncate">{nullOption.label}</span>
+                {nullOption.selected ? (
+                  <CheckIcon aria-hidden="true" className="ml-auto" />
+                ) : null}
+              </CommandItem>
+            )}
             {currencyCodes.map((currencyCode) => {
               return (
                 <CommandItem
@@ -300,6 +333,10 @@ function filterCurrencyOption(
   keywords: readonly string[] | undefined,
   locale: UiLocale,
 ): number {
+  if (value.startsWith(NULL_OPTION_VALUE_PREFIX)) {
+    const label = value.slice(NULL_OPTION_VALUE_PREFIX.length).toLocaleLowerCase();
+    return label.includes(search.trim().toLocaleLowerCase()) ? 1 : 0;
+  }
   return matchesCurrencySearch(value, search, keywords, locale) ? 1 : 0;
 }
 

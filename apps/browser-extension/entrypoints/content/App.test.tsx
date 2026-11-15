@@ -213,6 +213,26 @@ describe("content App", () => {
     expect(mocks.conversion.reset).toHaveBeenCalled();
   });
 
+  it("keeps the current result when an edit preserves the source amount", async () => {
+    installBrowser(() => Promise.resolve(successfulConfig(CONFIG)));
+    mocks.selection = { rect: new DOMRect(0, 0, 10, 10), text: "$10" };
+    mocks.detections = [DETECTION];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Convert selected price" }));
+    await waitFor(() => expect(mocks.conversion.convert).toHaveBeenCalledOnce());
+    mocks.conversion.reset.mockClear();
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Amount" }), {
+      target: { value: "10.0" },
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.conversion.reset).not.toHaveBeenCalled();
+    expect(mocks.conversion.convert).toHaveBeenCalledOnce();
+  });
+
   it("does not convert again when only the target order changes", async () => {
     const browserMock = installBrowser(() =>
       Promise.resolve(successfulConfig({ ...CONFIG, favorites: ["JPY", "EUR"] })),

@@ -77,7 +77,7 @@ export const unavailableResultSchema = z
     amount: z.number().positive(),
     fromCurrency: currencyCodeSchema,
     toCurrency: currencyCodeSchema,
-    reason: z.literal("RATE_UNAVAILABLE"),
+    reason: z.enum(["RATE_UNAVAILABLE", "AMOUNT_OUT_OF_RANGE"]),
   })
   .strict();
 
@@ -89,6 +89,7 @@ export const conversionResultSchema = z.discriminatedUnion("status", [
 export type ExchangeRateCache = z.infer<typeof exchangeRateCacheSchema>;
 export type RateWarning = z.infer<typeof rateWarningSchema>;
 export type ConversionResult = z.infer<typeof conversionResultSchema>;
+type UnavailableResult = z.infer<typeof unavailableResultSchema>;
 
 export interface ConversionAmount {
   readonly amount: number;
@@ -214,18 +215,15 @@ function convertCurrencyPair(
   const fromRate = readRate(cache, source.currencyCode);
   const toRate = readRate(cache, toCurrency);
   if (fromRate === null || toRate === null) {
-    return {
-      status: "unavailable",
-      sourceIndex,
-      amount: source.amount,
-      fromCurrency: source.currencyCode,
-      toCurrency,
-      reason: "RATE_UNAVAILABLE",
-    };
+    return createUnavailableResult(source, sourceIndex, toCurrency, "RATE_UNAVAILABLE");
   }
 
   const rate = toRate / fromRate;
-  const formatted = formatCurrencyAmount(source.amount * rate, toCurrency);
+  const convertedAmount = source.amount * rate;
+  if (!Number.isFinite(convertedAmount)) {
+    return createUnavailableResult(source, sourceIndex, toCurrency, "AMOUNT_OUT_OF_RANGE");
+  }
+  const formatted = formatCurrencyAmount(convertedAmount, toCurrency);
   return {
     status: "converted",
     sourceIndex,
@@ -235,6 +233,23 @@ function convertCurrencyPair(
     convertedAmount: formatted.value,
     rate: rate.toString(),
     fractionDigits: formatted.fractionDigits,
+  };
+}
+
+/** Reports why one pair has no converted amount while the batch continues. */
+function createUnavailableResult(
+  source: ConversionAmount,
+  sourceIndex: number,
+  toCurrency: CurrencyCode,
+  reason: UnavailableResult["reason"],
+): UnavailableResult {
+  return {
+    status: "unavailable",
+    sourceIndex,
+    amount: source.amount,
+    fromCurrency: source.currencyCode,
+    toCurrency,
+    reason,
   };
 }
 

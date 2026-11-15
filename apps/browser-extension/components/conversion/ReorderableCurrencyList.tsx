@@ -63,6 +63,7 @@ interface ReorderableCurrencyListProps<Item> {
         placement: CurrencyDropPlacement,
       ) => void)
     | undefined;
+  readonly portalled?: boolean | undefined;
   readonly renderItem: (
     item: Item,
     index: number,
@@ -82,6 +83,7 @@ export function ReorderableCurrencyList<Item>({
   locale,
   onDelete,
   onReorder,
+  portalled = true,
   renderItem,
 }: ReorderableCurrencyListProps<Item>) {
   const instructionsId = useId();
@@ -398,6 +400,7 @@ export function ReorderableCurrencyList<Item>({
     return (
       <HoverTooltip
         content={translate(locale, "removeCurrency", { currency: currencyCode })}
+        portalled={portalled}
       >
         <IconButton
           aria-disabled={isDeleting || undefined}

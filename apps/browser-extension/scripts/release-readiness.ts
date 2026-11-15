@@ -11,7 +11,7 @@ const DEFAULT_POLL_INTERVAL_MS = 10_000;
 const API_REQUEST_TIMEOUT_MS = 10_000;
 const GITHUB_API_VERSION = "2022-11-28";
 export const EXTENSION_SMOKE_TEST_ORIGIN =
-  "chrome-extension://cfpmgblhfmfomcgkpkghcgkcfblbpgkm";
+  "chrome-extension://njogcdgiffcmekoicidimafmhlicpdha";
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
 const COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/u;
 

@@ -4,7 +4,7 @@ Currency Lensは、Webページで選択した金額を、登録した通貨へ�
 
 対応ブラウザは、デスクトップ版のChromeと、Firefox 140以降です。Firefox for Androidには対応していません。
 
-- [Chrome Web Store](https://chrome.google.com/webstore/detail/currency-lens/cfpmgblhfmfomcgkpkghcgkcfblbpgkm)
+- [Chrome Web Store](https://chrome.google.com/webstore/detail/currency-lens/njogcdgiffcmekoicidimafmhlicpdha)
 - [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/currency-lens)
 
 ## 使い方

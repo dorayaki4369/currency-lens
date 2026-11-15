@@ -1,8 +1,8 @@
 {
   "extensionName": {
-    "message": "Currency Lens"
+    "message": "Currency Lens – 通貨換算・為替コンバーター"
   },
   "extensionDescription": {
-    "message": "選択した金額を、ページを離れずに指定通貨へ換算します。"
+    "message": "通貨換算コンバーター。Webページ上の金額を選択するだけで、最大5通貨へその場で換算します。最新の為替レート対応。"
   }
 }

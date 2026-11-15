@@ -324,6 +324,53 @@ describe("ConversionEditor", () => {
     expect(document.activeElement).toBe(finishButton);
   });
 
+  it("finishes leaving edit mode where the browser cannot report animations", async () => {
+    const getAnimationsDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "getAnimations",
+    );
+    Object.defineProperty(HTMLElement.prototype, "getAnimations", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      render(
+        <ConversionEditor
+          amountText="1"
+          currencyCode="USD"
+          locale="en"
+          onAmountTextChange={() => undefined}
+          onCurrencyChange={() => undefined}
+          onReorderTarget={() => undefined}
+          targetAmounts={
+            new Map([["JPY", { status: "converted", text: "150.00", value: 150 }]])
+          }
+          targetCurrencies={["JPY"]}
+          targetEditing={{ onAdd: () => undefined, onRemove: () => undefined }}
+          targetTitle="Converted"
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Edit conversion targets" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Finish editing conversion targets" }),
+      );
+
+      await waitFor(() => {
+        expect(screen.queryByRole("button", { name: /^Reorder /u })).toBeNull();
+      });
+    } finally {
+      if (getAnimationsDescriptor === undefined) {
+        Reflect.deleteProperty(HTMLElement.prototype, "getAnimations");
+      } else {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "getAnimations",
+          getAnimationsDescriptor,
+        );
+      }
+    }
+  });
+
   it("ignores an old exit completion after editing is removed and reopened", async () => {
     const transition = Promise.withResolvers<void>();
     const editorProps = {

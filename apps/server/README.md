@@ -21,6 +21,10 @@ Cron Triggerが1時間ごとにOpen Exchange Ratesからレートを取得し、
 
 CORSで許可するのは、Chrome・Firefox拡張機能のoriginからのGETだけです。
 
+### ランディングページ
+
+`GET /`は、Currency Lens の紹介とストアへのリンク、レート API の案内を載せたランディングページを返します。`public/index.html`をWorkersの静的アセットとして配信するため、Workerのコードは動きません。プライバシーポリシーと同じく、scriptや外部リソースを持たず、`public/_headers`のContent-Security-Policyで読み込みと埋め込みを禁止します。
+
 ### プライバシーポリシー
 
 `GET /privacy`は、ストアの掲載情報から参照するプライバシーポリシーを返します。`public/privacy.html`をWorkersの静的アセットとして配信するため、Workerのコードは動きません。scriptや外部リソースを持たず、`public/_headers`のContent-Security-Policyで読み込みと埋め込みを禁止します。

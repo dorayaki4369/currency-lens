@@ -347,12 +347,14 @@ function buildDetectionPatterns(): DetectionPattern[] {
 }
 
 /**
- * Creates patterns for a main amount followed by a minor amount, as in "$5 and 50 cents".
- * The groups are the main token and amount in written order, then the minor amount and unit.
+ * Creates patterns for a main amount followed by one or two minor amounts, as in
+ * "$5 and 50 cents" or "3元5角2分". The groups are the main token and amount in written order,
+ * then each minor amount and unit.
  */
 function buildCompoundPatterns(): DetectionPattern[] {
   const sources = buildMainTokenSources();
-  const minorSource = `${COMPOUND_SEPARATOR_SOURCE}(\\p{Nd}+)\\s*(${MINOR_UNIT_SOURCE})`;
+  const minorPartSource = `${COMPOUND_SEPARATOR_SOURCE}(\\p{Nd}+)\\s*(${MINOR_UNIT_SOURCE})`;
+  const minorSource = `${minorPartSource}(?:${minorPartSource})?`;
 
   return (["code", "local-name", "symbol"] as const).flatMap((tokenKind) => [
     {
@@ -527,8 +529,9 @@ function collectCompoundMatches(
 }
 
 /**
- * Joins an integer main amount and a minor amount into one main-unit amount.
- * The minor unit must belong to the main currency, so "USD 5 and 50 pence" is not joined.
+ * Joins an integer main amount and its minor amounts into one main-unit amount.
+ * Every minor unit must belong to the main currency, so "USD 5 and 50 pence" is not joined.
+ * When a second minor part cannot be joined, as in "£3 20p 5p", the first part still is.
  * A three-digit minor amount after a grouping separator, as in "$5,000 cents", is one grouped number.
  */
 function createCompoundDetection(
@@ -537,45 +540,93 @@ function createCompoundDetection(
   pattern: DetectionPattern,
   options: CurrencyDetectionOptions,
 ): CandidateDetection | null {
-  if (!isMatchBoundaryValid(text, match, pattern)) {
-    return null;
-  }
-
   const [mainGroup, tokenGroup] = pattern.placement === "currency-before" ? [2, 1] : [1, 2];
-  // Every group of a compound pattern is required, so a successful match has all four.
+  // The main token, main amount, and first minor part are required, so they always match.
   const currencyCode = resolveCurrencyToken(match[tokenGroup]!, pattern.tokenKind, options);
-  const minorUnit = minorUnitByName.get(match[4]!)!;
   const mainNumber = normalizeMoneyNumber(match[mainGroup]!, options);
-  const minorDigits = normalizeDecimalDigits(match[3]!);
-
   if (
-    currencyCode === undefined ||
-    !minorUnit.codes.includes(currencyCode) ||
     mainNumber === null ||
     mainNumber.includes(".") ||
-    isGroupedMinorAmount(text, match, pattern) ||
-    Number(minorDigits) >= 10 ** minorUnit.exponent
+    isGroupedMinorAmount(text, match, pattern)
   ) {
     return null;
   }
 
-  // Joining decimal strings keeps "5 and 5 cents" exact as 5.05, and Number drops leading zeros.
-  const minorText = String(Number(minorDigits)).padStart(minorUnit.exponent, "0");
-  const amount = Number(`${mainNumber}.${minorText}`);
-  // Unsupported digits, such as fullwidth ones, and oversized amounts are not finite.
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return null;
+  const parts: [string, string][] = [[match[3]!, match[4]!]];
+  if (match[5] !== undefined) {
+    parts.push([match[5], match[6]!]);
   }
 
-  const amountStart = match.indices![mainGroup]![0];
-  return {
-    amount,
-    amountStart,
-    amountEnd: match.indices![3]![1],
-    currencyCode,
-    originalText: match[0],
-    index: match.index,
-  };
+  for (let count = parts.length; count > 0; count -= 1) {
+    const end = match.indices![2 + count * 2]![1];
+    const fraction = joinMinorParts(parts.slice(0, count), currencyCode);
+    if (
+      fraction === null ||
+      !isSpanBoundaryValid(text, match.index, end, pattern) ||
+      continuesAsOtherWord(text, end, parts[count - 1]![1])
+    ) {
+      continue;
+    }
+
+    // Joining decimal strings keeps "5 and 5 cents" exact as 5.05.
+    const amount = Number(`${mainNumber}.${fraction}`);
+    // Unsupported digits, such as fullwidth ones, and oversized amounts are not finite.
+    if (!Number.isFinite(amount)) {
+      continue;
+    }
+    if (amount <= 0) {
+      return null;
+    }
+
+    return {
+      amount,
+      amountStart: match.indices![mainGroup]![0],
+      amountEnd: match.indices![1 + count * 2]![1],
+      currencyCode: currencyCode!,
+      originalText: text.slice(match.index, end),
+      index: match.index,
+    };
+  }
+
+  return null;
+}
+
+/** Checks whether a minor-unit name is the start of another word, as 分 is in 分钟 (minute). */
+function continuesAsOtherWord(text: string, end: number, name: string): boolean {
+  const next = text[end];
+  return (
+    next !== undefined &&
+    minorUnitByName.get(name)!.wordContinuations?.includes(next) === true
+  );
+}
+
+/**
+ * Writes minor amounts as the fractional digits of the main unit, so 5角2分 becomes "52".
+ * Each unit must be smaller than the previous one, and each amount must fit below it.
+ */
+function joinMinorParts(
+  parts: readonly (readonly [string, string])[],
+  currencyCode: CurrencyCode | undefined,
+): string | null {
+  let fraction = "";
+
+  for (const [digitsText, name] of parts) {
+    // Minor-unit groups only match names from this table.
+    const minorUnit = minorUnitByName.get(name)!;
+    const width = minorUnit.exponent - fraction.length;
+    const digits = normalizeDecimalDigits(digitsText);
+    if (
+      currencyCode === undefined ||
+      !minorUnit.codes.includes(currencyCode) ||
+      width <= 0 ||
+      Number(digits) >= 10 ** width
+    ) {
+      return null;
+    }
+    fraction += String(Number(digits)).padStart(width, "0");
+  }
+
+  return fraction;
 }
 
 /** Checks whether the main and minor digits form one grouped number, as in "$5,000 cents". */
@@ -609,18 +660,25 @@ function isMatchBoundaryValid(
   match: RegExpExecArray,
   pattern: DetectionPattern,
 ): boolean {
-  const start = match.index;
-  const end = start + match[0].length;
+  return isSpanBoundaryValid(text, match.index, match.index + match[0].length, pattern);
+}
+
+/** Checks the word boundaries around one matched span of the text. */
+function isSpanBoundaryValid(
+  text: string,
+  start: number,
+  end: number,
+  pattern: DetectionPattern,
+): boolean {
   const previous = text[start - 1];
-  const next = text[end];
-  const isEndValid = isWordBoundary(next, match[0].at(-1)!);
+  const isEndValid = isWordBoundary(text[end], text[end - 1]!);
 
   // A local name such as 元 before an amount may be the end of a word, as in 紀元2000年.
   if (pattern.placement === "currency-before" && pattern.tokenKind === "local-name") {
     return isStrictWordBoundary(previous) && isEndValid;
   }
 
-  return isWordBoundary(previous, match[0][0]!) && isEndValid;
+  return isWordBoundary(previous, text[start]!) && isEndValid;
 }
 
 /**

@@ -424,7 +424,7 @@ describe("detectCurrencies with minor units", () => {
     expect(detectCurrencies("1080p video at 50c each", { pageLocale: "en-US" })).toEqual(
       [],
     );
-    expect(detectCurrencies("50 centimes; 50 Cent; 5 pennyweight")).toEqual([]);
+    expect(detectCurrencies("50 centuries; 5 pennyweight")).toEqual([]);
     expect(detectCurrencies("0 cents")).toEqual([]);
   });
 
@@ -538,3 +538,96 @@ describe("detectCurrencies with minor units", () => {
     expect(detectCurrencies("x$5 and 50 cents")[0]).toMatchObject({ amount: 0.5 });
   });
 });
+
+describe("detectCurrencies with minor units in other languages", () => {
+  it("reads European minor units by the page region", () => {
+    expect(detect("99 Cent", "de-DE")).toEqual([[0.99, "EUR"]]);
+    expect(detect("5 Euro 50 Cent", "de-DE")).toEqual([[5.5, "EUR"]]);
+    expect(detect("2 € 50 ct", "de-DE")).toEqual([[2.5, "EUR"]]);
+    expect(detect("50 centimes", "fr-FR")).toEqual([[0.5, "EUR"]]);
+    expect(detect("50 centimes", "fr-CH")).toEqual([[0.5, "CHF"]]);
+    expect(detect("20 Rappen", "de-CH")).toEqual([[0.2, "CHF"]]);
+    expect(detect("3 Franken 20 Rappen", "de-CH")).toEqual([[3.2, "CHF"]]);
+    expect(detect("CHF 3 20 Rp.", "de-CH")).toEqual([[3.2, "CHF"]]);
+    expect(detect("50 centesimi", "it-IT")).toEqual([[0.5, "EUR"]]);
+    expect(detect("50 céntimos", "es-ES")).toEqual([[0.5, "EUR"]]);
+    expect(detect("50 céntimos", "es-PE")).toEqual([[0.5, "PEN"]]);
+    expect(detect("50 cêntimos", "pt-PT")).toEqual([[0.5, "EUR"]]);
+  });
+
+  it("reads centavos by the page region", () => {
+    expect(detect("50 centavos", "es-MX")).toEqual([[0.5, "MXN"]]);
+    expect(detect("50 centavos", "pt-BR")).toEqual([[0.5, "BRL"]]);
+    expect(detect("10 pesos 50 centavos", "es-MX")).toEqual([[10.5, "MXN"]]);
+    expect(detect("R$ 10 50 centavos", "pt-BR")).toEqual([[10.5, "BRL"]]);
+  });
+
+  it("reads kopecks in Russian, Ukrainian, and Belarusian", () => {
+    expect(detect("12 руб. 50 коп.", "ru-RU")).toEqual([[12.5, "RUB"]]);
+    expect(detect("12 рублей 50 копеек", "ru-RU")).toEqual([[12.5, "RUB"]]);
+    expect(detect("12 рублей 50 копеек", "ru-BY")).toEqual([[12.5, "BYN"]]);
+    expect(detect("10 грн. 50 коп.", "uk-UA")).toEqual([[10.5, "UAH"]]);
+    expect(detect("50 копійок", "uk-UA")).toEqual([[0.5, "UAH"]]);
+    expect(detect("50 капеек", "be-BY")).toEqual([[0.5, "BYN"]]);
+    expect(detect("50 коп.", "ru-RU")).toEqual([[0.5, "RUB"]]);
+  });
+
+  it("reads Polish, Czech, Turkish, and South Asian minor units", () => {
+    expect(detect("5 złotych 50 groszy", "pl-PL")).toEqual([[5.5, "PLN"]]);
+    expect(detect("5 zł 50 gr", "pl-PL")).toEqual([[5.5, "PLN"]]);
+    expect(detect("50 gr", "pl-PL")).toEqual([]);
+    expect(detect("100 korun 50 haléřů", "cs-CZ")).toEqual([[100.5, "CZK"]]);
+    expect(detect("50 haléřů", "cs-CZ")).toEqual([[0.5, "CZK"]]);
+    expect(detect("5 lira 50 kuruş", "tr-TR")).toEqual([[5.5, "TRY"]]);
+    expect(detect("50 kuruş", "tr-TR")).toEqual([[0.5, "TRY"]]);
+    expect(detect("10 rupees 50 paise", "en-IN")).toEqual([[10.5, "INR"]]);
+    expect(detect("50 paise", "en-PK")).toEqual([[0.5, "PKR"]]);
+    expect(detect("50 पैसे", "hi-IN")).toEqual([[0.5, "INR"]]);
+  });
+
+  it("reads 銭 alone and after 円", () => {
+    expect(detect("1ドル=150円25銭", "ja-JP")).toEqual([
+      [1, "USD"],
+      [150.25, "JPY"],
+    ]);
+    expect(detect("25銭", "ja-JP")).toEqual([[0.25, "JPY"]]);
+  });
+
+  it("reads 角 and 分 only after 元, in descending order", () => {
+    expect(detect("3元5角2分", "zh-CN")).toEqual([[3.52, "CNY"]]);
+    expect(detect("3元5角", "zh-CN")).toEqual([[3.5, "CNY"]]);
+    expect(detect("1元3分", "zh-CN")).toEqual([[1.03, "CNY"]]);
+    expect(detect("5角形を3分で描く", "zh-CN")).toEqual([]);
+    // A malformed sequence is not read as money, because 元 is directly followed by a digit.
+    expect(detect("3元2分5角", "zh-CN")).toEqual([]);
+    expect(detect("3元12角", "zh-CN")).toEqual([]);
+    expect(detect("3元5角12分", "zh-CN")).toEqual([]);
+  });
+
+  it("does not read a minute after 元 as 分", () => {
+    // 3元 directly followed by a digit is not read as money, as before minor units.
+    expect(detect("只需3元30分钟", "zh-CN")).toEqual([]);
+    expect(detect("每小时3元,30分钟", "zh-CN")).toEqual([[3, "CNY"]]);
+    expect(detect("3元5角形", "zh-CN")).toEqual([]);
+  });
+
+  it("keeps the first minor part when the second cannot be joined", () => {
+    expect(detect("$5 and 50 cents, 30c", "en-US")).toEqual([[5.5, "USD"]]);
+    expect(detect("£3 20p 5p", "en-GB")).toEqual([[3.2, "GBP"]]);
+  });
+
+  it("does not join minor units of another currency after the first part", () => {
+    expect(detect("$5 and 50 cents 5 pence", "en-US")).toEqual([
+      [5.5, "USD"],
+      [0.05, "GBP"],
+    ]);
+  });
+});
+
+/** Detects amounts on a page in one locale and keeps only the amount and currency. */
+function detect(text: string, pageLocale: string): [number, string][] {
+  return detectCurrencies(text, { pageLocale }).map(({ amount, currencyCode }) => [
+    amount,
+    currencyCode,
+  ]);
+}

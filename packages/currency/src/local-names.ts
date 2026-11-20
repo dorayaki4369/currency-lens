@@ -1560,6 +1560,11 @@ export const currencyLocalNames = [
         locales: ["ru-RU"],
       },
       {
+        name: "руб.",
+        sample: "100 руб.",
+        locales: ["ru-RU"],
+      },
+      {
         name: "ルーブル",
         sample: "100ルーブル",
         locales: ["ja-JP"],
@@ -1902,6 +1907,11 @@ export const currencyLocalNames = [
       {
         name: "гривень",
         sample: "100 гривень",
+        locales: ["uk-UA"],
+      },
+      {
+        name: "грн.",
+        sample: "100 грн.",
         locales: ["uk-UA"],
       },
       {

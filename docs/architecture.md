@@ -25,7 +25,7 @@ R2は公開しません。Content ScriptとPopupからの外部通信、レー�
 | Background Script    | メッセージの検証、最大5件の換算先との一括換算、レート更新、設定とキャッシュへのアクセス                                                                     |
 | Extension Popup      | 手入力換算、換算先通貨の即時保存、曖昧な記号設定、対応通貨一覧、レート日時と古さの表示                                                                      |
 | Currency Lens Worker | `GET /v1/latest`と旧`GET /latest`、R2データの検証、空のR2の初期化、Cron Triggerによるレート更新、静的アセットとしての`GET /privacy`（プライバシーポリシー） |
-| `packages/currency`  | 拡張機能が検出・設定・表示できる通貨コード、記号、換算精度のメタデータ                                                                                      |
+| `packages/currency`  | 拡張機能が検出・設定・表示できる通貨コード、記号、補助単位、換算精度のメタデータ                                                                            |
 | `packages/oxr`       | Open Exchange RatesのHTTPクライアント、timeoutとエラー分類、レスポンス検証                                                                                  |
 
 ## データの正本
@@ -47,7 +47,7 @@ R2は公開しません。Content ScriptとPopupからの外部通信、レー�
 ### 選択から換算まで
 
 1. Content Scriptが通常のWebページで選択テキストを受け取ります。
-2. 通貨コード、通貨記号、数値の区切り、万・億やmillionなどの単位をページとブラウザのロケールも使って解析し、選択範囲内の金額候補を出現順に検出します。
+2. 通貨コード、通貨記号、数値の区切り、万・億やmillionなどの単位、centsやpenceなどの補助単位をページとブラウザのロケールも使って解析し、選択範囲内の金額候補を出現順に検出します。
 3. Content Scriptは選択テキスト全体を送らず、先頭の金額1件と通貨コード、設定済みの換算先通貨だけをBackground Scriptへ渡します。
 4. Background Scriptがメッセージを検証し、最後に成功したキャッシュを使って1金額×最大5通貨を換算します。
 5. 結果ごとの成否とレート時刻、古さ、警告をContent Scriptへ返し、Shadow DOM内へ表示します。

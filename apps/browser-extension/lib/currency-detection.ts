@@ -49,6 +49,7 @@ const MINOR_UNIT_PRESENCE_PATTERN = new RegExp(
   String.raw`\p{Nd}\s*(?:${MINOR_UNIT_SOURCE})`,
   "u",
 );
+const GROUPING_SEPARATOR_PATTERN = /^[.,\u00A0\u202F\u2009 ]$/u;
 const GROUPING_SPACE_PATTERN = /[\u00A0\u202F\u2009 ]/gu;
 const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}_]/u;
 const DIGIT_PATTERN = /\p{N}/u;
@@ -90,6 +91,8 @@ interface DetectionPattern {
   readonly regex: RegExp;
   readonly placement: Placement;
   readonly tokenKind: TokenKind;
+  /** Whether a minor unit follows the amount, as in "CAD 50 cents", so the main token qualifies it. */
+  readonly qualifiesMinorUnit?: boolean;
 }
 
 interface ScaledTerm {
@@ -322,6 +325,16 @@ function buildDetectionPatterns(): DetectionPattern[] {
   const sources = buildMainTokenSources();
 
   return [
+    // An explicit currency before a minor amount, as in "CAD 50 cents", wins over the minor unit alone.
+    ...(["code", "local-name", "symbol"] as const).map((tokenKind) => ({
+      regex: new RegExp(
+        `(${sources[tokenKind]})\\s*(${AMOUNT_SOURCE})\\s*(${STANDALONE_MINOR_UNIT_SOURCE})`,
+        "gu",
+      ),
+      placement: "currency-before" as const,
+      tokenKind,
+      qualifiesMinorUnit: true,
+    })),
     // A minor unit may start with a local name, so "20 euro cents" must win over "20 euro".
     createDetectionPattern(STANDALONE_MINOR_UNIT_SOURCE, "currency-after", "minor-unit"),
     createDetectionPattern(sources.code, "currency-before", "code"),
@@ -440,20 +453,22 @@ function createDetection(
   const token = pattern.placement === "currency-before" ? first : second;
   const amountText = pattern.placement === "currency-before" ? second : first;
   const currencyCode = resolveCurrencyToken(token, pattern.tokenKind, options);
-  const scaledAmount = parseScaledAmount(amountText, options);
-  // A minor amount such as "50 cents" is divided into the main unit.
-  const amount =
-    scaledAmount !== null && pattern.tokenKind === "minor-unit"
-      ? scaledAmount / 10 ** minorUnitByName.get(token)!.exponent
-      : scaledAmount;
+  const minorUnit = getMatchedMinorUnit(match, pattern, token);
+  const amount = toMainUnitAmount(parseScaledAmount(amountText, options), minorUnit);
 
-  if (currencyCode === undefined || amount === null || amount <= 0) {
+  if (
+    currencyCode === undefined ||
+    amount === null ||
+    amount <= 0 ||
+    minorUnit?.codes.includes(currencyCode) === false
+  ) {
     return null;
   }
 
+  // The amount directly follows the token, so the first occurrence after it is the amount.
   const amountStart =
     pattern.placement === "currency-before"
-      ? match.index + match[0].length - amountText.length
+      ? match.index + match[0].indexOf(amountText, token.length)
       : match.index;
 
   return {
@@ -464,6 +479,32 @@ function createDetection(
     originalText: match[0],
     index: match.index,
   };
+}
+
+/** Returns the minor unit written in a match, as "cents" in "50 cents" or "CAD 50 cents". */
+function getMatchedMinorUnit(
+  match: RegExpExecArray,
+  pattern: DetectionPattern,
+  token: string,
+): CurrencyMinorUnit | undefined {
+  const name =
+    pattern.qualifiesMinorUnit === true
+      ? match[3]
+      : pattern.tokenKind === "minor-unit"
+        ? token
+        : undefined;
+  // Minor-unit groups only match names from this table.
+  return name === undefined ? undefined : minorUnitByName.get(name)!;
+}
+
+/** Divides a minor amount such as "50 cents" into the main unit. */
+function toMainUnitAmount(
+  amount: number | null,
+  minorUnit: CurrencyMinorUnit | undefined,
+): number | null {
+  return amount !== null && minorUnit !== undefined
+    ? amount / 10 ** minorUnit.exponent
+    : amount;
 }
 
 /** Collects compound matches such as "$5 and 50 cents" from one pattern. */
@@ -488,6 +529,7 @@ function collectCompoundMatches(
 /**
  * Joins an integer main amount and a minor amount into one main-unit amount.
  * The minor unit must belong to the main currency, so "USD 5 and 50 pence" is not joined.
+ * A three-digit minor amount after a grouping separator, as in "$5,000 cents", is one grouped number.
  */
 function createCompoundDetection(
   text: string,
@@ -511,14 +553,17 @@ function createCompoundDetection(
     !minorUnit.codes.includes(currencyCode) ||
     mainNumber === null ||
     mainNumber.includes(".") ||
+    isGroupedMinorAmount(text, match, pattern) ||
     Number(minorDigits) >= 10 ** minorUnit.exponent
   ) {
     return null;
   }
 
-  // Joining decimal strings keeps "5 and 5 cents" exact as 5.05.
-  const amount = Number(`${mainNumber}.${minorDigits.padStart(minorUnit.exponent, "0")}`);
-  if (amount <= 0) {
+  // Joining decimal strings keeps "5 and 5 cents" exact as 5.05, and Number drops leading zeros.
+  const minorText = String(Number(minorDigits)).padStart(minorUnit.exponent, "0");
+  const amount = Number(`${mainNumber}.${minorText}`);
+  // Unsupported digits, such as fullwidth ones, and oversized amounts are not finite.
+  if (!Number.isFinite(amount) || amount <= 0) {
     return null;
   }
 
@@ -531,6 +576,21 @@ function createCompoundDetection(
     originalText: match[0],
     index: match.index,
   };
+}
+
+/** Checks whether the main and minor digits form one grouped number, as in "$5,000 cents". */
+function isGroupedMinorAmount(
+  text: string,
+  match: RegExpExecArray,
+  pattern: DetectionPattern,
+): boolean {
+  // Before a main token, the amount is group 2 and directly precedes the separator.
+  const separator = text.slice(match.indices![2]![1], match.indices![3]![0]);
+  return (
+    pattern.placement === "currency-before" &&
+    GROUPING_SEPARATOR_PATTERN.test(separator) &&
+    match[3]!.length === 3
+  );
 }
 
 /** Removes private match-span metadata before returning the public detection contract. */

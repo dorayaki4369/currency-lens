@@ -472,6 +472,48 @@ describe("detectCurrencies with minor units", () => {
     expect(detectCurrencies("CAD 5 and 50 cents", { symbolOverrides })).toEqual([
       { amount: 5.5, currencyCode: "CAD", originalText: "CAD 5 and 50 cents", index: 0 },
     ]);
+    expect(detectCurrencies("CAD 50 cents", { pageLocale: "en-US" })).toEqual([
+      { amount: 0.5, currencyCode: "CAD", originalText: "CAD 50 cents", index: 0 },
+    ]);
+    expect(detectCurrencies("€50 cents", { pageLocale: "en-US" })).toEqual([
+      { amount: 0.5, currencyCode: "EUR", originalText: "€50 cents", index: 0 },
+    ]);
+    expect(
+      detectCurrencies("$50 cents", {
+        symbolOverrides: { $: currencyCodeSchema.parse("CAD") },
+      })[0],
+    ).toMatchObject({ amount: 0.5, currencyCode: "CAD" });
+    // Pence do not belong to USD, so the code does not qualify them.
+    expect(detectCurrencies("USD 50 pence")).toMatchObject([
+      { amount: 0.5, currencyCode: "GBP", originalText: "50 pence" },
+    ]);
+  });
+
+  it("reads digit grouping in a minor amount as one number", () => {
+    expect(detectCurrencies("$5,000 cents", { pageLocale: "en-US" })).toEqual([
+      { amount: 50, currencyCode: "USD", originalText: "$5,000 cents", index: 0 },
+    ]);
+    expect(detectCurrencies("$5 000 cents", { pageLocale: "fr-FR" })[0]).toMatchObject({
+      amount: 50,
+      currencyCode: "USD",
+    });
+    expect(detectCurrencies("$1,234,050 cents", { pageLocale: "en-US" })[0]).toMatchObject({
+      amount: 12_340.5,
+    });
+    expect(detectCurrencies("$5, 50 cents")[0]).toMatchObject({ amount: 5.5 });
+  });
+
+  it("ignores leading zeros in a minor amount", () => {
+    expect(detectCurrencies("$5 and 005 cents")[0]).toMatchObject({ amount: 5.05 });
+    expect(detectCurrencies("$5 and 00050 cents")[0]).toMatchObject({ amount: 5.5 });
+  });
+
+  it("does not join parts whose value cannot be represented", () => {
+    // Fullwidth digits are not supported as amounts.
+    expect(detectCurrencies("£3 ２０p")).toEqual([]);
+    const detections = detectCurrencies(`$${"9".repeat(400)} and 50 cents`);
+    expect(detections.length).toBeGreaterThan(0);
+    expect(detections.every(({ amount }) => Number.isFinite(amount))).toBe(true);
   });
 
   it("keeps the parts separate when they cannot form one amount", () => {

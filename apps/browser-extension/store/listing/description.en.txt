@@ -1,25 +1,21 @@
-Currency Lens is a currency converter for web pages: select a price such as $19.99, €49 or 1,200 JPY, click the small button next to it, and see the amount in your own currencies without leaving the page.
-
-It is handy when shopping on overseas sites, planning a trip, or reading prices in foreign news and price lists. The page itself is never rewritten; the result appears in a small card next to your selection.
+Currency Lens converts prices right on the page you are reading. Shopping on an overseas site, planning a trip or reading foreign news? Select a price like $19.99, €49 or 1,200 JPY and see it in up to 5 currencies of your choice, without leaving the page or changing it.
 
 How it works
-1. Open Currency Lens from the toolbar and choose up to 5 currencies to convert into.
-2. Select text that contains a price on any web page.
-3. Click the Currency Lens button that appears next to your selection.
-4. A card shows the price converted into each of your currencies.
+1. Select a price on a web page.
+2. Click the Currency Lens button that appears next to your selection.
+3. A small card shows the price in your chosen currencies. You can change them anytime from the toolbar.
 
 Features
-- Price detection: finds amounts written with currency symbols ($, €, ¥), ISO codes (USD, JPY) or currency names ("dollars", "円"), including scales such as "5k", "$1.5 million" and "5万円".
-- Up to 5 target currencies: add, remove and reorder them from the toolbar popup.
-- Built-in price converter: type any amount and currency in the popup to convert it by hand.
-- Re-convert on the spot: change the amount or the source currency in the card.
-- Ambiguous symbols: "$" and similar symbols are resolved from your settings, the page language and the browser language, and you can choose how each symbol is read.
-- Exchange rates: rates from Open Exchange Rates are refreshed every hour. If a refresh fails, the last rates are kept, and a warning appears once they are more than 24 hours old.
-- English and Japanese interface. No account needed.
+- Reads prices in many formats: currency symbols ($, €, ¥), codes (USD, JPY) and names ("dollars", "円"), including amounts such as "$1.5 million", "5k円" and "5万円", and prices inside Japanese, Chinese, Korean or Thai sentences.
+- Handles shared symbols like "$": when a symbol is shared by several currencies, Currency Lens picks one from your settings, the page language and your browser language. You can change which currency each symbol stands for.
+- Edit and re-convert: change the amount or the source currency right in the card.
+- Toolbar popup: type any amount and currency to convert it directly, and add, remove or reorder your currencies.
+- Latest exchange rates from Open Exchange Rates, with a warning if they are out of date.
+- English and Japanese interface, following your browser language.
 
 Privacy
-Selected text is analyzed inside the extension and never sent anywhere. The only network request fetches exchange rates and contains no page content.
+No account needed. Selected text is analyzed locally in your browser and never sent anywhere. The only network request fetches exchange rates and contains no page content.
 Privacy policy: https://cl.dryk.net/privacy
 
 Where it works
-Regular web pages in desktop Chrome and Firefox 140 or later. It does not work in PDFs, form fields, canvas, browser settings pages or extension stores. If a selection contains several prices, the first one is converted.
+Regular web pages in desktop Chrome and Firefox 140 or later. It does not work on PDFs, form fields, canvas elements, browser settings pages or extension stores.

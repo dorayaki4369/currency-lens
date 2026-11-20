@@ -1,4 +1,8 @@
-import type { CurrencyCode } from "@cl/currency";
+import {
+  currencyMinorUnits,
+  type CurrencyCode,
+  type CurrencyMinorUnit,
+} from "@cl/currency";
 import {
   getCurrencyCodes,
   getCurrencyMetadata,
@@ -30,6 +34,21 @@ const MAGNITUDE_SOURCE = buildMagnitudeSource();
 // while the number in "$5 million 2024" stays separate.
 const AMOUNT_SOURCE = String.raw`${NUMBER_SOURCE}(?:\s?${MAGNITUDE_SOURCE}(?:\s?(?:${NUMBER_SOURCE}\s?)?${MAGNITUDE_SOURCE}){0,${MAX_ADDITIONAL_MAGNITUDES}}(?:(?:(?<=${UNSPACED_SCRIPT_SOURCE})\s)?${NUMBER_SOURCE})?)?`;
 const AMOUNT_PART_PATTERN = new RegExp(`(${NUMBER_SOURCE})|(${MAGNITUDE_SOURCE})`, "gu");
+// The main part of "£3 20p" or "1,234 dollars and 5 cents" allows only three-digit groups,
+// so a space before the minor amount is not read as grouping. The lookahead keeps "$50 cents"
+// from being split into a main 5 and a minor 0.
+const INTEGER_SOURCE = String.raw`\p{Nd}+(?:[.,    ]\p{Nd}{3})*(?!\p{Nd})`;
+const COMPOUND_SEPARATOR_SOURCE = String.raw`(?:\s*[,&]\s*|\s+and\s+|\s*)`;
+const minorUnitByName = new Map(currencyMinorUnits.map((unit) => [unit.name, unit]));
+const MINOR_UNIT_SOURCE = buildMinorUnitSource(currencyMinorUnits);
+const STANDALONE_MINOR_UNIT_SOURCE = buildMinorUnitSource(
+  currencyMinorUnits.filter((unit) => !unit.compoundOnly),
+);
+// Compound patterns are large, so they run only when a selection contains a number before a minor unit.
+const MINOR_UNIT_PRESENCE_PATTERN = new RegExp(
+  String.raw`\p{Nd}\s*(?:${MINOR_UNIT_SOURCE})`,
+  "u",
+);
 const GROUPING_SPACE_PATTERN = /[\u00A0\u202F\u2009 ]/gu;
 const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}_]/u;
 const DIGIT_PATTERN = /\p{N}/u;
@@ -64,7 +83,8 @@ interface NumberSeparators {
 }
 
 type Placement = "currency-before" | "currency-after";
-type TokenKind = "code" | "local-name" | "symbol";
+type MainTokenKind = "code" | "local-name" | "symbol";
+type TokenKind = MainTokenKind | "minor-unit";
 
 interface DetectionPattern {
   readonly regex: RegExp;
@@ -91,6 +111,7 @@ interface CandidateDetection extends DetectedCurrency {
 }
 
 const detectionPatterns = buildDetectionPatterns();
+const compoundPatterns = buildCompoundPatterns();
 
 /**
  * Detects at most three monetary amounts in source order for pure parsing callers.
@@ -102,9 +123,17 @@ export function detectCurrencies(
   options: CurrencyDetectionOptions = {},
 ): DetectedCurrency[] {
   const source = text.slice(0, MAX_SELECTION_LENGTH);
-  const detections = detectionPatterns.flatMap((pattern) =>
-    collectPatternMatches(source, pattern, options),
-  );
+  const activeCompoundPatterns = MINOR_UNIT_PRESENCE_PATTERN.test(source)
+    ? compoundPatterns
+    : [];
+  const detections = [
+    ...activeCompoundPatterns.flatMap((pattern) =>
+      collectCompoundMatches(source, pattern, options),
+    ),
+    ...detectionPatterns.flatMap((pattern) =>
+      collectPatternMatches(source, pattern, options),
+    ),
+  ];
   const orderedDetections = detections.toSorted(
     (left, right) =>
       left.amountStart - right.amountStart || right.amountEnd - left.amountEnd,
@@ -288,28 +317,74 @@ function getPrimaryLanguage(options: CurrencyDetectionOptions): string | undefin
   return undefined;
 }
 
-/** Creates code, symbol, and local-name patterns with longest tokens first. */
+/** Creates code, symbol, local-name, and minor-unit patterns with longest tokens first. */
 function buildDetectionPatterns(): DetectionPattern[] {
-  const codeSource = getCurrencyCodes()
-    .map(escapeRegularExpression)
-    .toSorted((left, right) => right.length - left.length)
-    .join("|");
-  const symbolSource = getCurrencySymbolDefinitions()
-    .map((definition) => escapeRegularExpression(definition.token))
-    .join("|");
-  const localNameSource = getCurrencyLocalNameDefinitions()
-    .map((definition) => escapeRegularExpression(definition.token))
-    .toSorted((left, right) => right.length - left.length)
-    .join("|");
+  const sources = buildMainTokenSources();
 
   return [
-    createDetectionPattern(codeSource, "currency-before", "code"),
-    createDetectionPattern(codeSource, "currency-after", "code"),
-    createDetectionPattern(localNameSource, "currency-before", "local-name"),
-    createDetectionPattern(localNameSource, "currency-after", "local-name"),
-    createDetectionPattern(symbolSource, "currency-before", "symbol"),
-    createDetectionPattern(symbolSource, "currency-after", "symbol"),
+    // A minor unit may start with a local name, so "20 euro cents" must win over "20 euro".
+    createDetectionPattern(STANDALONE_MINOR_UNIT_SOURCE, "currency-after", "minor-unit"),
+    createDetectionPattern(sources.code, "currency-before", "code"),
+    createDetectionPattern(sources.code, "currency-after", "code"),
+    createDetectionPattern(sources["local-name"], "currency-before", "local-name"),
+    createDetectionPattern(sources["local-name"], "currency-after", "local-name"),
+    createDetectionPattern(sources.symbol, "currency-before", "symbol"),
+    createDetectionPattern(sources.symbol, "currency-after", "symbol"),
   ];
+}
+
+/**
+ * Creates patterns for a main amount followed by a minor amount, as in "$5 and 50 cents".
+ * The groups are the main token and amount in written order, then the minor amount and unit.
+ */
+function buildCompoundPatterns(): DetectionPattern[] {
+  const sources = buildMainTokenSources();
+  const minorSource = `${COMPOUND_SEPARATOR_SOURCE}(\\p{Nd}+)\\s*(${MINOR_UNIT_SOURCE})`;
+
+  return (["code", "local-name", "symbol"] as const).flatMap((tokenKind) => [
+    {
+      regex: new RegExp(
+        `(${sources[tokenKind]})\\s*(${INTEGER_SOURCE})${minorSource}`,
+        "dgu",
+      ),
+      placement: "currency-before" as const,
+      tokenKind,
+    },
+    {
+      regex: new RegExp(
+        `(${INTEGER_SOURCE})\\s*(${sources[tokenKind]})${minorSource}`,
+        "dgu",
+      ),
+      placement: "currency-after" as const,
+      tokenKind,
+    },
+  ]);
+}
+
+/** Builds the main-unit token alternations, with longer tokens first. */
+function buildMainTokenSources(): Record<MainTokenKind, string> {
+  return {
+    code: getCurrencyCodes()
+      .map(escapeRegularExpression)
+      .toSorted((left, right) => right.length - left.length)
+      .join("|"),
+    // Symbol definitions are already sorted by length.
+    symbol: getCurrencySymbolDefinitions()
+      .map((definition) => escapeRegularExpression(definition.token))
+      .join("|"),
+    "local-name": getCurrencyLocalNameDefinitions()
+      .map((definition) => escapeRegularExpression(definition.token))
+      .toSorted((left, right) => right.length - left.length)
+      .join("|"),
+  };
+}
+
+/** Builds a minor-unit alternation with longer names first, so "cents" wins over "cent". */
+function buildMinorUnitSource(units: readonly CurrencyMinorUnit[]): string {
+  return units
+    .map((unit) => escapeRegularExpression(unit.name))
+    .toSorted((left, right) => right.length - left.length)
+    .join("|");
 }
 
 /** Creates one reusable global pattern for a token kind and placement. */
@@ -365,7 +440,12 @@ function createDetection(
   const token = pattern.placement === "currency-before" ? first : second;
   const amountText = pattern.placement === "currency-before" ? second : first;
   const currencyCode = resolveCurrencyToken(token, pattern.tokenKind, options);
-  const amount = parseScaledAmount(amountText, options);
+  const scaledAmount = parseScaledAmount(amountText, options);
+  // A minor amount such as "50 cents" is divided into the main unit.
+  const amount =
+    scaledAmount !== null && pattern.tokenKind === "minor-unit"
+      ? scaledAmount / 10 ** minorUnitByName.get(token)!.exponent
+      : scaledAmount;
 
   if (currencyCode === undefined || amount === null || amount <= 0) {
     return null;
@@ -380,6 +460,73 @@ function createDetection(
     amount,
     amountStart,
     amountEnd: amountStart + amountText.length,
+    currencyCode,
+    originalText: match[0],
+    index: match.index,
+  };
+}
+
+/** Collects compound matches such as "$5 and 50 cents" from one pattern. */
+function collectCompoundMatches(
+  text: string,
+  pattern: DetectionPattern,
+  options: CurrencyDetectionOptions,
+): CandidateDetection[] {
+  const detections: CandidateDetection[] = [];
+  pattern.regex.lastIndex = 0;
+
+  for (let match = pattern.regex.exec(text); match; match = pattern.regex.exec(text)) {
+    const detection = createCompoundDetection(text, match, pattern, options);
+    if (detection) {
+      detections.push(detection);
+    }
+  }
+
+  return detections;
+}
+
+/**
+ * Joins an integer main amount and a minor amount into one main-unit amount.
+ * The minor unit must belong to the main currency, so "USD 5 and 50 pence" is not joined.
+ */
+function createCompoundDetection(
+  text: string,
+  match: RegExpExecArray,
+  pattern: DetectionPattern,
+  options: CurrencyDetectionOptions,
+): CandidateDetection | null {
+  if (!isMatchBoundaryValid(text, match, pattern)) {
+    return null;
+  }
+
+  const [mainGroup, tokenGroup] = pattern.placement === "currency-before" ? [2, 1] : [1, 2];
+  // Every group of a compound pattern is required, so a successful match has all four.
+  const currencyCode = resolveCurrencyToken(match[tokenGroup]!, pattern.tokenKind, options);
+  const minorUnit = minorUnitByName.get(match[4]!)!;
+  const mainNumber = normalizeMoneyNumber(match[mainGroup]!, options);
+  const minorDigits = normalizeDecimalDigits(match[3]!);
+
+  if (
+    currencyCode === undefined ||
+    !minorUnit.codes.includes(currencyCode) ||
+    mainNumber === null ||
+    mainNumber.includes(".") ||
+    Number(minorDigits) >= 10 ** minorUnit.exponent
+  ) {
+    return null;
+  }
+
+  // Joining decimal strings keeps "5 and 5 cents" exact as 5.05.
+  const amount = Number(`${mainNumber}.${minorDigits.padStart(minorUnit.exponent, "0")}`);
+  if (amount <= 0) {
+    return null;
+  }
+
+  const amountStart = match.indices![mainGroup]![0];
+  return {
+    amount,
+    amountStart,
+    amountEnd: match.indices![3]![1],
     currencyCode,
     originalText: match[0],
     index: match.index,
@@ -466,16 +613,45 @@ function resolveCurrencyToken(
     return definition.defaultCurrency;
   }
 
+  if (tokenKind === "minor-unit") {
+    // Minor-unit patterns are built exclusively from this table, so every match has a definition.
+    const minorUnit = minorUnitByName.get(token)!;
+    // "¢" follows the user's "$" interpretation, so both read as the same currency.
+    const override =
+      minorUnit.symbol === undefined
+        ? undefined
+        : options.symbolOverrides?.[minorUnit.symbol];
+    return resolveAmbiguousCurrency(
+      override,
+      minorUnit.codes,
+      minorUnit.codes[0]!,
+      options,
+    );
+  }
+
   // Symbol patterns are built exclusively from this table, so every match has a definition.
   const definition = getCurrencySymbolDefinition(token)!;
+  return resolveAmbiguousCurrency(
+    options.symbolOverrides?.[token],
+    definition.currencyCodes,
+    definition.defaultCurrency,
+    options,
+  );
+}
 
-  const override = options.symbolOverrides?.[token];
-  if (override !== undefined && definition.currencyCodes.includes(override)) {
+/** Chooses a candidate by the user's override, then page and browser regions, then the default. */
+function resolveAmbiguousCurrency(
+  override: CurrencyCode | undefined,
+  candidates: readonly CurrencyCode[],
+  defaultCurrency: CurrencyCode,
+  options: CurrencyDetectionOptions,
+): CurrencyCode {
+  if (override !== undefined && candidates.includes(override)) {
     return override;
   }
 
   for (const region of getLocaleRegions(options)) {
-    const localeCurrency = definition.currencyCodes.find((currencyCode) =>
+    const localeCurrency = candidates.find((currencyCode) =>
       getCurrencyMetadata(currencyCode).countries.includes(region),
     );
     if (localeCurrency !== undefined) {
@@ -483,7 +659,7 @@ function resolveCurrencyToken(
     }
   }
 
-  return definition.defaultCurrency;
+  return defaultCurrency;
 }
 
 /** Returns explicit locale regions first and likely regions only as fallback. */

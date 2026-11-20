@@ -620,6 +620,12 @@ describe("detectCurrencies with minor units in other languages", () => {
   it("keeps the first minor part when the second cannot be joined", () => {
     expect(detect("$5 and 50 cents, 30c", "en-US")).toEqual([[5.5, "USD"]]);
     expect(detect("£3 20p 5p", "en-GB")).toEqual([[3.2, "GBP"]]);
+    // The rejected second part "5 p" must not hide the next amount from the search.
+    expect(detect("3 pounds 20p, 5 pounds 50 pence", "en-GB")).toEqual([
+      [3.2, "GBP"],
+      [5.5, "GBP"],
+    ]);
+    expect(detect("0 pounds 0p, 5 pounds 50 pence", "en-GB")).toEqual([[5.5, "GBP"]]);
   });
 
   it("does not join minor units of another currency after the first part", () => {

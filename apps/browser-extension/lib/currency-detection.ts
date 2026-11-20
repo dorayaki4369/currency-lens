@@ -509,7 +509,11 @@ function toMainUnitAmount(
     : amount;
 }
 
-/** Collects compound matches such as "$5 and 50 cents" from one pattern. */
+/**
+ * Collects compound matches such as "$5 and 50 cents" from one pattern.
+ * A match may extend past the accepted span, as "£3 20p, 5 pounds" does into "5 p", so the
+ * search resumes after the accepted span, or right after the start of a rejected match.
+ */
 function collectCompoundMatches(
   text: string,
   pattern: DetectionPattern,
@@ -522,6 +526,9 @@ function collectCompoundMatches(
     const detection = createCompoundDetection(text, match, pattern, options);
     if (detection) {
       detections.push(detection);
+      pattern.regex.lastIndex = detection.index + detection.originalText.length;
+    } else {
+      pattern.regex.lastIndex = match.index + 1;
     }
   }
 

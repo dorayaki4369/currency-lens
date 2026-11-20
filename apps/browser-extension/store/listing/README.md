@@ -1,39 +1,37 @@
 # ストア掲載文
 
-Chrome Web StoreとFirefox Add-ons（AMO）に載せる文言と掲載設定の正本です。ストアのdashboardで掲載文を直接書き換えた場合は、このディレクトリにも同じ変更を入れます。
+Chrome Web StoreとFirefox Add-ons（AMO）に載せる文言と掲載設定の正本です。AMOの掲載はリリースのたびにここから上書きされるため、AMOのdashboardで掲載文を直接書き換えません。
 
-| 掲載項目                      | 正本                                                            | ストアへの反映                                                             |
-| ----------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| 名前                          | `public/_locales/{en,ja}/messages.json`の`extensionName`        | manifestに含まれ、`main`へのリリース時の提出で両ストアへ届きます。         |
-| 短い説明（要約）              | `public/_locales/{en,ja}/messages.json`の`extensionDescription` | Chromeは提出時にmanifestから反映します。AMOの要約はdashboardで設定します。 |
-| 詳細説明                      | `description.en.txt`、`description.ja.txt`                      | 両ストアのdashboardへ手で貼り付けます。                                    |
-| AMOの既定言語、カテゴリ、タグ | `amo.json`                                                      | AMOのdashboardで手で設定します。                                           |
+| 掲載項目                      | 正本                                                            | Chrome Web Storeへの反映                 | AMOへの反映                  |
+| ----------------------------- | --------------------------------------------------------------- | ---------------------------------------- | ---------------------------- |
+| 名前                          | `public/_locales/{en,ja}/messages.json`の`extensionName`        | リリース時の提出でmanifestから反映します | リリース時の提出で反映します |
+| 短い説明（要約）              | `public/_locales/{en,ja}/messages.json`の`extensionDescription` | リリース時の提出でmanifestから反映します | リリース時の提出で反映します |
+| 詳細説明                      | `description.en.txt`、`description.ja.txt`                      | dashboardへ手で貼り付けます              | リリース時の提出で反映します |
+| AMOの既定言語、カテゴリ、タグ | `amo.json`                                                      | 対象外                                   | リリース時の提出で反映します |
 
-`listing.spec.ts`が、名前と短い説明の文字数、詳細説明のプライバシーポリシーへのリンク、`amo.json`の値をストアの制限に照らして検査します。
+AMOへは、`Publish browser extension`が`../amo-metadata.ts`でこれらの正本からAMOの掲載情報のJSONを作り、`wxt submit --firefox-amo-metadata-file`で新しいversionと一緒に送ります。英語の文言はAMOの`en-US`、日本語は`ja`に入ります。
+
+`listing.spec.ts`が、名前と短い説明の文字数、要約にURLがないこと、詳細説明のプライバシーポリシーへのリンク、`amo.json`のカテゴリとタグがAMOの受け付ける値であることを検査します。
 
 ## 文言を書くときの決まり
 
 - 何ができるかを最初の1文で書き、「currency converter」「通貨換算」のような検索される語は、機能の説明として自然に入る範囲で使います。同じ語の繰り返しや、機能と関係のない語の羅列は、両ストアともキーワードスパムとして禁止しています。
-- READMEの「できること」にない機能や、「最速」「最高」のような比較・誇張の表現は書きません。
-- 詳細説明はプレーンテキストで書きます。Chromeは書式を解釈せず、AMOは一部のMarkdownを解釈するため、どちらでも読める見出し行と`-`の箇条書きだけを使います。
+- READMEの「できること」にない機能や、「リアルタイム」「最速」のような実際と違う表現・誇張は書きません。
+- 詳細説明はプレーンテキストで書きます。Chromeは書式を解釈せず、AMOは一部のMarkdownを解釈するため、見出し行、番号付きの手順、`-`の箇条書きだけを使い、見出しや段落の間は空行で区切ります。
 
 ## 文字数とポリシー
 
 | 項目     | Chrome Web Store                   | AMO                           |
 | -------- | ---------------------------------- | ----------------------------- |
 | 名前     | 75文字（manifestの`name`）         | 50文字                        |
-| 短い説明 | 132文字（manifestの`description`） | 250文字                       |
+| 短い説明 | 132文字（manifestの`description`） | 250文字、URLは不可            |
 | カテゴリ | dashboardで選択                    | 2つまで（1つで足りれば1つ）   |
 | タグ     | なし                               | 10個まで、AMOが用意した語だけ |
 
-出典は、Chromeが[Manifest - name](https://developer.chrome.com/docs/extensions/reference/manifest/name)、[Manifest - Description](https://developer.chrome.com/docs/extensions/reference/manifest/description)、[Creating a great listing page](https://developer.chrome.com/docs/webstore/best-listing)、AMOが[Creating an appealing add-on listing](https://extensionworkshop.com/documentation/develop/create-an-appealing-listing/)（カテゴリの数もこのガイドに従います）、[Tags API](https://mozilla.github.io/addons-server/topics/api/tags.html)、[Categories API](https://mozilla.github.io/addons-server/topics/api/categories.html)、[addons-serverの`MAX_TAGS`](https://github.com/mozilla/addons-server/blob/master/src/olympia/constants/base.py)です。AMOのタグは`https://addons.mozilla.org/api/v5/addons/tags/`が返す一覧から選びます。
+出典は、Chromeが[Manifest - name](https://developer.chrome.com/docs/extensions/reference/manifest/name)、[Manifest - Description](https://developer.chrome.com/docs/extensions/reference/manifest/description)、[Creating a great listing page](https://developer.chrome.com/docs/webstore/best-listing)、AMOが[Creating an appealing add-on listing](https://extensionworkshop.com/documentation/develop/create-an-appealing-listing/)（カテゴリの数もこのガイドに従います）、[Add-ons API の Edit](https://mozilla.github.io/addons-server/topics/api/addons.html#edit)、[Tags API](https://mozilla.github.io/addons-server/topics/api/tags.html)、[Categories API](https://mozilla.github.io/addons-server/topics/api/categories.html)、[addons-serverの`MAX_TAGS`](https://github.com/mozilla/addons-server/blob/master/src/olympia/constants/base.py)です。AMOのタグは`https://addons.mozilla.org/api/v5/addons/tags/`が返す一覧から選び、一覧が変わったら`listing.spec.ts`の写しも更新します。
 
 ## 反映手順
 
-名前と短い説明はmanifestの一部なので、changesetを付けたPull Requestで変え、通常のリリースで提出します。それ以外は次の手順でdashboardから反映します。
+掲載文を変えるときは、Pull Requestで正本を変えます。両ストアへ届くのは次のリリースの提出時で、詳細説明や`amo.json`だけの変更はchangesetの対象外なので、それだけではリリースは作られません。Chrome Web Storeの詳細説明は提出処理が送らないため、リリース後にdeveloper dashboardのStore listingで、英語と日本語の詳細説明へ`description.{en,ja}.txt`を貼り付けます。
 
-1. Chrome Web Storeのdeveloper dashboardで、Store listingの英語と日本語の詳細説明へ`description.{en,ja}.txt`を貼り付けます。
-2. AMOのEdit Product Pageで、既定の言語を`amo.json`の`default_locale`にします。そのうえで英語と日本語それぞれに、名前、要約（`extensionDescription`）、説明（`description.{en,ja}.txt`）を入力します。
-3. 同じ画面で、カテゴリとタグを`amo.json`のとおりに設定します。
-
-`Publish browser extension`が使うWXTの提出処理（publish-browser-extension）は、`--firefox-amo-metadata-file`を渡すと、新しいversionの提出前にAMOの掲載情報も同じJSONで更新できます。今は使っておらず、AMOの掲載情報は提出で変わりません。
+AMOへの掲載情報の送信は、Firefoxの新しいversionのアップロードと検証が済んだ後、versionを作る直前に行われます。送信が失敗すると、Chromeへの提出が済んだままFirefoxの提出が止まるため、`docs/deployment.md`の提出失敗時の手順で復旧します。

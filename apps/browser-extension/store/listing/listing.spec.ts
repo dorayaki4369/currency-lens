@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
+
+import { readAmoMetadata } from "@/store/amo-metadata";
 
 // AMO caps names at 50 characters, which is stricter than Chrome's 75.
 const MAX_NAME_CHARACTERS = 50;
@@ -9,7 +9,8 @@ const MAX_SUMMARY_CHARACTERS = 132;
 // AMO accepts 3, but its listing guide asks for at most 2 and only 1 when it fits.
 const MAX_AMO_CATEGORIES = 2;
 const MAX_AMO_TAGS = 10;
-const AMO_EXTENSION_CATEGORIES = [
+// https://mozilla.github.io/addons-server/topics/api/categories.html (extension type)
+const AMO_EXTENSION_CATEGORIES: ReadonlySet<string> = new Set([
   "alerts-updates",
   "appearance",
   "bookmarks",
@@ -25,53 +26,91 @@ const AMO_EXTENSION_CATEGORIES = [
   "tabs",
   "web-development",
   "other",
-] as const;
-const LOCALES = ["en", "ja"] as const;
+]);
+// GET https://addons.mozilla.org/api/v5/addons/tags/ on 2026-11-21. AMO rejects any other tag,
+// and the rejection would stop a release after Chrome has already been submitted.
+const AMO_TAGS: ReadonlySet<string> = new Set([
+  "ad blocker",
+  "anti malware",
+  "anti tracker",
+  "antivirus",
+  "chat",
+  "container",
+  "content blocker",
+  "coupon",
+  "dailymotion",
+  "dark mode",
+  "dndbeyond",
+  "download",
+  "facebook",
+  "google",
+  "image search",
+  "mp3",
+  "music",
+  "password manager",
+  "pinterest",
+  "pixiv",
+  "privacy",
+  "reddit",
+  "roblox",
+  "scholar",
+  "search",
+  "security",
+  "shopping",
+  "social media",
+  "streaming",
+  "torrent",
+  "translate",
+  "twitch",
+  "twitter",
+  "user scripts",
+  "video converter",
+  "video downloader",
+  "vpn",
+  "wayback machine",
+  "whatsapp",
+  "word counter",
+  "youtube",
+  "zoom",
+]);
 
-const messagesSchema = z.object({
-  extensionDescription: z.object({ message: z.string().min(1) }),
-  extensionName: z.object({ message: z.string().min(1) }),
-});
-const amoSettingsSchema = z.strictObject({
-  categories: z.array(z.enum(AMO_EXTENSION_CATEGORIES)).min(1).max(MAX_AMO_CATEGORIES),
-  default_locale: z.literal("en-US"),
-  tags: z.array(z.string().min(1)).max(MAX_AMO_TAGS),
-});
+describe("store listing", async () => {
+  const metadata = await readAmoMetadata();
+  const locales = Object.keys(metadata.name) as (keyof typeof metadata.name)[];
 
-describe("store listing", () => {
-  it.each(LOCALES)(
-    "keeps the %s name and summary within both stores' limits",
-    async (locale) => {
-      const messages = messagesSchema.parse(
-        JSON.parse(await readText(`../../public/_locales/${locale}/messages.json`)),
-      );
-
-      expect(characterCount(messages.extensionName.message)).toBeLessThanOrEqual(
-        MAX_NAME_CHARACTERS,
-      );
-      expect(characterCount(messages.extensionDescription.message)).toBeLessThanOrEqual(
-        MAX_SUMMARY_CHARACTERS,
-      );
-    },
-  );
-
-  it.each(LOCALES)("links the privacy policy from the %s description", async (locale) => {
-    const description = await readText(`./description.${locale}.txt`);
-
-    expect(description).toContain("https://cl.dryk.net/privacy");
+  it.each(locales)("keeps the %s name and summary within both stores' limits", (locale) => {
+    expect(characterCount(metadata.name[locale])).toBeLessThanOrEqual(MAX_NAME_CHARACTERS);
+    expect(characterCount(metadata.summary[locale])).toBeLessThanOrEqual(
+      MAX_SUMMARY_CHARACTERS,
+    );
   });
 
-  it("uses AMO categories and tag counts that AMO accepts", async () => {
-    const settings: unknown = JSON.parse(await readText("./amo.json"));
+  it.each(locales)("keeps URLs out of the %s summary, which AMO rejects", (locale) => {
+    expect(metadata.summary[locale]).not.toMatch(/https?:\/\//);
+  });
 
-    expect(amoSettingsSchema.safeParse(settings).success).toBe(true);
+  it.each(locales)("links the privacy policy from the %s description", (locale) => {
+    expect(metadata.description[locale]).toContain("https://cl.dryk.net/privacy");
+  });
+
+  it("uses only AMO categories, within the listing guide's count", () => {
+    const categories = metadata.categories.firefox;
+
+    expect(categories.length).toBeLessThanOrEqual(MAX_AMO_CATEGORIES);
+    expect(
+      categories.filter((category) => !AMO_EXTENSION_CATEGORIES.has(category)),
+    ).toEqual([]);
+  });
+
+  it("uses only tags from AMO's fixed list", () => {
+    expect(metadata.tags.length).toBeLessThanOrEqual(MAX_AMO_TAGS);
+    expect(metadata.tags.filter((tag) => !AMO_TAGS.has(tag))).toEqual([]);
+  });
+
+  it("publishes listing text for the default locale", () => {
+    expect(locales).toContain(metadata.default_locale);
   });
 });
-
-/** Reads a listing source relative to this directory. */
-function readText(path: string): Promise<string> {
-  return readFile(new URL(path, import.meta.url), "utf8");
-}
 
 /** Counts user-perceived characters, not UTF-16 code units, so Japanese text is not over-counted. */
 function characterCount(text: string): number {

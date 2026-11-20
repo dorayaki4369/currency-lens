@@ -30,7 +30,9 @@ version は Changesets が決め、`publish-extension.yml` が `main` への pus
 手動実行は dry-run だけにし、本番提出へ切り替える入力を足しません。同じ version を二重に提出しないためです。
 ストア掲載用の宣伝画像は、`publish-extension.yml` の `render store promo images` job がレビュー用画像から作り、Actions artifact に保存します。リポジトリへ画像をコミットせず、ストアへの掲載は人間が行います。
 ストアの掲載文と AMO の掲載設定の正本は `apps/browser-extension/store/listing/` です。
-名前と短い説明は `public/_locales` の manifest 文言が正本で、詳細説明、AMO の既定言語、カテゴリ、タグは人間が dashboard へ反映します。
+名前と短い説明は `public/_locales` の manifest 文言が正本です。
+AMO の掲載情報は、`publish-extension.yml` が `store/amo-metadata.ts` で正本から作り、`--firefox-amo-metadata-file` で提出のたびに上書きします。
+Chrome Web Store の詳細説明だけは、人間が dashboard へ反映します。
 
 ### API の互換性
 

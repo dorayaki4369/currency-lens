@@ -400,6 +400,12 @@ describe("detectCurrencies with minor units", () => {
     expect(detectCurrencies("50 cents", { pageLocale: "en-IE" })[0]?.currencyCode).toBe(
       "EUR",
     );
+    expect(detectCurrencies("50 cents", { pageLocale: "de-DE" })[0]?.currencyCode).toBe(
+      "EUR",
+    );
+    expect(detectCurrencies("50 cents", { pageLocale: "es-ES" })[0]?.currencyCode).toBe(
+      "EUR",
+    );
     expect(detectCurrencies("50 cent", { pageLocale: "en-AU" })[0]?.currencyCode).toBe(
       "AUD",
     );

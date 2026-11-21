@@ -74,6 +74,14 @@ export function getCurrencyMetadata(code: CurrencyCode): CurrencyMetadata {
   return currencies.find((currency) => currency.code === code)!;
 }
 
+/** Picks the highest-priority conversion target that differs from the selected currency. */
+export function selectQuickConversionTarget(
+  favorites: readonly CurrencyCode[],
+  sourceCurrency: CurrencyCode,
+): CurrencyCode | null {
+  return favorites.find((currencyCode) => currencyCode !== sourceCurrency) ?? null;
+}
+
 /** Returns every supported currency code for constructing detection patterns. */
 export function getCurrencyCodes(): readonly CurrencyCode[] {
   return currencies.map((currency) => currency.code);

@@ -85,6 +85,7 @@ const messages = {
     openApp: "Open Currency Lens",
     openSettings: "Open settings",
     popupBack: "Back",
+    quickConversion: "{amount} ({currency}). Show all conversions",
     ratesFrom: "Rates from {timestamp}",
     ratesStale: "Using the last available rates. They are at least 24 hours old.",
     removeCurrency: "Remove {currency}",
@@ -142,6 +143,7 @@ const messages = {
     openApp: "Currency Lens を開く",
     openSettings: "設定を開く",
     popupBack: "戻る",
+    quickConversion: "{amount}（{currency}）。すべての換算先を表示",
     ratesFrom: "{timestamp} 時点のレート",
     ratesStale: "24時間以上前に取得したレートを表示しています。",
     removeCurrency: "{currency} を削除",
@@ -224,6 +226,31 @@ export function getRegionDisplayNames(
       .join(" · ");
   } catch {
     return regionCodes.slice(0, limit).join(" · ");
+  }
+}
+
+/** Formats a converted amount with the target currency's narrow symbol and its own fraction digits. */
+export function formatCurrencyAmount(
+  value: string,
+  currencyCode: string,
+  fractionDigits: number,
+  locale: UiLocale,
+): string {
+  const digits = {
+    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: fractionDigits,
+  };
+  const numericValue = Number(value);
+  try {
+    return new Intl.NumberFormat(locale, {
+      ...digits,
+      currency: currencyCode,
+      currencyDisplay: "narrowSymbol",
+      style: "currency",
+    }).format(numericValue);
+  } catch {
+    // Intl accepts only three-letter codes, so codes such as DASH are appended instead.
+    return `${new Intl.NumberFormat(locale, digits).format(numericValue)} ${currencyCode}`;
   }
 }
 

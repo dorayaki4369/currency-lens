@@ -129,7 +129,7 @@ describe("content selection-to-conversion flow", () => {
 
       const trigger = await screen.findByRole(
         "button",
-        { name: "Convert selected price" },
+        { name: "¥1,500 (Japanese Yen). Show all conversions" },
         { timeout: 1_000 },
       );
       fireEvent.click(trigger);
@@ -139,22 +139,26 @@ describe("content selection-to-conversion flow", () => {
         expect(dialog.textContent).toContain("1,500.00");
         expect(dialog.textContent).toContain("9.20");
       });
-      const conversionRequest = sendMessage.mock.calls.find(
-        ([message]) => message.type === messageTypes.CONVERT_CURRENCIES,
-      )?.[0];
-      expect(conversionRequest).toEqual({
-        payload: {
-          amounts: [{ amount: 10, currencyCode: "USD" }],
-          targetCurrencies: ["JPY", "EUR"],
+      const conversionRequests = sendMessage.mock.calls
+        .map(([message]) => message)
+        .filter((message) => message.type === messageTypes.CONVERT_CURRENCIES);
+      expect(conversionRequests).toEqual([
+        {
+          payload: {
+            amounts: [{ amount: 10, currencyCode: "USD" }],
+            targetCurrencies: ["JPY"],
+          },
+          type: messageTypes.CONVERT_CURRENCIES,
         },
-        type: messageTypes.CONVERT_CURRENCIES,
-      });
-      expect(JSON.stringify(conversionRequest)).not.toContain("The total");
-      expect(
-        sendMessage.mock.calls.filter(
-          ([message]) => message.type === messageTypes.CONVERT_CURRENCIES,
-        ),
-      ).toHaveLength(1);
+        {
+          payload: {
+            amounts: [{ amount: 10, currencyCode: "USD" }],
+            targetCurrencies: ["JPY", "EUR"],
+          },
+          type: messageTypes.CONVERT_CURRENCIES,
+        },
+      ]);
+      expect(JSON.stringify(conversionRequests)).not.toContain("The total");
       expect(screen.queryByRole("button", { name: /^Reorder /u })).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Edit conversion targets" }));
       expect(dialog.textContent).toContain("1,500.00");
@@ -196,7 +200,8 @@ describe("content selection-to-conversion flow", () => {
         sendMessage.mock.calls.filter(
           ([message]) => message.type === messageTypes.CONVERT_CURRENCIES,
         ).length;
-      expect(conversionRequestCount()).toBe(1);
+      // One request for the trigger and one for the card; reordering adds none.
+      expect(conversionRequestCount()).toBe(2);
 
       fireEvent.click(screen.getByLabelText("Remove JPY"));
       finishCurrencyDeletion("JPY");

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrencyCode } from "@cl/currency";
 import type { Config } from "@/lib/currency";
 import type { DetectedCurrency } from "@/lib/currency-detection";
+import type { QuickConversion } from "@/entrypoints/content/components/FloatingIcon";
 
 const mocks = vi.hoisted(() => ({
   conversion: {
@@ -24,7 +25,9 @@ const mocks = vi.hoisted(() => ({
     setFloating: vi.fn<(element: HTMLElement | null) => void>(),
     setReference: vi.fn<(reference: unknown) => void>(),
   },
+  quickConversion: null as QuickConversion | null,
   selection: null as { readonly rect: DOMRect; readonly text: string } | null,
+  useQuickConversion: vi.fn<(...arguments_: unknown[]) => void>(),
   useCurrencyDetection: vi.fn<(...arguments_: unknown[]) => void>(),
 }));
 
@@ -47,6 +50,13 @@ vi.mock("@/entrypoints/content/hooks/useCurrencyDetection", () => ({
   useCurrencyDetection: (...arguments_: unknown[]) => {
     mocks.useCurrencyDetection(...arguments_);
     return mocks.detections;
+  },
+}));
+
+vi.mock("@/entrypoints/content/hooks/useQuickConversion", () => ({
+  useQuickConversion: (...arguments_: unknown[]) => {
+    mocks.useQuickConversion(...arguments_);
+    return mocks.quickConversion;
   },
 }));
 
@@ -75,8 +85,10 @@ beforeEach(() => {
   mocks.detections = [];
   mocks.floating.setFloating.mockReset();
   mocks.floating.setReference.mockReset();
+  mocks.quickConversion = null;
   mocks.selection = null;
   mocks.useCurrencyDetection.mockReset();
+  mocks.useQuickConversion.mockReset();
   document.documentElement.lang = "";
 });
 
@@ -87,6 +99,27 @@ afterEach(() => {
 });
 
 describe("content App", () => {
+  it("shows the top conversion on the trigger and opens the card from it", async () => {
+    installBrowser(() => Promise.resolve(successfulConfig(CONFIG)));
+    mocks.selection = { rect: new DOMRect(5, 6, 7, 8), text: "$10" };
+    mocks.detections = [DETECTION];
+    mocks.quickConversion = {
+      amount: { text: "¥1,547", value: 1547 },
+      currencyCode: "JPY",
+      pending: false,
+    };
+
+    render(<App />);
+    const trigger = await screen.findByRole("button", {
+      name: "¥1,547 (Japanese Yen). Show all conversions",
+    });
+
+    expect(mocks.useQuickConversion).toHaveBeenLastCalledWith(DETECTION, CONFIG, "en");
+    fireEvent.click(trigger);
+    expect(screen.getByRole("dialog", { name: "Conversion result" })).toBeDefined();
+    expect(mocks.useQuickConversion).toHaveBeenLastCalledWith(undefined, CONFIG, "en");
+  });
+
   it("loads configuration, positions the trigger, converts, and restores focus", async () => {
     const browserMock = installBrowser(() => Promise.resolve(successfulConfig(CONFIG)));
     const rect = new DOMRect(5, 6, 7, 8);

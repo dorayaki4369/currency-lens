@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   formatConvertedAmount,
+  formatCurrencyAmount,
   getCurrencyDisplayName,
   getRegionDisplayNames,
   getUiLocale,
@@ -69,6 +70,31 @@ describe("UI localization", () => {
 
     expect(getCurrencyDisplayName("USD", "en")).toBe("USD");
     expect(getRegionDisplayNames(["US", "CA", "MX"], "en", 2)).toBe("US · CA");
+  });
+});
+
+describe("formatCurrencyAmount", () => {
+  it.each([
+    ["6962.4", "JPY", 0, "en", "¥6,962"],
+    ["6962.4", "JPY", 0, "ja", "￥6,962"],
+    ["6.46", "USD", 2, "en", "$6.46"],
+    ["10", "CAD", 2, "en", "$10.00"],
+    ["1530000000", "JPY", 0, "en", "¥1,530,000,000"],
+  ] as const)(
+    "formats %s %s with the currency's narrow symbol and digits",
+    (value, currencyCode, fractionDigits, locale, expected) => {
+      expect(formatCurrencyAmount(value, currencyCode, fractionDigits, locale)).toBe(
+        expected,
+      );
+    },
+  );
+
+  it("keeps the code for currencies that Intl displays without a symbol", () => {
+    expect(formatCurrencyAmount("0.00029085", "BTC", 8, "en")).toBe("BTC\u00a00.00029085");
+  });
+
+  it("appends codes that Intl cannot format as a currency", () => {
+    expect(formatCurrencyAmount("1.5", "DASH", 4, "en")).toBe("1.5000 DASH");
   });
 });
 

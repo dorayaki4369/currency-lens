@@ -115,12 +115,25 @@ export function AppComponentFixture({ fixtureId }: { readonly fixtureId: AppFixt
         {["bg-white text-black", "bg-zinc-950 text-white"].map((surface) => (
           <div className={`${surface} rounded-lg p-5 shadow-inner`} key={surface}>
             <p className="mb-4">Europe: €100.50</p>
-            <FloatingIcon
-              floatingStyles={{ position: "relative" }}
-              locale="ja"
-              onClick={() => undefined}
-              setFloating={() => undefined}
-            />
+            <div className="flex items-center gap-3">
+              <FloatingIcon
+                floatingStyles={{ position: "relative" }}
+                locale="ja"
+                onClick={() => undefined}
+                quickConversion={{
+                  amount: { text: "￥16,512", value: 16_512 },
+                  currencyCode: "JPY",
+                  pending: false,
+                }}
+                setFloating={() => undefined}
+              />
+              <FloatingIcon
+                floatingStyles={{ position: "relative" }}
+                locale="ja"
+                onClick={() => undefined}
+                setFloating={() => undefined}
+              />
+            </div>
           </div>
         ))}
       </div>

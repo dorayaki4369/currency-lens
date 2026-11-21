@@ -6,7 +6,8 @@ const localized = {
   addTarget: /^(?:Add a target|換算通貨を追加)$/u,
   amount: /^(?:Amount|金額)$/u,
   conversionResult: /^(?:Conversion result|換算結果)$/u,
-  convertSelection: /^(?:Convert selected price|選択した金額を換算)$/u,
+  quickConversion:
+    /^(?:¥37,213 \(Japanese Yen\)\. Show all conversions|￥37,213（日本円）。すべての換算先を表示)$/u,
   converted: /^(?:Converted|換算後)$/u,
   currencySearch: /^(?:Code, name, or region|コード・通貨名・地域)$/u,
   editTargets: /^(?:Edit conversion targets|換算後を編集)$/u,
@@ -71,9 +72,10 @@ test("the built extension exposes an accessible popup and content flow", async (
   await page.goto(HOST_PAGE_URL, { waitUntil: "domcontentloaded" });
   await page.locator("#price").selectText();
 
-  const trigger = page.getByRole("button", { name: localized.convertSelection });
+  // The first target is USD, the selected currency, so the trigger shows the next target, JPY.
+  const trigger = page.getByRole("button", { name: localized.quickConversion });
   await expect(trigger).toBeVisible();
-  await expectAppLogoLoaded(trigger.locator('[data-slot="app-logo"]'));
+  await expectImageLoaded(trigger.locator('[data-currency-icon="JPY"] img'));
   await saveReviewScreenshot(page, "e2e-selection-trigger");
   await trigger.click();
 
@@ -112,11 +114,16 @@ async function finishTargetEditing(popup: Page): Promise<void> {
 
 /** Verifies bundled artwork actually decodes in popup and host-page execution contexts. */
 async function expectAppLogoLoaded(logo: Locator): Promise<void> {
-  await expect(logo).toBeVisible();
   await expect(logo).toHaveAttribute("src", /^data:image\/svg\+xml[;,]/u);
+  await expectImageLoaded(logo);
+}
+
+/** Verifies that an image is visible and decoded from its packaged source. */
+async function expectImageLoaded(image: Locator): Promise<void> {
+  await expect(image).toBeVisible();
   await expect
     .poll(() =>
-      logo.evaluate(
+      image.evaluate(
         (element) =>
           element instanceof HTMLImageElement &&
           element.complete &&

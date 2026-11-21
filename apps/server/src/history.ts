@@ -1,7 +1,7 @@
 import { currencyIdentifierSchema, oxrLatestResponseSchema } from "@cl/oxr/schema";
 import { z } from "zod/v4";
 
-export const HOURLY_HISTORY_KEY = "history/hourly.json";
+export const HOURLY_HISTORY_KEY = "history/hourly.tsv";
 export const BACKFILL_STATE_KEY = "history/backfill.json";
 export const HOURLY_SLOT_COUNT = 121;
 export const DAILY_SLOT_COUNT = 366;
@@ -17,31 +17,12 @@ const DAY_MS = 86_400_000;
 const LEGACY_SNAPSHOT_PREFIX = "latest/";
 
 const rateSeriesSchema = z.array(z.number().positive().nullable());
-
-const hourlyHistorySchema = z.strictObject({
+const monthSchema = z.string().regex(/^\d{4}-(?:0[1-9]|1[0-2])$/);
+const hourlyHeaderSchema = z.strictObject({
   version: z.literal(1),
   start: z.iso.datetime(),
-  rates: z.record(currencyIdentifierSchema, rateSeriesSchema.length(HOURLY_SLOT_COUNT)),
 });
-
-const monthlyHistorySchema = z
-  .strictObject({
-    version: z.literal(1),
-    month: z.string().regex(/^\d{4}-(?:0[1-9]|1[0-2])$/),
-    rates: z.record(currencyIdentifierSchema, rateSeriesSchema),
-  })
-  .superRefine((history, context) => {
-    const dayCount = daysInMonth(history.month);
-    for (const [currency, series] of Object.entries(history.rates)) {
-      if (series.length !== dayCount) {
-        context.addIssue({
-          code: "custom",
-          message: `Expected ${dayCount} daily rates`,
-          path: ["rates", currency],
-        });
-      }
-    }
-  });
+const monthlyHeaderSchema = z.strictObject({ version: z.literal(1), month: monthSchema });
 
 const backfillStateSchema = z.strictObject({
   version: z.literal(1),
@@ -60,8 +41,13 @@ export const historyQuerySchema = z.object({
     ),
 });
 
-export type HourlyHistory = z.infer<typeof hourlyHistorySchema>;
-export type MonthlyHistory = z.infer<typeof monthlyHistorySchema>;
+type RateSeries = (number | null)[];
+export type HourlyHistory = z.infer<typeof hourlyHeaderSchema> & {
+  rates: Record<string, RateSeries>;
+};
+export type MonthlyHistory = z.infer<typeof monthlyHeaderSchema> & {
+  rates: Record<string, RateSeries>;
+};
 export type HistoryQuery = z.infer<typeof historyQuerySchema>;
 export type RateSnapshot = { timestampMs: number; rates: Record<string, number> };
 
@@ -87,7 +73,8 @@ export async function readHistory(
   query: HistoryQuery,
   nowMs: number,
 ): Promise<HistoryResponse> {
-  const hourly = await readJson(bucket, HOURLY_HISTORY_KEY, hourlyHistorySchema);
+  const symbols = new Set(query.symbols);
+  const hourly = await readHourlyHistory(bucket, symbols);
   if (query.resolution === "hourly") {
     return hourlyResponse(hourly, query.symbols, nowMs);
   }
@@ -95,9 +82,7 @@ export async function readHistory(
   const today = toDateString(nowMs);
   const start = addDays(today, -(DAILY_SLOT_COUNT - 1));
   const months = await Promise.all(
-    monthsBetween(start, today).map((month) =>
-      readJson(bucket, monthlyHistoryKey(month), monthlyHistorySchema),
-    ),
+    monthsBetween(start, today).map((month) => readMonthlyHistory(bucket, month, symbols)),
   );
   return dailyResponse(
     months.filter((month) => month !== null),
@@ -107,52 +92,95 @@ export async function readHistory(
   );
 }
 
+/** Keys of aggregate files that were invalid and have been rebuilt from scratch. */
+export type HistoryUpdateResult = { rebuiltKeys: string[] };
+
 /**
  * Folds the newest snapshot into the aggregates and repairs a bounded number of
- * missing slots and days from the archived snapshots.
+ * missing slots and days from the archived snapshots. Invalid aggregate files
+ * are rebuilt, since every value in them can be derived again from the archive.
  */
 export async function updateHistory(
   bucket: R2Bucket,
   snapshot: RateSnapshot,
   nowMs: number,
-): Promise<void> {
-  const stored = await readJson(bucket, HOURLY_HISTORY_KEY, hourlyHistorySchema);
-  const hourly = alignHourlyHistory(stored, floorToHour(snapshot.timestampMs));
-  setHourlySlot(hourly, floorToHour(snapshot.timestampMs), snapshot.rates);
-  const repairs = await Promise.all(
-    missingHourlySlots(hourly, MAX_HOURLY_REPAIRS_PER_RUN).map(async (slotMs) => ({
-      slotMs,
-      snapshot: await findSnapshotForHour(bucket, slotMs),
-    })),
+): Promise<HistoryUpdateResult> {
+  const rebuiltKeys: string[] = [];
+  const readOrRebuild = async <T>(
+    key: string,
+    read: () => Promise<T | null>,
+  ): Promise<T | null> => {
+    try {
+      return await read();
+    } catch (error) {
+      if (!(error instanceof InvalidStoredHistoryError)) {
+        throw error;
+      }
+      rebuiltKeys.push(key);
+      return null;
+    }
+  };
+
+  const slotMs = floorToHour(snapshot.timestampMs);
+  const hourly = alignHourlyHistory(
+    await readOrRebuild(HOURLY_HISTORY_KEY, () => readHourlyHistory(bucket)),
+    slotMs,
   );
-  for (const { slotMs, snapshot: repaired } of repairs) {
+  setHourlySlot(hourly, slotMs, snapshot.rates);
+  const rotation = (slotMs / HOUR_MS) * MAX_HOURLY_REPAIRS_PER_RUN;
+  const repairs = await Promise.all(
+    missingHourlySlots(hourly, MAX_HOURLY_REPAIRS_PER_RUN, rotation).map(
+      async (missingMs) => ({
+        missingMs,
+        repaired: await findSnapshotForHour(bucket, missingMs),
+      }),
+    ),
+  );
+  for (const { missingMs, repaired } of repairs) {
     if (repaired !== null) {
-      setHourlySlot(hourly, slotMs, repaired.rates);
+      setHourlySlot(hourly, missingMs, repaired.rates);
     }
   }
-  await writeJson(bucket, HOURLY_HISTORY_KEY, hourly);
+  await writeSeriesFile(
+    bucket,
+    HOURLY_HISTORY_KEY,
+    { version: 1, start: hourly.start },
+    hourly.rates,
+  );
 
   const today = toDateString(nowMs);
-  const state = await readJson(bucket, BACKFILL_STATE_KEY, backfillStateSchema);
-  const oldestDate = addDays(today, -(DAILY_SLOT_COUNT - 1));
+  const months = new MonthlyHistoryCache((month) =>
+    readOrRebuild(monthlyHistoryKey(month), () => readMonthlyHistory(bucket, month)),
+  );
   const recentDates = Array.from({ length: RECENT_DAYS_TO_CHECK }, (_, index) =>
     addDays(today, -(index + 1)),
   );
+  await Promise.all(recentDates.map((date) => fillDay(months, bucket, date)));
+
+  // A rebuilt month lost older closes, so the backfill restarts from the newest day.
+  const state = await readOrRebuild(BACKFILL_STATE_KEY, () =>
+    readJson(bucket, BACKFILL_STATE_KEY, backfillStateSchema),
+  );
+  const restart = rebuiltKeys.some((key) => key.startsWith("history/daily/"));
+  const oldestDate = addDays(today, -(DAILY_SLOT_COUNT - 1));
   const backfillDates: string[] = [];
-  let nextDate = state?.nextDate ?? addDays(today, -(RECENT_DAYS_TO_CHECK + 1));
+  let nextDate =
+    state === null || restart
+      ? addDays(today, -(RECENT_DAYS_TO_CHECK + 1))
+      : state.nextDate;
   while (backfillDates.length < MAX_BACKFILL_DAYS_PER_RUN && nextDate >= oldestDate) {
     backfillDates.push(nextDate);
     nextDate = addDays(nextDate, -1);
   }
-
-  const months = new MonthlyHistoryCache(bucket);
-  await Promise.all(
-    [...recentDates, ...backfillDates].map((date) => fillDay(months, bucket, date)),
+  await Promise.all(backfillDates.map((date) => fillDay(months, bucket, date)));
+  await months.flush((month, history) =>
+    writeSeriesFile(bucket, monthlyHistoryKey(month), { version: 1, month }, history.rates),
   );
-  await months.flush();
   if (state?.nextDate !== nextDate) {
     await writeJson(bucket, BACKFILL_STATE_KEY, { version: 1, nextDate });
   }
+
+  return { rebuiltKeys };
 }
 
 /** Converts a validated OXR response into numeric rates keyed by its source time. */
@@ -162,9 +190,14 @@ export function toRateSnapshot(
   return {
     timestampMs: data.timestamp * 1000,
     rates: Object.fromEntries(
-      Object.entries(data.rates).map(([code, rate]) => [code, Number(rate)]),
+      Object.entries(data.rates).map(([code, rate]) => [code, roundRate(Number(rate))]),
     ),
   };
+}
+
+/** Six significant digits are ample for charts and halve the size of the aggregate files. */
+function roundRate(rate: number): number {
+  return Number(rate.toPrecision(6));
 }
 
 /** Shifts a stored hourly window so that it ends at `endSlotMs`, creating it when absent. */
@@ -205,22 +238,35 @@ export function setHourlySlot(
   }
 }
 
-/** Lists the newest slots that have no rate for any currency, up to `limit`. */
-export function missingHourlySlots(history: HourlyHistory, limit: number): number[] {
+/**
+ * Lists up to `limit` slots that have no rate for any currency. Half of the
+ * budget goes to the newest gaps; the rest rotates through the older ones so
+ * that unrecoverable recent gaps cannot starve them.
+ */
+export function missingHourlySlots(
+  history: HourlyHistory,
+  limit: number,
+  rotation = 0,
+): number[] {
   const startMs = Date.parse(history.start);
   const series = Object.values(history.rates);
   const missing: number[] = [];
-  for (
-    let index = HOURLY_SLOT_COUNT - 1;
-    index >= 0 && missing.length < limit;
-    index -= 1
-  ) {
+  for (let index = HOURLY_SLOT_COUNT - 1; index >= 0; index -= 1) {
     if (series.every((values) => values[index] === null)) {
       missing.push(startMs + index * HOUR_MS);
     }
   }
+  if (missing.length <= limit) {
+    return missing;
+  }
 
-  return missing;
+  const newestCount = Math.ceil(limit / 2);
+  const older = missing.slice(newestCount);
+  const offset = rotation % older.length;
+  return [
+    ...missing.slice(0, newestCount),
+    ...[...older.slice(offset), ...older.slice(0, offset)].slice(0, limit - newestCount),
+  ];
 }
 
 /** Selects the requested currencies from the hourly window ending at the current hour. */
@@ -317,15 +363,18 @@ type MonthlyHistoryEntry = { history: MonthlyHistory; dirty: boolean };
 class MonthlyHistoryCache {
   private readonly entries = new Map<string, Promise<MonthlyHistoryEntry>>();
 
-  public constructor(private readonly bucket: R2Bucket) {}
+  public constructor(
+    private readonly load: (month: string) => Promise<MonthlyHistory | null>,
+  ) {}
 
   /** Returns the month's entry, starting an empty month when it is not stored yet. */
   public get(month: string): Promise<MonthlyHistoryEntry> {
     let entry = this.entries.get(month);
     if (entry === undefined) {
-      entry = readJson(this.bucket, monthlyHistoryKey(month), monthlyHistorySchema).then(
-        (stored) => ({ history: stored ?? { version: 1, month, rates: {} }, dirty: false }),
-      );
+      entry = this.load(month).then((stored) => ({
+        history: stored ?? { version: 1, month, rates: {} },
+        dirty: false,
+      }));
       this.entries.set(month, entry);
     }
 
@@ -333,14 +382,14 @@ class MonthlyHistoryCache {
   }
 
   /** Writes every changed month. */
-  public async flush(): Promise<void> {
+  public async flush(
+    write: (month: string, history: MonthlyHistory) => Promise<void>,
+  ): Promise<void> {
     const entries = await Promise.all(this.entries.values());
     await Promise.all(
       entries
         .filter((entry) => entry.dirty)
-        .map((entry) =>
-          writeJson(this.bucket, monthlyHistoryKey(entry.history.month), entry.history),
-        ),
+        .map((entry) => write(entry.history.month, entry.history)),
     );
   }
 }
@@ -422,6 +471,104 @@ async function readSnapshot(bucket: R2Bucket, key: string): Promise<RateSnapshot
   return result.success ? toRateSnapshot(result.data) : null;
 }
 
+/** Reads the hourly aggregate, parsing only the selected currencies when a set is given. */
+async function readHourlyHistory(
+  bucket: R2Bucket,
+  symbols?: ReadonlySet<string>,
+): Promise<HourlyHistory | null> {
+  const file = await readSeriesFile(
+    bucket,
+    HOURLY_HISTORY_KEY,
+    hourlyHeaderSchema,
+    symbols,
+  );
+  return file === null
+    ? null
+    : {
+        ...file.header,
+        rates: checkLengths(HOURLY_HISTORY_KEY, file.rates, HOURLY_SLOT_COUNT),
+      };
+}
+
+/** Reads one month of closes, parsing only the selected currencies when a set is given. */
+async function readMonthlyHistory(
+  bucket: R2Bucket,
+  month: string,
+  symbols?: ReadonlySet<string>,
+): Promise<MonthlyHistory | null> {
+  const key = monthlyHistoryKey(month);
+  const file = await readSeriesFile(bucket, key, monthlyHeaderSchema, symbols);
+  if (file === null) {
+    return null;
+  }
+  if (file.header.month !== month) {
+    throw new InvalidStoredHistoryError(key);
+  }
+
+  return { ...file.header, rates: checkLengths(key, file.rates, daysInMonth(month)) };
+}
+
+/** Rejects a file whose series do not cover its whole window. */
+function checkLengths(
+  key: string,
+  rates: Record<string, RateSeries>,
+  length: number,
+): Record<string, RateSeries> {
+  if (Object.values(rates).some((series) => series.length !== length)) {
+    throw new InvalidStoredHistoryError(key);
+  }
+
+  return rates;
+}
+
+/**
+ * Reads a line-oriented aggregate: a JSON header line followed by one
+ * `CODE<TAB>[values]` line per currency. Only lines for `symbols` are parsed
+ * and validated when it is given, so a response does not pay for every currency.
+ */
+async function readSeriesFile<Header>(
+  bucket: R2Bucket,
+  key: string,
+  headerSchema: z.ZodType<Header>,
+  symbols?: ReadonlySet<string>,
+): Promise<{ header: Header; rates: Record<string, RateSeries> } | null> {
+  const object = await bucket.get(key);
+  if (object === null) {
+    return null;
+  }
+
+  try {
+    const [headerLine = "", ...lines] = (await object.text()).split("\n");
+    const header = headerSchema.parse(JSON.parse(headerLine));
+    const rates: Record<string, RateSeries> = {};
+    for (const line of lines) {
+      const separator = line.indexOf("\t");
+      const code = currencyIdentifierSchema.parse(line.slice(0, Math.max(separator, 0)));
+      if (symbols === undefined || symbols.has(code)) {
+        rates[code] = rateSeriesSchema.parse(JSON.parse(line.slice(separator + 1)));
+      }
+    }
+    return { header, rates };
+  } catch (error) {
+    throw new InvalidStoredHistoryError(key, { cause: error });
+  }
+}
+
+/** Writes a line-oriented aggregate in the format `readSeriesFile` reads. */
+async function writeSeriesFile(
+  bucket: R2Bucket,
+  key: string,
+  header: unknown,
+  rates: Record<string, RateSeries>,
+): Promise<void> {
+  const lines = Object.entries(rates).map(
+    ([code, series]) => `${code}\t${JSON.stringify(series)}`,
+  );
+  await bucket.put(key, [JSON.stringify(header), ...lines].join("\n"), {
+    httpMetadata: { contentType: "text/plain; charset=utf-8" },
+  });
+}
+
 /** Reads and validates an aggregate file, returning null when it has not been created yet. */
 async function readJson<T>(
   bucket: R2Bucket,
@@ -457,7 +604,7 @@ async function writeJson(bucket: R2Bucket, key: string, value: unknown): Promise
 
 /** Returns the R2 key of one month of daily closes. */
 function monthlyHistoryKey(month: string): string {
-  return `history/daily/${month}.json`;
+  return `history/daily/${month}.tsv`;
 }
 
 /** Lists the `YYYY-MM` months that overlap the inclusive date range. */

@@ -93,6 +93,30 @@ describe("hourly aggregation", () => {
     expect(history.rates["JPY"]?.filter((value) => value !== null)).toEqual([150]);
   });
 
+  it("splits the repair budget between the newest gaps and rotating older ones", () => {
+    const history = createHourly({ JPY: seriesWith(HOURLY_SLOT_COUNT, { 120: 150 }) });
+
+    const first = missingHourlySlots(history, 4, 0);
+    const rotated = missingHourlySlots(history, 4, 5);
+
+    expect(first.slice(0, 2)).toEqual([NOW_SLOT_MS - HOUR_MS, NOW_SLOT_MS - 2 * HOUR_MS]);
+    expect(first.slice(2)).toEqual([NOW_SLOT_MS - 3 * HOUR_MS, NOW_SLOT_MS - 4 * HOUR_MS]);
+    expect(rotated.slice(2)).toEqual([
+      NOW_SLOT_MS - 8 * HOUR_MS,
+      NOW_SLOT_MS - 9 * HOUR_MS,
+    ]);
+  });
+
+  it("returns every empty slot when they fit in the budget", () => {
+    const history = createHourly({
+      JPY: Array.from({ length: HOURLY_SLOT_COUNT }, (_, index) =>
+        index === 100 ? null : 150,
+      ),
+    });
+
+    expect(missingHourlySlots(history, 6)).toEqual([NOW_SLOT_MS - 20 * HOUR_MS]);
+  });
+
   it("lists the newest empty slots first, up to the limit", () => {
     const history = createHourly({
       JPY: seriesWith(HOURLY_SLOT_COUNT, { 120: 150, 118: 149 }),
@@ -182,7 +206,7 @@ describe("history responses", () => {
       HOURLY_HISTORY_KEY,
       createHourly({ JPY: seriesWith(HOURLY_SLOT_COUNT, { 120: 150 }) }),
     );
-    bucket.seed("history/daily/2026-11.json", {
+    bucket.seed("history/daily/2026-11.tsv", {
       version: 1,
       month: "2026-11",
       rates: { JPY: seriesWith(30, { 19: 149 }) },
@@ -220,7 +244,7 @@ describe("history responses", () => {
 
   it("rejects a monthly file whose series length does not match the month", async () => {
     const bucket = createMemoryBucket();
-    bucket.seed("history/daily/2026-11.json", {
+    bucket.seed("history/daily/2026-11.tsv", {
       version: 1,
       month: "2026-11",
       rates: { JPY: [1] },
@@ -228,7 +252,7 @@ describe("history responses", () => {
 
     await expect(
       readHistory(bucket, { resolution: "daily", symbols: ["JPY"] }, HISTORY_NOW_MS),
-    ).rejects.toThrow("Stored rate history is invalid: history/daily/2026-11.json");
+    ).rejects.toThrow("Stored rate history is invalid: history/daily/2026-11.tsv");
   });
 });
 
@@ -273,7 +297,7 @@ describe("updateHistory", () => {
 
     const hourly = bucket.read(HOURLY_HISTORY_KEY) as HourlyHistory;
     expect(hourly.rates["JPY"]?.slice(-3)).toEqual([149.7, null, 150]);
-    const november = bucket.read("history/daily/2026-11.json") as MonthlyHistory;
+    const november = bucket.read("history/daily/2026-11.tsv") as MonthlyHistory;
     expect(november.rates["JPY"]?.[19]).toBe(149.4);
     expect(november.rates["JPY"]?.[15]).toBe(147);
     expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-13" });
@@ -282,7 +306,7 @@ describe("updateHistory", () => {
   it("continues the backfill from the stored cursor and skips days that are already known", async () => {
     const bucket = createMemoryBucket();
     bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2026-10-02" });
-    bucket.seed("history/daily/2026-11.json", {
+    bucket.seed("history/daily/2026-11.tsv", {
       version: 1,
       month: "2026-11",
       rates: { JPY: seriesWith(30, { 17: 148, 18: 148.5, 19: 149 }) },
@@ -301,7 +325,7 @@ describe("updateHistory", () => {
 
     const listedPrefixes = list.mock.calls.map(([options]) => options?.prefix);
     expect(listedPrefixes).not.toContain("2026-11-20T");
-    const october = bucket.read("history/daily/2026-10.json") as MonthlyHistory;
+    const october = bucket.read("history/daily/2026-10.tsv") as MonthlyHistory;
     expect(october.rates["JPY"]?.[0]).toBe(145);
     expect(october.rates["JPY"]).toHaveLength(31);
     expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-09-28" });
@@ -341,9 +365,111 @@ describe("updateHistory", () => {
       HISTORY_NOW_MS,
     );
 
-    expect(bucket.keys()).not.toContain("history/daily/2026-11.json");
+    expect(bucket.keys()).not.toContain("history/daily/2026-11.tsv");
     expect(
       (bucket.read(HOURLY_HISTORY_KEY) as HourlyHistory).rates["JPY"]?.at(-2),
     ).toBeNull();
+  });
+
+  it("rebuilds invalid aggregate files and restarts the backfill after losing a month", async () => {
+    const bucket = createMemoryBucket();
+    bucket.seed(HOURLY_HISTORY_KEY, "{");
+    bucket.seed("history/daily/2026-11.tsv", {
+      version: 1,
+      month: "2026-11",
+      rates: { JPY: [1] },
+    });
+    bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2026-01-01" });
+    bucket.seed(
+      "2026-11-17T23:00:00.000Z.json",
+      createSnapshotBody(Date.UTC(2026, 10, 17, 23), { JPY: 148 }),
+    );
+
+    const result = await updateHistory(
+      bucket,
+      { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
+      HISTORY_NOW_MS,
+    );
+
+    expect(result.rebuiltKeys).toEqual([HOURLY_HISTORY_KEY, "history/daily/2026-11.tsv"]);
+    expect((bucket.read(HOURLY_HISTORY_KEY) as HourlyHistory).rates["JPY"]?.at(-1)).toBe(
+      150,
+    );
+    expect(
+      (bucket.read("history/daily/2026-11.tsv") as MonthlyHistory).rates["JPY"]?.[16],
+    ).toBe(148);
+    expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-13" });
+  });
+
+  it.each([
+    ["a schema violation", { version: 2 }],
+    ["malformed JSON", "{"],
+  ])("rebuilds a backfill cursor with %s", async (_, body) => {
+    const bucket = createMemoryBucket();
+    bucket.seed(BACKFILL_STATE_KEY, body);
+
+    const result = await updateHistory(
+      bucket,
+      { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
+      HISTORY_NOW_MS,
+    );
+
+    expect(result.rebuiltKeys).toEqual([BACKFILL_STATE_KEY]);
+    expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-13" });
+  });
+
+  it("propagates storage failures other than invalid files", async () => {
+    const bucket = createMemoryBucket();
+    vi.spyOn(bucket, "get").mockRejectedValue(new Error("R2 unavailable"));
+
+    await expect(
+      updateHistory(
+        bucket,
+        { timestampMs: NOW_SLOT_MS, rates: { USD: 1 } },
+        HISTORY_NOW_MS,
+      ),
+    ).rejects.toThrow("R2 unavailable");
+  });
+});
+
+describe("readHistory request-path validation", () => {
+  it("validates only the requested series", async () => {
+    const bucket = createMemoryBucket();
+    const hourly = createHourly({ JPY: seriesWith(HOURLY_SLOT_COUNT, { 120: 150 }) });
+    bucket.seed(HOURLY_HISTORY_KEY, {
+      ...hourly,
+      rates: { ...hourly.rates, EUR: "broken" },
+    });
+
+    const response = await readHistory(
+      bucket,
+      { resolution: "daily", symbols: ["JPY", "GBP"] },
+      HISTORY_NOW_MS,
+    );
+
+    expect(Object.keys(response.rates)).toEqual(["JPY"]);
+    expect(response.rates["JPY"]?.filter((value) => value !== null)).toEqual([150]);
+  });
+
+  it("rejects a month stored under another month's key", async () => {
+    const bucket = createMemoryBucket();
+    bucket.seed("history/daily/2026-10.tsv", {
+      version: 1,
+      month: "2026-09",
+      rates: { JPY: seriesWith(30, { 0: 1 }) },
+    });
+
+    await expect(
+      readHistory(bucket, { resolution: "daily", symbols: ["JPY"] }, HISTORY_NOW_MS),
+    ).rejects.toThrow("Stored rate history is invalid: history/daily/2026-10.tsv");
+  });
+
+  it("rejects a requested series with an invalid length", async () => {
+    const bucket = createMemoryBucket();
+    bucket.seed(HOURLY_HISTORY_KEY, { ...createHourly(), rates: { JPY: [1, 2] } });
+
+    await expect(
+      readHistory(bucket, { resolution: "hourly", symbols: ["JPY"] }, HISTORY_NOW_MS),
+    ).rejects.toBeInstanceOf(InvalidStoredHistoryError);
   });
 });

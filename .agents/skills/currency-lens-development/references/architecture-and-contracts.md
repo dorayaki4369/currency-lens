@@ -17,7 +17,7 @@ Open Exchange Rates
   -> Background の last-good cache（古いデータの要求時は更新完了を待って応答）
 
 R2 のアーカイブ
-  -> Cron Trigger が history/hourly.json と history/daily/YYYY-MM.json へ集約（上限つきの自己修復）
+  -> Cron Trigger が history/hourly.tsv と history/daily/YYYY-MM.tsv へ集約（上限つきの自己修復）
   -> GET /v1/history（USD 基準、最大6通貨）
 ```
 

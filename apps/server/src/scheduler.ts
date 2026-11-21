@@ -41,11 +41,16 @@ export function createScheduledHandler(
 
     // The rate history is derived data; failing to update it must not fail the latest-rate refresh.
     try {
-      await dependencies.updateHistory(
+      const { rebuiltKeys } = await dependencies.updateHistory(
         env.DATA_BUCKET,
         toRateSnapshot(data),
         dependencies.now(),
       );
+      if (rebuiltKeys.length > 0) {
+        dependencies.logError("Rebuilt invalid exchange rate history files", {
+          keys: rebuiltKeys,
+        });
+      }
     } catch (error) {
       dependencies.logError("Failed to update the exchange rate history", {
         name: error instanceof Error ? error.name : "UnknownError",

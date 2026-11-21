@@ -19,7 +19,7 @@ describe("scheduledHandler", () => {
     const dependencies = {
       fetchLatestRates: vi.fn(async () => data),
       putLatestRates: vi.fn(async () => object),
-      updateHistory: vi.fn(async () => undefined),
+      updateHistory: vi.fn(async () => ({ rebuiltKeys: [] as string[] })),
       now: () => 1_700_003_600_000,
       log: vi.fn(),
       logError: vi.fn(),
@@ -122,13 +122,37 @@ describe("scheduledHandler", () => {
       expect.arrayContaining([
         "2023-11-14T22:13:20.000Z.json",
         "latest.json",
-        "history/hourly.json",
+        "history/hourly.tsv",
       ]),
     );
     expect(logError).not.toHaveBeenCalled();
     expect(log).toHaveBeenCalledWith(
       "Stored latest exchange rates",
       expect.objectContaining({ base: "USD", currencyCount: 3 }),
+    );
+  });
+
+  it("reports aggregate files that had to be rebuilt", async () => {
+    const dependencies = {
+      fetchLatestRates: vi.fn(async () => createRatesSnapshot()),
+      putLatestRates: vi.fn(async () => createR2Object()),
+      updateHistory: vi.fn(async () => ({ rebuiltKeys: ["history/hourly.tsv"] })),
+      now: () => 1_700_003_600_000,
+      log: vi.fn(),
+      logError: vi.fn(),
+    };
+
+    await createScheduledHandler(dependencies)(
+      {} as ScheduledController,
+      createBindings(),
+      {} as ExecutionContext,
+    );
+
+    expect(dependencies.logError).toHaveBeenCalledWith(
+      "Rebuilt invalid exchange rate history files",
+      {
+        keys: ["history/hourly.tsv"],
+      },
     );
   });
 
@@ -141,7 +165,13 @@ describe("scheduledHandler", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const bucket = createMemoryBucket();
-    bucket.seed("history/hourly.json", "{");
+    const put = bucket.put.bind(bucket);
+    vi.spyOn(bucket, "put").mockImplementation(async (key, value, options) => {
+      if (key === "history/hourly.tsv") {
+        throw new Error("R2 write failed");
+      }
+      return put(key, value, options);
+    });
 
     await scheduledHandler(
       {} as ScheduledController,
@@ -150,8 +180,8 @@ describe("scheduledHandler", () => {
     );
 
     expect(logError).toHaveBeenCalledWith("Failed to update the exchange rate history", {
-      name: "InvalidStoredHistoryError",
-      message: "Stored rate history is invalid: history/hourly.json",
+      name: "Error",
+      message: "R2 write failed",
     });
   });
 });

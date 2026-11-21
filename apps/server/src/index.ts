@@ -132,11 +132,24 @@ export function createApp(dependencies: LatestRatesDependencies = defaultDepende
       return c.json({ error: "Invalid history query" }, 400);
     }
 
+    // The edge cache only saves work; its failures must not change the response.
     const cache = dependencies.getResponseCache();
-    const cacheKey = new Request(c.req.url);
-    const cached = await cache?.match(cacheKey);
-    if (cached) {
-      return c.body(await cached.text(), 200, { "Content-Type": "application/json" });
+    const cacheUrl = new URL(c.req.url);
+    cacheUrl.search = new URLSearchParams({
+      resolution: query.data.resolution,
+      symbols: query.data.symbols.toSorted().join(","),
+    }).toString();
+    const cacheKey = new Request(cacheUrl);
+    try {
+      const cached = await cache?.match(cacheKey);
+      if (cached) {
+        return c.body(await cached.text(), 200, { "Content-Type": "application/json" });
+      }
+    } catch (error) {
+      dependencies.logError(
+        "Failed to read the history response cache",
+        toErrorMetadata(error),
+      );
     }
 
     let body: string;
@@ -152,15 +165,22 @@ export function createApp(dependencies: LatestRatesDependencies = defaultDepende
       return c.json({ error: "History not available" }, 503);
     }
 
-    await cache?.put(
-      cacheKey,
-      new Response(body, {
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": HISTORY_CACHE_CONTROL,
-        },
-      }),
-    );
+    try {
+      await cache?.put(
+        cacheKey,
+        new Response(body, {
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": HISTORY_CACHE_CONTROL,
+          },
+        }),
+      );
+    } catch (error) {
+      dependencies.logError(
+        "Failed to store the history response cache",
+        toErrorMetadata(error),
+      );
+    }
     return c.body(body, 200, { "Content-Type": "application/json" });
   });
 

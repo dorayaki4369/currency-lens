@@ -360,4 +360,42 @@ describe("rate history API", () => {
     expect(cachedRun.status).toBe(200);
     expect(cache.put).toHaveBeenCalledOnce();
   });
+
+  it("normalizes the cache key and keeps serving when the edge cache fails", async () => {
+    const dependencies = createDependencies();
+    const cache = {
+      match: vi.fn(async () => {
+        throw new Error("Cache read failed");
+      }),
+      put: vi.fn(async () => {
+        throw new Error("Cache write failed");
+      }),
+    };
+    dependencies.getResponseCache.mockReturnValue(cache as unknown as Cache);
+    const app = createApp(dependencies);
+
+    const response = await app.request(
+      "/v1/history?symbols=JPY,EUR&resolution=hourly&extra=1",
+      {},
+      createBindings(),
+    );
+
+    expect(response.status).toBe(200);
+    const [cacheKey] = cache.match.mock.calls.at(0) as unknown as [Request];
+    expect(new URL(cacheKey.url).search).toBe("?resolution=hourly&symbols=EUR%2CJPY");
+    expect(dependencies.logError).toHaveBeenCalledWith(
+      "Failed to read the history response cache",
+      {
+        name: "Error",
+        message: "Cache read failed",
+      },
+    );
+    expect(dependencies.logError).toHaveBeenCalledWith(
+      "Failed to store the history response cache",
+      {
+        name: "Error",
+        message: "Cache write failed",
+      },
+    );
+  });
 });

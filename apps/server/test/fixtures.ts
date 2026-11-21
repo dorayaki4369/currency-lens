@@ -49,11 +49,39 @@ export function createHistoryResponse(): HistoryResponse {
 export type MemoryBucket = R2Bucket & {
   /** Lists every stored key in lexical order. */
   keys: () => string[];
-  /** Reads a stored body as parsed JSON. */
+  /** Reads a stored body, decoding history series files into `{ ...header, rates }`. */
   read: (key: string) => unknown;
-  /** Stores a raw body directly, bypassing put. */
+  /** Stores a body directly; objects for history series files are encoded line by line. */
   seed: (key: string, body: unknown) => void;
 };
+
+/** Returns whether a key holds a line-oriented history series file. */
+function isSeriesKey(key: string): boolean {
+  return key.startsWith("history/") && key.endsWith(".tsv");
+}
+
+/** Encodes `{ ...header, rates }` the way the Worker writes series files. */
+function encodeSeries(
+  body: { rates?: Record<string, unknown> } & Record<string, unknown>,
+): string {
+  const { rates = {}, ...header } = body;
+  const lines = Object.entries(rates).map(
+    ([code, series]) => `${code}\t${JSON.stringify(series)}`,
+  );
+  return [JSON.stringify(header), ...lines].join("\n");
+}
+
+/** Decodes a series file into `{ ...header, rates }`. */
+function decodeSeries(text: string): unknown {
+  const [headerLine = "{}", ...lines] = text.split("\n");
+  const rates = Object.fromEntries(
+    lines.map((line) => {
+      const separator = line.indexOf("\t");
+      return [line.slice(0, separator), JSON.parse(line.slice(separator + 1)) as unknown];
+    }),
+  );
+  return { ...(JSON.parse(headerLine) as object), rates };
+}
 
 /**
  * Creates an in-memory R2 bucket that implements the get, put and list
@@ -69,7 +97,7 @@ export function createMemoryBucket(): MemoryBucket {
       if (body === undefined) {
         return null;
       }
-      return { key, json: async () => JSON.parse(body) as unknown };
+      return { key, json: async () => JSON.parse(body) as unknown, text: async () => body };
     },
     async put(key: string, value: string) {
       objects.set(key, value);
@@ -89,9 +117,18 @@ export function createMemoryBucket(): MemoryBucket {
       };
     },
     keys: sortedKeys,
-    read: (key: string) => JSON.parse(objects.get(key) ?? "null") as unknown,
+    read: (key: string) => {
+      const body = objects.get(key) ?? "null";
+      return isSeriesKey(key) ? decodeSeries(body) : (JSON.parse(body) as unknown);
+    },
     seed: (key: string, body: unknown) => {
-      objects.set(key, typeof body === "string" ? body : JSON.stringify(body));
+      if (typeof body === "string") {
+        objects.set(key, body);
+      } else if (isSeriesKey(key)) {
+        objects.set(key, encodeSeries(body as Record<string, unknown>));
+      } else {
+        objects.set(key, JSON.stringify(body));
+      }
     },
   };
 

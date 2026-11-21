@@ -520,6 +520,30 @@ describe("ConversionEditor", () => {
     ).toBe("up");
   });
 
+  it("rolls amounts in when they first appear but not when edit mode swaps the list", () => {
+    render(
+      <ConversionEditor
+        amountText="1"
+        currencyCode="USD"
+        locale="en"
+        onAmountTextChange={() => undefined}
+        onCurrencyChange={() => undefined}
+        targetAmounts={
+          new Map([["JPY", { status: "converted", text: "150.00", value: 150 }]])
+        }
+        targetCurrencies={["JPY"]}
+        targetEditing={{ onAdd: () => undefined, onRemove: () => undefined }}
+        targetTitle="Converted"
+      />,
+    );
+    expect(readAmountDirection()).toBe("up");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit conversion targets" }));
+
+    expect(document.querySelector('[data-slot="target-editing-list"]')).not.toBeNull();
+    expect(readAmountDirection()).toBeUndefined();
+  });
+
   it("compacts an exponential converted amount to keep it inside the result column", () => {
     render(
       <ConversionEditor
@@ -613,4 +637,11 @@ function stubEditingTransitions(finished: Promise<void>): void {
   for (const element of document.querySelectorAll<HTMLElement>(selector)) {
     element.getAnimations = () => [animation];
   }
+}
+
+/** Reads which way the first target amount is currently rolling. */
+function readAmountDirection(): string | undefined {
+  return document.querySelector<HTMLElement>(
+    '[data-slot="currency-amount"] [data-slot="animated-number"]',
+  )?.dataset["direction"];
 }

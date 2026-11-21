@@ -19,6 +19,37 @@ describe("AnimatedNumber", () => {
     expect(readLayers("animated-number-incoming")).toHaveLength(0);
   });
 
+  it("rolls every glyph in from below when asked to animate its first render", () => {
+    render(<AnimatedNumber animateOnMount text="¥1,500" value={1_500} />);
+
+    expect(readAnimatedNumber()?.dataset["direction"]).toBe("up");
+    expect(readLabel()).toBe("¥1,500");
+    expect(readLayerText("animated-number-incoming")).toEqual([
+      "¥",
+      "1",
+      ",",
+      "5",
+      "0",
+      "0",
+    ]);
+
+    fireEvent.animationEnd(readLastIncomingLayer());
+
+    expect(readAnimatedNumber()?.dataset["direction"]).toBeUndefined();
+    expect(readLayers("animated-number-incoming")).toHaveLength(0);
+  });
+
+  it("appears without motion when reduced motion is requested", () => {
+    vi.spyOn(window, "matchMedia").mockReturnValue({
+      matches: true,
+    } as MediaQueryList);
+
+    render(<AnimatedNumber animateOnMount text="¥1,500" value={1_500} />);
+
+    expect(readAnimatedNumber()?.dataset["direction"]).toBeUndefined();
+    expect(readLayers("animated-number-incoming")).toHaveLength(0);
+  });
+
   it("rolls changed glyphs upward when the value increases", () => {
     const { rerender } = render(<AnimatedNumber text="149.00" value={149} />);
 
@@ -43,7 +74,7 @@ describe("AnimatedNumber", () => {
     expect(readAnimatedNumber()?.dataset["direction"]).toBe("down");
     expect(readLayers("animated-number-glyph")).toHaveLength(5);
     expect(readLayerText("animated-number-outgoing")).toEqual(["1", ",", "0", "0", "0"]);
-    expect(readLayerText("animated-number-incoming")).toEqual([" ", " ", "9", "9", "9"]);
+    expect(readLayerText("animated-number-incoming")).toEqual(["", "", "9", "9", "9"]);
 
     fireEvent.animationEnd(readLastIncomingLayer());
 

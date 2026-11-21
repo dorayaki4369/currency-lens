@@ -75,6 +75,15 @@ export const test = base.extend<ExtensionFixtures>({
 
 /** Saves the page as an uncompared image for manual design review, beside integration images. */
 export async function saveReviewScreenshot(page: Page, name: string): Promise<void> {
+  // Entrance and value transitions settle first so the image never catches a frame mid-roll.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
   await page.screenshot({ path: `${reviewScreenshotDirectory}${name}.png` });
 }
 

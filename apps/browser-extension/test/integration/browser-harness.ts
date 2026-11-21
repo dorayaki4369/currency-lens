@@ -95,8 +95,19 @@ export async function openComponentFixture(fixtureId: ComponentFixtureId): Promi
 
 /** Saves the painted page as an uncompared image for manual design review. */
 export async function saveReviewScreenshot(name: string): Promise<void> {
+  await settleFiniteAnimations();
   await nextFrames();
   await page.screenshot({ path: `${REVIEW_SCREENSHOT_DIRECTORY}/${name}.png` });
+}
+
+/** Waits for entrance and value transitions so review images never catch a frame mid-roll. */
+async function settleFiniteAnimations(): Promise<void> {
+  await Promise.all(
+    document
+      .getAnimations()
+      .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+      .map((animation) => animation.finished.catch(() => undefined)),
+  );
 }
 
 /** Adds host-page CSS that is removed after the current test. */

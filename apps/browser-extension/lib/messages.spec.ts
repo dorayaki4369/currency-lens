@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultConfig } from "@/lib/storage";
 import {
   convertCurrenciesRequestSchema,
+  messageSchema,
   messageTypes,
   parseMessageResponse,
   sendMessage,
@@ -85,8 +86,40 @@ describe("message schemas", () => {
         data: { ...rateMetadata, rates: { USD: "1", EUR: "0.9" } },
       }),
     ).toMatchObject({ success: true, data: { rates: { USD: "1", EUR: "0.9" } } });
+    const history = {
+      base: "USD",
+      resolution: "daily",
+      start: "2026-01-01T00:00:00.000Z",
+      rates: { JPY: [150, null] },
+    };
+    expect(
+      parseMessageResponse(messageTypes.GET_RATE_HISTORY, { success: true, data: history }),
+    ).toEqual({ success: true, data: history });
+    expect(() =>
+      parseMessageResponse(messageTypes.GET_RATE_HISTORY, {
+        success: true,
+        data: { ...history, base: "EUR" },
+      }),
+    ).toThrow();
+  });
+
+  it("limits rate history requests to one to six unique currencies", () => {
+    expect(isValidHistoryRequest(["JPY", "EUR", "GBP", "CAD", "AUD", "CHF"])).toBe(true);
+    expect(isValidHistoryRequest([])).toBe(false);
+    expect(isValidHistoryRequest(["JPY", "JPY"])).toBe(false);
+    expect(isValidHistoryRequest(["JPY", "EUR", "GBP", "CAD", "AUD", "CHF", "CNY"])).toBe(
+      false,
+    );
   });
 });
+
+/** Reports whether an hourly history request with these symbols passes validation. */
+function isValidHistoryRequest(symbols: string[]): boolean {
+  return messageSchema.safeParse({
+    type: messageTypes.GET_RATE_HISTORY,
+    payload: { resolution: "hourly", symbols },
+  }).success;
+}
 
 /** Creates an otherwise valid conversion request for one boundary variation. */
 function createConversionRequest(amountCount: number, targetCurrencies: string[]) {

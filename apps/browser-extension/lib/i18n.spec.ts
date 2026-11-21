@@ -25,9 +25,9 @@ describe("UI localization", () => {
     expect(
       translate("en", "reorderCurrency", { currency: "JPY", position: 1, total: 3 }),
     ).toBe("Reorder JPY, position 1 of 3");
-    expect(translate("ja", "ratesFrom", { timestamp: "2026/08/27" })).toBe(
-      "2026/08/27 時点のレート",
-    );
+    expect(
+      translate("ja", "reorderCurrency", { currency: "JPY", position: 1, total: 3 }),
+    ).toBe("JPY を並べ替え、3件中1番目");
     expect(translate("ja", "addTarget")).toBe("換算通貨を追加");
   });
 

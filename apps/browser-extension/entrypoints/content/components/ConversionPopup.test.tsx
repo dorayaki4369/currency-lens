@@ -390,7 +390,7 @@ describe("ConversionPopup", () => {
     );
 
     const staleAlert = screen.getByRole("status");
-    const rateTimestamp = screen.getByText(/^Rates from /u);
+    const rateSource = screen.getByRole("link", { name: "Open Exchange Rates" });
     getCurrencyDisplayName.mockClear();
     rerender(<ConversionPopup {...popupProps} data={null} loading={false} />);
 
@@ -405,7 +405,7 @@ describe("ConversionPopup", () => {
     ).toHaveLength(2);
     expect(screen.getAllByRole("status", { name: "Converting currency" })).toHaveLength(1);
     expect(screen.getAllByRole("status")).toContain(staleAlert);
-    expect(screen.getByText(/^Rates from /u)).toBe(rateTimestamp);
+    expect(screen.getByRole("link", { name: "Open Exchange Rates" })).toBe(rateSource);
 
     rerender(<ConversionPopup {...popupProps} data={null} loading />);
 
@@ -417,7 +417,7 @@ describe("ConversionPopup", () => {
     ).toHaveLength(2);
     expect(screen.getAllByRole("status", { name: "Converting currency" })).toHaveLength(1);
     expect(screen.getAllByRole("status")).toContain(staleAlert);
-    expect(screen.getByText(/^Rates from /u)).toBe(rateTimestamp);
+    expect(screen.getByRole("link", { name: "Open Exchange Rates" })).toBe(rateSource);
     expect(
       getCurrencyDisplayName.mock.calls.filter(([currencyCode]) =>
         targetCurrencySet.has(currencyCode),

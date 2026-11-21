@@ -10,10 +10,10 @@
   },
   "dependencies": {
     "@cl/oxr": "workspace:*",
-    "hono": "^4.13.16",
+    "hono": "^4.13.19",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "wrangler": "^4.158.0"
+    "wrangler": "^4.164.0"
   }
 }

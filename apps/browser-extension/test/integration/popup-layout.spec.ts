@@ -250,6 +250,15 @@ describe("popup layout", () => {
       await userEvent.keyboard("{Escape}");
       await expect.element(picker).not.toBeInTheDocument();
       await expect.element(card).toHaveFocus();
+
+      // A click outside also closes it, and focus returns to the card, not the click target.
+      await userEvent.click(card);
+      await expect.element(picker).toBeVisible();
+      await userEvent.click(
+        page.getByText("Currency Lens の表示テーマとチャートの色を選びます。"),
+      );
+      await expect.element(picker).not.toBeInTheDocument();
+      await expect.element(card).toHaveFocus();
       /* eslint-enable no-await-in-loop */
     }
   });

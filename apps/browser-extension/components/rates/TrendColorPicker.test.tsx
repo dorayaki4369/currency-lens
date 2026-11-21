@@ -49,13 +49,14 @@ describe("TrendColorPicker", () => {
     const dialog = await openPicker();
     expect(dialog.getAttribute("aria-label")).toBe("Rise color");
     expect(card.getAttribute("aria-expanded")).toBe("true");
-    const swatches = within(dialog).getAllByRole("button", { pressed: false });
-    expect(swatches).toHaveLength(16);
+    // Only the default button is selected, even though Red equals the default color.
+    expect(within(dialog).getAllByRole("button", { pressed: false })).toHaveLength(17);
+    expect(within(dialog).getAllByRole("button", { pressed: true })).toEqual([
+      within(dialog).getByRole("button", { name: "Default" }),
+    ]);
+    expect(within(dialog).getByRole("button", { name: "Red" }).style.boxShadow).toBe("");
     expect(
-      within(dialog).getByRole("button", { name: "Red" }).getAttribute("aria-pressed"),
-    ).toBe("true");
-    expect(
-      within(dialog).queryByRole("button", { name: "Pick a color from the screen" }),
+      within(dialog).queryByRole("button", { name: "Pick a color with the eyedropper" }),
     ).toBeNull();
     const defaultButton = within(dialog).getByRole("button", { name: "Default" });
     expect(defaultButton.getAttribute("aria-pressed")).toBe("true");
@@ -124,14 +125,14 @@ describe("TrendColorPicker", () => {
 
     let dialog = await openPicker();
     fireEvent.click(
-      within(dialog).getByRole("button", { name: "Pick a color from the screen" }),
+      within(dialog).getByRole("button", { name: "Pick a color with the eyedropper" }),
     );
     await waitFor(() => expect(onColorChange).toHaveBeenCalledWith("#12ab34"));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     dialog = await openPicker();
     const eyedropper = within(dialog).getByRole("button", {
-      name: "Pick a color from the screen",
+      name: "Pick a color with the eyedropper",
     });
     // An unusable value and a cancelled pick both leave the picker open and unchanged.
     fireEvent.click(eyedropper);

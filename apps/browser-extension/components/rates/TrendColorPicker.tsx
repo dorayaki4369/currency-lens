@@ -1,5 +1,5 @@
 import { Pipette } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { z } from "zod/v4";
 import { translate, type UiLocale } from "@/lib/i18n";
 import {
@@ -59,7 +59,7 @@ export function TrendColorPicker({
   const [open, setOpen] = useState(false);
   const gradientId = `trend-sample-${useId().replaceAll(/[^\w-]/gu, "")}`;
   const directionName = translate(locale, DIRECTION_KEYS[direction].name);
-  const activeHex = selectedHex ?? defaultHex;
+  const cardReference = useRef<HTMLButtonElement>(null);
   const EyeDropper = getEyeDropper();
   const choose = (hex: string | null) => {
     onColorChange(hex === defaultHex ? null : hex);
@@ -69,6 +69,7 @@ export function TrendColorPicker({
   return (
     <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger
+        ref={cardReference}
         aria-label={translate(locale, "chartColorOpen", { direction: directionName })}
         className={cn(
           "flex min-w-0 flex-col gap-1.5 rounded-lg border bg-card px-2.5 py-2 text-left hover:bg-accent/40",
@@ -117,6 +118,11 @@ export function TrendColorPicker({
           aria-label={translate(locale, "chartColorPicker", { direction: directionName })}
           className="flex h-[10.1875rem] w-[14.375rem] flex-col justify-between rounded-xl p-3.5"
           data-slot="trend-color-picker"
+          onCloseAutoFocus={(event) => {
+            // Radix leaves focus where an outside click landed; the card keeps it instead.
+            event.preventDefault();
+            cardReference.current?.focus();
+          }}
           sideOffset={6}
         >
           <div className="grid grid-cols-[repeat(6,1.5rem)] justify-between gap-y-2.5">
@@ -136,7 +142,8 @@ export function TrendColorPicker({
               </button>
             )}
             {CHART_COLOR_PALETTE.map((swatch) => {
-              const pressed = swatch.hex === activeHex;
+              // While the default applies, only the default button reads as selected.
+              const pressed = swatch.hex === selectedHex;
               return (
                 <button
                   aria-label={translate(locale, swatch.nameKey)}

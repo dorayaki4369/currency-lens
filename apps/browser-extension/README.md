@@ -28,6 +28,9 @@ Popupのトップでは、金額と換算元の通貨を入力して、登録し
 - 外観（テーマ）
 - 通貨変換設定（曖昧な通貨記号の解釈）
 - 対応通貨一覧（閲覧のみ）
+- このアプリについて（バージョン、為替レートの提供元、ライセンス、外部ページへのリンク）
+
+「このアプリについて」には、ビルド先のストア（Chrome Web StoreかFirefox Add-ons）のレビューページへのリンクと、オープンソースライセンスの画面へのリンクがあります。ライセンスの一覧は、ビルド時に`scripts/about-metadata.ts`が`package.json`の`dependencies`から依存関係をたどって集め、各パッケージの`package.json`のライセンスとLICENSEファイルの本文を載せます。Tailwind CSS、shadcn/ui、WXTは開発時の依存ですが、生成したCSS、コピーしたコンポーネント、WXTのエントリーポイントの外枠とContent Script用のShadow DOMのUIが配布物に含まれるため、一覧に加えています。WXTについては、配布物に入るコードがimportするパッケージだけをたどります。WXTを更新してその範囲が変わると、`scripts/about-metadata.spec.ts`のテストが失敗します。依存関係を基準に集めるので、`radix-ui`のようにまとめて入るパッケージは、実際には使っていない部品も一覧に含まれます。
 
 画面の切り替えにはTanStack Routerのメモリ履歴を使うため、PopupのURLは変わりません。各画面はファイルベースのルートとして実装し、ビルドではルートごとに別のチャンクへ分割します。
 
@@ -49,20 +52,21 @@ Popupのトップでは、金額と換算元の通貨を入力して、登録し
 
 ## コードの構成
 
-| パス                        | 役割                                                                       |
-| --------------------------- | -------------------------------------------------------------------------- |
-| `components/conversion`     | 換算元の編集、換算後の一覧、並べ替え、レートの日時                         |
-| `components/currency`       | 通貨の検索、対応通貨一覧、国旗・通貨アイコン、通貨の表示                   |
-| `components/layout`         | 複数の画面で使うブランド表示とセクション見出し                             |
-| `components/ui`             | shadcn/uiの基本部品と、それを組み合わせた汎用部品                          |
-| `entrypoints/content`       | 選択範囲の監視、金額の検出、Shadow DOMへのUIの描画                         |
-| `entrypoints/background.ts` | メッセージの検証、設定とレートの管理、換算、定期的なレート取得             |
-| `entrypoints/popup`         | Popupのルート、手入力での換算、設定画面、レートの表示                      |
-| `lib/currency-detection.ts` | 通貨コード、通貨記号、補助単位、数値表記の検出                             |
-| `lib/messages.ts`           | Content Script、Popup、Background Scriptの間でやりとりするメッセージの形式 |
-| `lib/rates.ts`              | Workerの応答の検証、鮮度の判定、換算                                       |
-| `lib/storage.ts`            | 設定と、最後に取得できたレートの検証・保存                                 |
-| `stores`                    | 画面の間で共有する設定ストアと、`browser.storage.sync`との同期             |
+| パス                        | 役割                                                                                  |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| `components/conversion`     | 換算元の編集、換算後の一覧、並べ替え、レートの日時                                    |
+| `components/currency`       | 通貨の検索、対応通貨一覧、国旗・通貨アイコン、通貨の表示                              |
+| `components/layout`         | 複数の画面で使うブランド表示とセクション見出し                                        |
+| `components/ui`             | shadcn/uiの基本部品と、それを組み合わせた汎用部品                                     |
+| `entrypoints/content`       | 選択範囲の監視、金額の検出、Shadow DOMへのUIの描画                                    |
+| `entrypoints/background.ts` | メッセージの検証、設定とレートの管理、換算、定期的なレート取得                        |
+| `entrypoints/popup`         | Popupのルート、手入力での換算、設定画面、レートの表示                                 |
+| `lib/currency-detection.ts` | 通貨コード、通貨記号、補助単位、数値表記の検出                                        |
+| `lib/messages.ts`           | Content Script、Popup、Background Scriptの間でやりとりするメッセージの形式            |
+| `lib/rates.ts`              | Workerの応答の検証、鮮度の判定、換算                                                  |
+| `lib/storage.ts`            | 設定と、最後に取得できたレートの検証・保存                                            |
+| `scripts/about-metadata.ts` | 拡張機能のversionと、同梱する依存のライセンスを仮想モジュールとして渡すViteプラグイン |
+| `stores`                    | 画面の間で共有する設定ストアと、`browser.storage.sync`との同期                        |
 
 アプリケーションコードとテストは、`@/`（このディレクトリを指す）から内部モジュールをimportします。Nodeが直接起動する設定ファイルやスクリプトと、TanStack Routerが自動生成するファイルは、`@/`を解決できないため、相対パスなどその実行環境が解決できるパスを使います。
 

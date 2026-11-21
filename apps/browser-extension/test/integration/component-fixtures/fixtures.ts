@@ -34,6 +34,7 @@ export const COMPONENT_FIXTURES = [
   { id: "reorderable-currency-list", width: 1000, height: 390 },
   { id: "reorderable-currency-list-dragging", width: 1000, height: 390 },
   { id: "section-header", width: 900, height: 180 },
+  { id: "segmented-control", width: 720, height: 160 },
   { id: "skeleton", width: 840, height: 190 },
   { id: "stack", width: 760, height: 220 },
   { id: "symbol-settings", width: 1000, height: 760 },

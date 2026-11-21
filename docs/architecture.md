@@ -36,7 +36,8 @@ R2は公開しません。Content ScriptとPopupからの外部通信、レー�
 | 配信中の最新スナップショット     | R2の`latest.json`                       | Workerが読み出すたびに検証する                                                  |
 | 過去のスナップショット           | R2の提供元時刻別オブジェクト            | `latest.json`より先に保存する                                                   |
 | 拡張機能が最後に利用できたレート | `browser.storage.local`                 | 更新失敗や古さだけでは削除しない                                                |
-| 換算先通貨などのユーザー設定     | `browser.storage.sync`                  | 読み書き時に検証し、旧形式は移行する。換算先は常に1件以上で、空なら既定値で補う |
+| 換算先通貨などのユーザー設定     | `browser.storage.sync`の`config`        | 読み書き時に検証し、旧形式は移行する。換算先は常に1件以上で、空なら既定値で補う |
+| チャートの上昇・下落の色         | `browser.storage.sync`の`chartColors`   | `#rrggbb`だけを受け付け、壊れた値は選択なしとして読む                           |
 | 検出・表示に対応する通貨         | `packages/currency`                     | OXR側の未知コードをUIの対応通貨へ自動追加しない                                 |
 | プロセス間メッセージの形         | `lib/messages.ts`のZodスキーマ          | 送信前と受信後の両方で検証する                                                  |
 
@@ -96,14 +97,17 @@ R2が空でWorker secretがある場合は、最初のリクエストが手順1�
 
 PopupとContent Scriptは別の実行コンテキストで動くため、Zustandストアのメモリを共有しません。どの状態をどこに置くかは、次のように決めています。
 
-| 状態                             | 置き場所                                    | 理由                                                              |
-| -------------------------------- | ------------------------------------------- | ----------------------------------------------------------------- |
-| ユーザー設定                     | `stores/config.tsx`の設定ストア             | PopupとContent Scriptの両方が使う。各UIが別々のインスタンスを作る |
-| Popupのレートと入力中の換算元    | `entrypoints/popup/stores/conversion.tsx`   | 設定画面やレート画面へ移って換算画面が破棄されても保持する        |
-| Popupのレート履歴とグラフの選択  | `entrypoints/popup/stores/rate-history.tsx` | 換算画面とレート画面が同じ履歴を使い、画面を切り替えても保持する  |
-| 換算カードの表示と編集中の換算元 | `useConversionSession`のローカル状態        | `ContentApplication`だけが使い、その生存期間を越えて保持しない    |
+| 状態                             | 置き場所                                    | 理由                                                                |
+| -------------------------------- | ------------------------------------------- | ------------------------------------------------------------------- |
+| ユーザー設定                     | `stores/config.tsx`の設定ストア             | PopupとContent Scriptの両方が使う。各UIが別々のインスタンスを作る   |
+| Popupのレートと入力中の換算元    | `entrypoints/popup/stores/conversion.tsx`   | 設定画面やレート画面へ移って換算画面が破棄されても保持する          |
+| Popupのレート履歴とグラフの選択  | `entrypoints/popup/stores/rate-history.tsx` | 換算画面とレート画面が同じ履歴を使い、画面を切り替えても保持する    |
+| Popupのチャートの色              | `entrypoints/popup/stores/chart-colors.tsx` | Popupだけが使う。`chartColors`の保存と`storage.onChanged`で同期する |
+| 換算カードの表示と編集中の換算元 | `useConversionSession`のローカル状態        | `ContentApplication`だけが使い、その生存期間を越えて保持しない      |
 
 設定の正本は`browser.storage.sync`です。各インスタンスは、Background Scriptへのメッセージと`browser.storage.onChanged`で同期します。
+
+チャートの色は`config`に加えず、`chartColors`という別のキーに保存します。`config`は未知の項目を拒む厳密なスキーマで読むため、項目を足すと、古い版の拡張機能がその設定を読めず、すべての設定を既定値へ戻してしまうからです。別のキーなら古い版は`chartColors`を無視し、`config`の読み書きも今までどおりです。読み書きは`GET_CHART_COLORS`と`SET_CHART_COLORS`のメッセージで行い、上昇と下落のどちらかだけを選んだ場合は、もう一方にUIの言語の既定色を使います。選んだ色は線、面、矢印、軸のタグに使い、文字の色には使いません。タグの文字は、背景の色に対してコントラスト比4.5以上になる白か黒を選びます。
 
 `entrypoints/*/stores`に置くのは、複数のコンポーネントで共有する状態か、持ち主のコンポーネントより長く保持する状態だけです。entrypoint固有というだけではストアへ移しません。換算ストアとローカル状態に置いた値は、別の実行コンテキストへも、Popupを開き直した後へも引き継ぎません。
 

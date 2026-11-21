@@ -50,8 +50,11 @@ Popup と Content Script は別の実行コンテキストなので、Zustand �
 Popup の換算元とレート表示状態は内部ルートの切り替えを越えて保持するため、`entrypoints/popup/stores/conversion.tsx` の Popup 単位ストアに置きます。
 換算元はレート画面の基準通貨を兼ねます。
 レート履歴、グラフの期間、表示する通貨は、換算画面とレート画面で共有するため、`entrypoints/popup/stores/rate-history.tsx` の Popup 単位ストアに置きます。
-上昇と下降の色は `lib/trend-colors.ts` の `getTrendColorScheme` が UI の言語から決めます。
-利用者の設定で変える場合は、この関数の入力を差し替えます。
+上昇と下降の既定の色は `lib/trend-colors.ts` の `getTrendColorScheme` が UI の言語から決め、利用者が選んだ色は `getTrendPalette` が方向ごとに上書きします。
+選んだ色は `browser.storage.sync` の `config` ではなく `chartColors` キーに保存し、Popup の `entrypoints/popup/stores/chart-colors.tsx` が `storage.onChanged` で同期します。
+`config` は strict schema で読むため、項目を足すと古い版が設定全体を既定値へ戻します。
+`config` に新しい項目を加えるときは、古い版での読み込みを確かめるか、同じように別のキーへ分けます。
+選んだ色は文字の色に使わず、軸のタグの文字は白か黒をコントラスト比で選びます。
 Popup の各画面実装は対応する `entrypoints/popup/routes` のファイルが所有し、共有する Provider、状態、画面枠だけを `PopupApplication` に置きます。
 WXT とブラウザ統合テストは同じ TanStack Router 設定を使い、画面ルートを自動コード分割します。Content Script は独立した entrypoint であり、このルート分割には含めません。
 Content Script の換算操作は単一の `ContentApplication` が所有し、そのマウント期間を越えて保持しないため、`entrypoints/content/hooks/useConversionSession.ts` のローカル状態に置きます。

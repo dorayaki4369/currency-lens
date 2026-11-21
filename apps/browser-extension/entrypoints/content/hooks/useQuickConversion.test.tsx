@@ -137,6 +137,26 @@ describe("useQuickConversion", () => {
     await waitFor(() => expect(result.current).toBeNull());
   });
 
+  it("does not bring back an amount from before a failed conversion", async () => {
+    const pending = Promise.withResolvers<unknown>();
+    const sendMessage = stubConversion();
+    const { rerender, result } = renderQuickConversion({
+      detection: DETECTION,
+      favorites: ["JPY"],
+    });
+    await waitFor(() => expect(result.current).not.toBeNull());
+
+    sendMessage.mockImplementationOnce(() => Promise.reject(new Error("offline")));
+    rerender({ detection: { ...DETECTION, amount: 90 }, favorites: ["JPY"] });
+    await waitFor(() => expect(result.current).toBeNull());
+
+    sendMessage.mockImplementationOnce(() => pending.promise);
+    rerender({ detection: { ...DETECTION, amount: 120 }, favorites: ["JPY"] });
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(3));
+
+    expect(result.current).toBeNull();
+  });
+
   it("stays empty when the target rate is unavailable", async () => {
     const sendMessage = stubConversion("unavailable");
     const { result } = renderQuickConversion({

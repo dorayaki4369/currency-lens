@@ -520,6 +520,43 @@ describe("ConversionEditor", () => {
     ).toBe("up");
   });
 
+  it("keeps the last amount through a placeholder until the next conversion lands", () => {
+    const editorProps = {
+      amountText: "1",
+      currencyCode: "USD" as const,
+      locale: "en" as const,
+      onAmountTextChange: () => undefined,
+      onCurrencyChange: () => undefined,
+      targetCurrencies: ["JPY"] as const,
+      targetTitle: "Converted",
+    };
+    const { rerender } = render(
+      <ConversionEditor
+        {...editorProps}
+        targetAmounts={
+          new Map([["JPY", { status: "converted", text: "150.00", value: 150 }]])
+        }
+      />,
+    );
+
+    rerender(
+      <ConversionEditor
+        {...editorProps}
+        targetAmounts={new Map([["JPY", { status: "placeholder" }]])}
+      />,
+    );
+    expect(screen.queryByText("150.00")).toBeNull();
+
+    rerender(
+      <ConversionEditor
+        {...editorProps}
+        targetAmounts={new Map([["JPY", { status: "loading" }]])}
+      />,
+    );
+    expect(screen.getByText("150.00")).toBeDefined();
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeNull();
+  });
+
   it("rolls amounts in when they first appear but not when edit mode swaps the list", () => {
     render(
       <ConversionEditor

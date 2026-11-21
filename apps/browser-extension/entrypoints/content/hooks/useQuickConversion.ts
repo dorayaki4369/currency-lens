@@ -1,6 +1,10 @@
 import type { CurrencyCode } from "@cl/currency";
 import { useEffect } from "react";
-import { type HeldAmount, useHeldAmount } from "@/components/conversion/ConvertedAmount";
+import {
+  type ConversionPhase,
+  type HeldAmount,
+  useHeldAmount,
+} from "@/components/conversion/ConvertedAmount";
 import { selectQuickConversionTarget, type Config } from "@/lib/currency";
 import type { DetectedCurrency } from "@/lib/currency-detection";
 import { formatCurrencyAmount, type UiLocale } from "@/lib/i18n";
@@ -44,9 +48,20 @@ export function useQuickConversion(
   );
   const current = result?.status === "converted" ? toQuickConversion(result, locale) : null;
   // Until the current selection's result or failure arrives, the previous amount rolls into it.
-  const pending = targetCurrency !== null && result === undefined && error === null;
-  const held = useHeldAmount(current, pending);
+  const held = useHeldAmount(current, getConversionPhase(targetCurrency, result, error));
   return selectShownConversion(held, targetCurrency);
+}
+
+/** Treats a missing result without an error as a conversion still on its way. */
+function getConversionPhase(
+  targetCurrency: CurrencyCode | null,
+  result: unknown,
+  error: string | null,
+): ConversionPhase {
+  if (targetCurrency === null) {
+    return "idle";
+  }
+  return result === undefined && error === null ? "pending" : "settled";
 }
 
 /** Formats a converted result with the target currency's symbol and fraction digits. */

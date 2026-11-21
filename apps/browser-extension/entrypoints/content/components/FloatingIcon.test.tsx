@@ -66,6 +66,35 @@ describe("FloatingIcon", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
+  it("keeps keyboard focus when the logo turns into the amount and back", () => {
+    const props = {
+      floatingStyles: {},
+      locale: "en" as const,
+      onClick: vi.fn<() => void>(),
+      setFloating: vi.fn<(element: HTMLElement | null) => void>(),
+    };
+    const { rerender } = render(<FloatingIcon {...props} quickConversion={null} />);
+    const trigger = screen.getByRole("button", { name: "Convert selected price" });
+    trigger.focus();
+
+    rerender(
+      <FloatingIcon
+        {...props}
+        quickConversion={{
+          amount: { text: "¥6,962", value: 6962 },
+          currencyCode: "JPY",
+          pending: false,
+        }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Show all conversions$/u })).toBe(trigger);
+    expect(document.activeElement).toBe(trigger);
+
+    rerender(<FloatingIcon {...props} quickConversion={null} />);
+    expect(screen.getByRole("button", { name: "Convert selected price" })).toBe(trigger);
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("announces a held amount as converting and keeps it still", () => {
     render(
       <FloatingIcon

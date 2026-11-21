@@ -50,20 +50,31 @@ export function ConvertedAmount({
   );
 }
 
-/** Keeps the last converted amount on screen while a newer conversion is pending. */
-export function useHeldAmount<T>(current: T | null, pending: boolean): HeldAmount<T> {
+/**
+ * Where the conversion behind an amount stands: a replacement is on its way, it finished
+ * (with or without an amount), or nothing is being converted right now.
+ */
+export type ConversionPhase = "idle" | "pending" | "settled";
+
+/**
+ * Keeps the last shown amount on screen while a newer conversion is pending. A conversion that
+ * settles without an amount discards it, so only the amount shown just before can roll onward.
+ */
+export function useHeldAmount<T>(current: T | null, phase: ConversionPhase): HeldAmount<T> {
   const lastAmount = useRef(current);
 
   useEffect(() => {
     if (current !== null) {
       lastAmount.current = current;
+    } else if (phase === "settled") {
+      lastAmount.current = null;
     }
-  }, [current]);
+  }, [current, phase]);
 
   if (current !== null) {
     return { amount: current, held: false };
   }
-  if (pending && lastAmount.current !== null) {
+  if (phase === "pending" && lastAmount.current !== null) {
     return { amount: lastAmount.current, held: true };
   }
   return { amount: null, held: false };

@@ -4,13 +4,14 @@ import { cleanup, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   type AmountSnapshot,
+  type ConversionPhase,
   ConvertedAmount,
   useHeldAmount,
 } from "@/components/conversion/ConvertedAmount";
 
 interface HeldAmountProps {
   readonly current: AmountSnapshot | null;
-  readonly pending: boolean;
+  readonly phase: ConversionPhase;
 }
 
 const AMOUNT: AmountSnapshot = { text: "6,962.40", value: 6962.4 };
@@ -58,23 +59,37 @@ describe("ConvertedAmount", () => {
 });
 
 describe("useHeldAmount", () => {
-  it("returns the current amount, then holds it only while a replacement is pending", () => {
-    const initialProps: HeldAmountProps = { current: AMOUNT, pending: false };
+  it("holds the last amount while a replacement is pending and keeps it across idle time", () => {
+    const initialProps: HeldAmountProps = { current: AMOUNT, phase: "settled" };
     const { rerender, result } = renderHook(
-      ({ current, pending }: HeldAmountProps) => useHeldAmount(current, pending),
+      ({ current, phase }: HeldAmountProps) => useHeldAmount(current, phase),
       { initialProps },
     );
     expect(result.current).toEqual({ amount: AMOUNT, held: false });
 
-    rerender({ current: null, pending: true });
-    expect(result.current).toEqual({ amount: AMOUNT, held: true });
+    rerender({ current: null, phase: "idle" });
+    expect(result.current).toEqual({ amount: null, held: false });
 
-    rerender({ current: null, pending: false });
+    rerender({ current: null, phase: "pending" });
+    expect(result.current).toEqual({ amount: AMOUNT, held: true });
+  });
+
+  it("discards the held amount once a conversion settles without one", () => {
+    const initialProps: HeldAmountProps = { current: AMOUNT, phase: "settled" };
+    const { rerender, result } = renderHook(
+      ({ current, phase }: HeldAmountProps) => useHeldAmount(current, phase),
+      { initialProps },
+    );
+
+    rerender({ current: null, phase: "settled" });
+    expect(result.current).toEqual({ amount: null, held: false });
+
+    rerender({ current: null, phase: "pending" });
     expect(result.current).toEqual({ amount: null, held: false });
   });
 
   it("has nothing to hold before the first amount arrives", () => {
-    const { result } = renderHook(() => useHeldAmount<AmountSnapshot>(null, true));
+    const { result } = renderHook(() => useHeldAmount<AmountSnapshot>(null, "pending"));
 
     expect(result.current).toEqual({ amount: null, held: false });
   });

@@ -559,7 +559,11 @@ function ConversionTargetAmountView({
 
   const amount = freeze ? frozenAmount.current : currentAmount;
   const convertedAmount = amount.status === "converted" ? amount : null;
-  const held = useHeldAmount(convertedAmount, amount.status === "loading");
+  // The card keeps its last amount through placeholder and unavailable states, as before.
+  const held = useHeldAmount(
+    convertedAmount,
+    amount.status === "loading" ? "pending" : "idle",
+  );
   const rollIn = useFirstAppearance(currencyCode, held.amount !== null);
 
   if (held.amount !== null) {

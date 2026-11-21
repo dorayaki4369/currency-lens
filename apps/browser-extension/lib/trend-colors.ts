@@ -5,6 +5,11 @@ import type { TrendDirection } from "@/lib/rate-series";
 export type TrendColorScheme = "green-up" | "red-up";
 export type ChangeDirection = Exclude<TrendDirection, "flat">;
 
+export const CHANGE_DIRECTIONS = [
+  "up",
+  "down",
+] as const satisfies readonly ChangeDirection[];
+
 export interface ChartColor {
   /** Stroke and fill for lines and areas. */
   readonly line: string;

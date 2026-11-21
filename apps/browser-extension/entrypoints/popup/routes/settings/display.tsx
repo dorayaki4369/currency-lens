@@ -17,16 +17,14 @@ import {
   useTrendPalette,
 } from "@/entrypoints/popup/stores/chart-colors";
 import {
+  CHANGE_DIRECTIONS,
   getDefaultTrendColor,
   getTrendColorScheme,
-  type ChangeDirection,
 } from "@/lib/trend-colors";
 
 export const Route = createFileRoute("/settings/display")({
   component: DisplaySettingsRoute,
 });
-
-const CHANGE_DIRECTIONS = ["up", "down"] as const satisfies readonly ChangeDirection[];
 
 /** Renders display preferences under the settings route. */
 function DisplaySettingsRoute() {

@@ -99,10 +99,12 @@ function createChartColorsStore(preview: ChartColorSettings | undefined): ChartC
       latestRevision += 1;
       pendingSaves += 1;
       const revision = latestRevision;
+      // Only the changed direction is sent; the background merges it into storage, so a
+      // choice made in another popup for the other direction is never overwritten.
       const save = saveQueue.then(async () => {
         const response = await sendMessage({
           type: messageTypes.SET_CHART_COLORS,
-          payload: next,
+          payload: { color, direction },
         });
         if (!response.success) {
           throw new Error(response.error);
@@ -110,19 +112,41 @@ function createChartColorsStore(preview: ChartColorSettings | undefined): ChartC
         lastStored = response.data;
         return undefined;
       });
-      saveQueue = save
-        .catch(() => undefined)
-        .finally(() => {
-          pendingSaves -= 1;
-        });
-      void save.catch(() => {
-        // Only the newest choice decides what the screen shows after a failure.
-        if (revision === latestRevision) {
-          set({ saveFailed: true, settings: lastStored });
+      const settled = save.then(
+        () => false,
+        () => true,
+      );
+      saveQueue = settled.then(() => undefined);
+      void settled.then(async (failed) => {
+        pendingSaves -= 1;
+        if (failed && revision === latestRevision) {
+          set({ saveFailed: true });
         }
+        if (pendingSaves === 0) {
+          await reconcile();
+        }
+        return undefined;
       });
     },
   }));
+
+  /**
+   * Shows what storage holds once no save is pending. Storage events seen while saving
+   * may be older or newer than the responses, so the stored value is read again.
+   */
+  const reconcile = async () => {
+    try {
+      const response = await sendMessage({ type: messageTypes.GET_CHART_COLORS });
+      if (response.success) {
+        lastStored = response.data;
+      }
+    } catch {
+      // Fall back to the newest value this popup has already seen.
+    }
+    if (pendingSaves === 0) {
+      store.setState({ settings: lastStored });
+    }
+  };
 
   const startSynchronization = () => {
     if (preview !== undefined) {

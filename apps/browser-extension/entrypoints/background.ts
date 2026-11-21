@@ -14,6 +14,7 @@ import {
   setConfigResponseSchema,
   type ConvertCurrenciesRequest,
   type GetRateHistoryRequest,
+  type SetChartColorsRequest,
   type Message,
   type MessageResponse,
 } from "@/lib/messages";
@@ -29,7 +30,7 @@ import {
   getChartColorSettings,
   getConfig,
   getExchangeRateCache,
-  setChartColorSettings,
+  updateChartColor,
   setConfig,
   setExchangeRateCache,
 } from "@/lib/storage";
@@ -108,7 +109,7 @@ const messageHandlerByType = {
   GET_RATE_HISTORY: (message) =>
     handleGetRateHistory(getRateHistoryRequestSchema.parse(message)),
   SET_CHART_COLORS: (message) =>
-    handleSetChartColors(setChartColorsRequestSchema.parse(message).payload),
+    handleSetChartColor(setChartColorsRequestSchema.parse(message).payload),
   SET_CONFIG: (message) => handleSetConfig(setConfigRequestSchema.parse(message).payload),
 } satisfies MessageHandlerByType;
 
@@ -137,11 +138,11 @@ async function handleGetChartColors(): Promise<MessageResponse> {
   return getChartColorsResponseSchema.parse({ success: true, data: settings });
 }
 
-/** Persists the chart color choices and echoes the stored value. */
-async function handleSetChartColors(
-  settings: Parameters<typeof setChartColorSettings>[0],
+/** Merges one direction's color into storage and returns every stored choice. */
+async function handleSetChartColor(
+  update: SetChartColorsRequest["payload"],
 ): Promise<MessageResponse> {
-  await setChartColorSettings(settings);
+  const settings = await updateChartColor(update.direction, update.color);
   return setChartColorsResponseSchema.parse({ success: true, data: settings });
 }
 

@@ -8,7 +8,13 @@ import {
 } from "@/lib/currency";
 import type { CurrencyCode } from "@cl/currency";
 import { exchangeRateCacheSchema, type ExchangeRateCache } from "@/lib/rates";
-import { chartColorSettingsSchema, type ChartColorSettings } from "@/lib/trend-colors";
+import {
+  CHANGE_DIRECTIONS,
+  chartColorSettingsSchema,
+  hexColorSchema,
+  type ChangeDirection,
+  type ChartColorSettings,
+} from "@/lib/trend-colors";
 
 const CONFIG_KEY = "config";
 const CACHE_KEY = "exchangeRateCache";
@@ -76,10 +82,41 @@ export async function setChartColorSettings(settings: ChartColorSettings): Promi
   await browser.storage.sync.set({ [CHART_COLORS_KEY]: validated });
 }
 
-/** Parses stored chart colors, dropping fields a newer version may have added. */
+/**
+ * Changes one direction's color, or clears it with null, keeping the stored choice for
+ * the other direction, and returns the merged result.
+ */
+export async function updateChartColor(
+  direction: ChangeDirection,
+  color: string | null,
+): Promise<ChartColorSettings> {
+  const next: ChartColorSettings = { ...(await getChartColorSettings()) };
+  if (color === null) {
+    delete next[direction];
+  } else {
+    next[direction] = color;
+  }
+  await setChartColorSettings(next);
+  return chartColorSettingsSchema.parse(next);
+}
+
+/**
+ * Parses stored chart colors one direction at a time, so one corrupt direction does
+ * not discard the other; fields a newer version may have added are dropped.
+ */
 export function parseStoredChartColorSettings(storedValue: unknown): ChartColorSettings {
-  const parsed = chartColorSettingsSchema.safeParse(storedValue);
-  return parsed.success ? parsed.data : {};
+  const stored = z.record(z.string(), z.unknown()).safeParse(storedValue);
+  if (!stored.success) {
+    return {};
+  }
+  const settings: ChartColorSettings = {};
+  for (const direction of CHANGE_DIRECTIONS) {
+    const color = hexColorSchema.safeParse(stored.data[direction]);
+    if (color.success) {
+      settings[direction] = color.data;
+    }
+  }
+  return settings;
 }
 
 /** Reads the last valid rate cache without deleting it merely because it is stale. */

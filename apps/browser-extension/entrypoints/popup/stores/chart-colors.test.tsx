@@ -44,6 +44,93 @@ function stubBrowser(sendMessage: (message: unknown) => Promise<unknown>) {
   };
 }
 
+/** Simulates the background's merge-on-write storage with controllable replies. */
+function createFakeBackground(initial: ChartColorSettings) {
+  let stored: ChartColorSettings = { ...initial };
+  let reads = 0;
+  let readFailure: unknown = null;
+  let heldReads: (() => void)[] | null = null;
+  let writeFailure: unknown = null;
+  let failingWrites = Number.POSITIVE_INFINITY;
+  let held: (() => void)[] | null = null;
+  const reply = (value: unknown) =>
+    new Promise<unknown>((resolve) => {
+      if (held === null) {
+        resolve(value);
+      } else {
+        held.push(() => resolve(value));
+      }
+    });
+  const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) => {
+    if (Reflect.get(Object(message), "type") === "GET_CHART_COLORS") {
+      reads += 1;
+      if (readFailure instanceof Error) {
+        return Promise.reject(readFailure);
+      }
+      const result = readFailure ?? { data: { ...stored }, success: true };
+      return new Promise<unknown>((resolve) => {
+        if (heldReads === null) {
+          resolve(result);
+        } else {
+          heldReads.push(() => resolve({ data: { ...stored }, success: true }));
+        }
+      });
+    }
+    if (writeFailure !== null && failingWrites > 0) {
+      failingWrites -= 1;
+      return writeFailure instanceof Error
+        ? Promise.reject(writeFailure)
+        : Promise.resolve(writeFailure);
+    }
+    const payload: unknown = Reflect.get(Object(message), "payload");
+    const direction = String(Reflect.get(Object(payload), "direction")) as "down" | "up";
+    const color: unknown = Reflect.get(Object(payload), "color");
+    const next = { ...stored };
+    if (typeof color === "string") {
+      next[direction] = color;
+    } else {
+      delete next[direction];
+    }
+    stored = next;
+    return reply({ data: { ...next }, success: true });
+  });
+  return {
+    failReads: (failure: unknown = new Error("Disconnected")) => {
+      readFailure = failure;
+    },
+    holdReads: () => {
+      heldReads = [];
+    },
+    releaseReads: () => {
+      const pending = heldReads ?? [];
+      heldReads = null;
+      for (const resolve of pending) {
+        resolve();
+      }
+    },
+    failWrites: (failure: unknown, count = Number.POSITIVE_INFINITY) => {
+      writeFailure = failure;
+      failingWrites = count;
+    },
+    holdResponses: () => {
+      held = [];
+    },
+    reads: () => reads,
+    releaseResponses: () => {
+      const pending = held ?? [];
+      held = null;
+      for (const resolve of pending) {
+        resolve();
+      }
+    },
+    sendMessage,
+    stored: () => stored,
+    write: (value: ChartColorSettings) => {
+      stored = value;
+    },
+  };
+}
+
 /** Renders the store with the palette it resolves for Japanese. */
 function renderChartColors(preview?: ChartColorSettings) {
   return renderHook(
@@ -77,28 +164,23 @@ describe("popup chart color store", () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it("loads stored choices, saves new ones, and follows other popups", async () => {
-    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) =>
-      Promise.resolve(
-        Reflect.get(Object(message), "type") === "GET_CHART_COLORS"
-          ? { data: { down: "#8b5cf6" }, success: true }
-          : { data: Reflect.get(Object(message), "payload"), success: true },
-      ),
-    );
-    const storage = stubBrowser(sendMessage);
+  it("loads stored choices, saves one direction, and follows other popups", async () => {
+    const background = createFakeBackground({ down: "#8b5cf6" });
+    const storage = stubBrowser(background.sendMessage);
     const { result, unmount } = renderChartColors();
 
     await waitFor(() => expect(result.current.settings).toEqual({ down: "#8b5cf6" }));
     act(() => result.current.setColor("up", "#e3b63f"));
     expect(result.current.settings).toEqual({ down: "#8b5cf6", up: "#e3b63f" });
     await waitFor(() =>
-      expect(sendMessage).toHaveBeenLastCalledWith({
-        payload: { down: "#8b5cf6", up: "#e3b63f" },
+      expect(background.sendMessage).toHaveBeenCalledWith({
+        payload: { color: "#e3b63f", direction: "up" },
         type: "SET_CHART_COLORS",
       }),
     );
+    await waitFor(() => expect(background.reads()).toBe(2));
+    expect(result.current.settings).toEqual({ down: "#8b5cf6", up: "#e3b63f" });
 
-    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     storage.emit({ chartColors: { newValue: { up: "#14a08a" } } });
     expect(result.current.settings).toEqual({ up: "#14a08a" });
     storage.emit({ chartColors: { newValue: { up: "#000000" } } }, "local");
@@ -109,69 +191,107 @@ describe("popup chart color store", () => {
     expect(storage.listeners.size).toBe(0);
   });
 
-  it("ignores its own save echoes until the newest choice is stored", async () => {
-    const save = Promise.withResolvers<unknown>();
-    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) =>
-      Reflect.get(Object(message), "type") === "GET_CHART_COLORS"
-        ? Promise.resolve({ data: {}, success: true })
-        : save.promise,
-    );
-    const storage = stubBrowser(sendMessage);
+  it("shows another popup's change made while this popup was saving", async () => {
+    const background = createFakeBackground({});
+    const storage = stubBrowser(background.sendMessage);
     const { result } = renderChartColors();
-    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(background.reads()).toBe(1));
+    background.holdResponses();
 
+    // Popup A saves the rise color; its write lands first and its reply is delayed.
     act(() => result.current.setColor("up", "#e3b63f"));
-    storage.emit({ chartColors: { newValue: { up: "#ef4444" } } });
+    await waitFor(() => expect(background.stored()).toEqual({ up: "#e3b63f" }));
+    // Popup B then changes the fall color, and the echo of A's own write is ignored.
+    storage.emit({ chartColors: { newValue: { up: "#e3b63f" } } });
+    background.write({ down: "#71717a", up: "#e3b63f" });
+    storage.emit({ chartColors: { newValue: background.stored() } });
     expect(result.current.settings).toEqual({ up: "#e3b63f" });
-    save.resolve({ data: { up: "#e3b63f" }, success: true });
+
+    background.releaseResponses();
+    await waitFor(() =>
+      expect(result.current.settings).toEqual({ down: "#71717a", up: "#e3b63f" }),
+    );
+
+    // A's next choice changes only its own direction and keeps B's fall color.
+    act(() => result.current.setColor("up", null));
+    await waitFor(() => expect(result.current.settings).toEqual({ down: "#71717a" }));
+    expect(background.stored()).toEqual({ down: "#71717a" });
   });
 
   it.each([
-    [
-      "a failure response",
-      () => Promise.resolve({ error: "Quota exceeded", success: false }),
-    ],
-    ["a runtime error", () => Promise.reject(new Error("Disconnected"))],
-  ])("restores the stored choice after %s", async (_name, fail) => {
-    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) =>
-      Reflect.get(Object(message), "type") === "GET_CHART_COLORS"
-        ? Promise.resolve({ data: { up: "#14a08a" }, success: true })
-        : fail(),
-    );
-    stubBrowser(sendMessage);
+    ["a failure response", { error: "Quota exceeded", success: false }],
+    ["a runtime error", new Error("Disconnected")],
+  ])("restores the stored choice after %s", async (_name, failure) => {
+    const background = createFakeBackground({ up: "#14a08a" });
+    background.failWrites(failure);
+    stubBrowser(background.sendMessage);
     const { result } = renderChartColors();
     await waitFor(() => expect(result.current.settings).toEqual({ up: "#14a08a" }));
 
     act(() => result.current.setColor("up", "#e3b63f"));
     await waitFor(() => expect(result.current.saveFailed).toBe(true));
-    expect(result.current.settings).toEqual({ up: "#14a08a" });
+    await waitFor(() => expect(result.current.settings).toEqual({ up: "#14a08a" }));
   });
 
-  it("lets only the newest failed choice restore the stored value", async () => {
-    const saves: PromiseWithResolvers<unknown>[] = [];
-    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) => {
-      if (Reflect.get(Object(message), "type") === "GET_CHART_COLORS") {
-        return Promise.resolve({ data: {}, success: true });
-      }
-      const save = Promise.withResolvers<unknown>();
-      saves.push(save);
-      return save.promise;
-    });
-    stubBrowser(sendMessage);
+  it.each([
+    ["a failure response", { error: "Unavailable", success: false }],
+    ["a runtime error", new Error("Disconnected")],
+  ])(
+    "falls back to the last seen value when rereading fails with %s",
+    async (_name, failure) => {
+      const background = createFakeBackground({ up: "#14a08a" });
+      stubBrowser(background.sendMessage);
+      const { result } = renderChartColors();
+      await waitFor(() => expect(result.current.settings).toEqual({ up: "#14a08a" }));
+      background.failReads(failure);
+
+      act(() => result.current.setColor("down", "#e3b63f"));
+      await waitFor(() =>
+        expect(background.stored()).toEqual({ down: "#e3b63f", up: "#14a08a" }),
+      );
+      await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+      expect(result.current.settings).toEqual({ down: "#e3b63f", up: "#14a08a" });
+    },
+  );
+
+  it("leaves a newer pending choice on screen while an earlier reread finishes", async () => {
+    const background = createFakeBackground({});
+    stubBrowser(background.sendMessage);
     const { result } = renderChartColors();
-    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(background.reads()).toBe(1));
+    background.holdReads();
+
+    act(() => result.current.setColor("up", "#e3b63f"));
+    await waitFor(() => expect(background.reads()).toBe(2));
+    background.holdResponses();
+    act(() => result.current.setColor("down", "#71717a"));
+    background.releaseReads();
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(result.current.settings).toEqual({ down: "#71717a", up: "#e3b63f" });
+
+    background.releaseResponses();
+    await waitFor(() => expect(background.reads()).toBe(3));
+    background.releaseReads();
+    await waitFor(() =>
+      expect(result.current.settings).toEqual({ down: "#71717a", up: "#e3b63f" }),
+    );
+  });
+
+  it("reports a failure only when the newest choice failed", async () => {
+    const background = createFakeBackground({});
+    stubBrowser(background.sendMessage);
+    const { result } = renderChartColors();
+    await waitFor(() => expect(background.reads()).toBe(1));
+    background.failWrites(new Error("Disconnected"), 1);
 
     act(() => {
       result.current.setColor("up", "#e3b63f");
       result.current.setColor("up", "#14a08a");
     });
-    await waitFor(() => expect(saves).toHaveLength(1));
-    saves[0]?.reject(new Error("Disconnected"));
-    await waitFor(() => expect(saves).toHaveLength(2));
-    expect(result.current.settings).toEqual({ up: "#14a08a" });
-    saves[1]?.resolve({ data: { up: "#14a08a" }, success: true });
-    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    await waitFor(() => expect(background.stored()).toEqual({ up: "#14a08a" }));
+    await waitFor(() => expect(background.reads()).toBe(2));
     expect(result.current.saveFailed).toBe(false);
+    expect(result.current.settings).toEqual({ up: "#14a08a" });
   });
 
   it("keeps the defaults when loading fails or another popup changed colors first", async () => {

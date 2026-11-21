@@ -7,7 +7,11 @@ import {
   rateWarningSchema,
 } from "@/lib/rates";
 import { rateHistoryQuerySchema, rateHistorySchema } from "@/lib/rate-history";
-import { chartColorSettingsSchema } from "@/lib/trend-colors";
+import {
+  CHANGE_DIRECTIONS,
+  chartColorSettingsSchema,
+  hexColorSchema,
+} from "@/lib/trend-colors";
 
 export const messageTypes = {
   GET_CONFIG: "GET_CONFIG",
@@ -132,7 +136,10 @@ export const getChartColorsRequestSchema = z
 export const setChartColorsRequestSchema = z
   .object({
     type: z.literal(messageTypes.SET_CHART_COLORS),
-    payload: chartColorSettingsSchema.strict(),
+    // One direction at a time; null returns it to the locale default.
+    payload: z
+      .object({ color: hexColorSchema.nullable(), direction: z.enum(CHANGE_DIRECTIONS) })
+      .strict(),
   })
   .strict();
 

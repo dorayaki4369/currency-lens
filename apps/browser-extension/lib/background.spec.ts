@@ -156,11 +156,17 @@ describe("background lifecycle", () => {
       data: {},
     });
     await expect(
-      handleMessage({ type: "SET_CHART_COLORS", payload: { up: "#E3B63F" } }),
+      handleMessage({
+        type: "SET_CHART_COLORS",
+        payload: { color: "#E3B63F", direction: "up" },
+      }),
     ).resolves.toEqual({ success: true, data: { up: "#e3b63f" } });
     expect(harness.syncSet).toHaveBeenCalledWith({ chartColors: { up: "#e3b63f" } });
     await expect(
-      handleMessage({ type: "SET_CHART_COLORS", payload: { up: "yellow" } }),
+      handleMessage({
+        type: "SET_CHART_COLORS",
+        payload: { color: "yellow", direction: "up" },
+      }),
     ).resolves.toEqual({ success: false, error: "Invalid message format" });
   });
 

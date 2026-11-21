@@ -107,13 +107,19 @@ describe("message schemas", () => {
     expect(
       messageSchema.safeParse({
         type: messageTypes.SET_CHART_COLORS,
-        payload: { down: "#3b82f6" },
+        payload: { color: "#3b82f6", direction: "down" },
       }).success,
     ).toBe(true);
     expect(
       messageSchema.safeParse({
         type: messageTypes.SET_CHART_COLORS,
-        payload: { down: "#3b82f6", flat: "#000000" },
+        payload: { color: null, direction: "up" },
+      }).success,
+    ).toBe(true);
+    expect(
+      messageSchema.safeParse({
+        type: messageTypes.SET_CHART_COLORS,
+        payload: { color: "#3b82f6", direction: "flat" },
       }).success,
     ).toBe(false);
     expect(

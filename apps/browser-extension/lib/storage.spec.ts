@@ -2,11 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { currencyCodeSchema } from "@/lib/currency";
 import { createExchangeRateCache } from "@/lib/rates";
 import {
+  CHART_COLORS_KEY,
   clearExchangeRateCache,
+  getChartColorSettings,
   getConfig,
   getDefaultConfig,
   getExchangeRateCache,
+  parseStoredConfig,
+  setChartColorSettings,
   setConfig,
+  updateChartColor,
   setExchangeRateCache,
 } from "@/lib/storage";
 
@@ -199,6 +204,52 @@ describe("configuration storage", () => {
     };
 
     await expect(getConfig()).resolves.toEqual(getDefaultConfig());
+  });
+});
+
+describe("chart color storage", () => {
+  it("keeps chart colors outside the strict config that older versions parse", async () => {
+    // An older version would reject this config and fall back to every default.
+    expect(
+      parseStoredConfig({ ...getDefaultConfig(), chartColors: { up: "#e3b63f" } }),
+    ).toBeNull();
+
+    await setConfig(getDefaultConfig());
+    await setChartColorSettings({ up: "#E3B63F" });
+
+    expect(syncState).toEqual({
+      [CHART_COLORS_KEY]: { up: "#e3b63f" },
+      config: getDefaultConfig(),
+    });
+    await expect(getChartColorSettings()).resolves.toEqual({ up: "#e3b63f" });
+    await expect(getConfig()).resolves.toEqual(getDefaultConfig());
+  });
+
+  it("treats missing or corrupt colors as no choice and ignores newer fields", async () => {
+    await expect(getChartColorSettings()).resolves.toEqual({});
+    syncState = { [CHART_COLORS_KEY]: { up: "yellow" } };
+    await expect(getChartColorSettings()).resolves.toEqual({});
+    syncState = { [CHART_COLORS_KEY]: { down: "#3B82F6", flat: "#000000" } };
+    await expect(getChartColorSettings()).resolves.toEqual({ down: "#3b82f6" });
+    // One corrupt direction does not discard the other.
+    syncState = { [CHART_COLORS_KEY]: { down: "blue", up: "#E3B63F" } };
+    await expect(getChartColorSettings()).resolves.toEqual({ up: "#e3b63f" });
+    syncState = { [CHART_COLORS_KEY]: "#e3b63f" };
+    await expect(getChartColorSettings()).resolves.toEqual({});
+    await expect(setChartColorSettings({ up: "red" })).rejects.toThrow();
+  });
+});
+
+describe("chart color updates", () => {
+  it("changes one direction while keeping the other stored choice", async () => {
+    syncState = { [CHART_COLORS_KEY]: { down: "#71717a" } };
+
+    await expect(updateChartColor("up", "#E3B63F")).resolves.toEqual({
+      down: "#71717a",
+      up: "#e3b63f",
+    });
+    await expect(updateChartColor("down", null)).resolves.toEqual({ up: "#e3b63f" });
+    expect(syncState).toEqual({ [CHART_COLORS_KEY]: { up: "#e3b63f" } });
   });
 });
 

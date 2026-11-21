@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowRight, ArrowUp } from "lucide-react";
 import { translate, type UiLocale } from "@/lib/i18n";
 import {
   formatRate,
@@ -5,32 +6,31 @@ import {
   formatSignedRate,
   getRateFractionDigits,
 } from "@/lib/rate-format";
-import type { RateChange } from "@/lib/rate-series";
-import { getTrendColor, type ChartColor, type TrendColorScheme } from "@/lib/trend-colors";
+import type { RateChange, TrendDirection } from "@/lib/rate-series";
+import type { ChartColor, TrendPalette } from "@/lib/trend-colors";
 
 interface RateSummaryProps {
   readonly baseCurrency: string;
   readonly change: RateChange;
-  readonly colorScheme: TrendColorScheme;
   readonly currencyCode: string;
   /** The period, or the date the change is measured from when the period starts empty. */
   readonly periodLabel: string;
   readonly locale: UiLocale;
+  readonly palette: TrendPalette;
 }
 
-const TREND_ARROWS = { down: "↓", flat: "→", up: "↑" } as const;
+const TREND_ARROWS = { down: ArrowDown, flat: ArrowRight, up: ArrowUp } as const;
 
 /** States the latest cross rate and how far it moved over the period. */
 export function RateSummary({
   baseCurrency,
   change,
-  colorScheme,
   currencyCode,
   locale,
+  palette,
   periodLabel,
 }: RateSummaryProps) {
   const digits = getRateFractionDigits(change.last.value);
-  const trend = getTrendColor(change.direction, colorScheme);
   return (
     <div className="flex flex-col gap-0.5 tabular-nums" data-slot="rate-summary">
       <p className="leading-tight">
@@ -41,9 +41,7 @@ export function RateSummary({
         <span className="text-sm font-semibold text-muted-foreground">{currencyCode}</span>
       </p>
       <p className="text-xs text-muted-foreground">
-        <span aria-hidden="true" className="font-bold" style={{ color: trend.text }}>
-          {TREND_ARROWS[change.direction]}
-        </span>{" "}
+        <TrendArrow direction={change.direction} palette={palette} />{" "}
         <span className="font-semibold text-foreground">
           {formatSignedRate(change.difference, locale, digits)} (
           {formatSignedPercent(change.percent, locale)})
@@ -64,9 +62,9 @@ export interface RateLegendItem {
 
 interface RateChangeLegendProps {
   readonly caption: string;
-  readonly colorScheme: TrendColorScheme;
   readonly items: readonly RateLegendItem[];
   readonly locale: UiLocale;
+  readonly palette: TrendPalette;
 }
 
 const MIN_LEGEND_COLUMNS = 3;
@@ -74,9 +72,9 @@ const MIN_LEGEND_COLUMNS = 3;
 /** Names each overlaid line with its color and its change over the period. */
 export function RateChangeLegend({
   caption,
-  colorScheme,
   items,
   locale,
+  palette,
 }: RateChangeLegendProps) {
   return (
     <div className="flex flex-col gap-1.5" data-slot="rate-legend">
@@ -102,10 +100,8 @@ export function RateChangeLegend({
                 {translate(locale, "rateHistoryNoData")}
               </span>
             ) : (
-              <span
-                className="text-[0.9375rem] font-bold whitespace-nowrap tabular-nums"
-                style={{ color: getTrendColor(item.change.direction, colorScheme).text }}
-              >
+              <span className="flex items-center gap-0.5 text-[0.9375rem] font-bold whitespace-nowrap tabular-nums">
+                <TrendArrow direction={item.change.direction} palette={palette} />
                 {formatSignedPercent(item.change.percent, locale)}
               </span>
             )}
@@ -118,5 +114,29 @@ export function RateChangeLegend({
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * Shows the direction in the trend color as an icon only, so a light user-chosen color
+ * never carries text that must stay readable.
+ */
+function TrendArrow({
+  direction,
+  palette,
+}: {
+  readonly direction: TrendDirection;
+  readonly palette: TrendPalette;
+}) {
+  const Arrow = TREND_ARROWS[direction];
+  return (
+    <Arrow
+      aria-hidden="true"
+      className="inline size-3.5 shrink-0 align-[-0.15em]"
+      data-direction={direction}
+      data-slot="trend-arrow"
+      strokeWidth={3}
+      style={{ color: palette[direction].accent }}
+    />
   );
 }

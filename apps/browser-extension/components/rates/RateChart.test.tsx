@@ -12,9 +12,21 @@ afterEach(() => {
 
 const DAY_MS = 86_400_000;
 const START = Date.parse("2026-10-22T00:00:00.000Z");
-const RED = { line: "var(--trend-red-line)", tag: "var(--trend-red-tag)" };
-const INDIGO = { line: "var(--rate-series-1-line)", tag: "var(--rate-series-1-tag)" };
-const AMBER = { line: "var(--rate-series-2-line)", tag: "var(--rate-series-2-tag)" };
+const RED = {
+  line: "var(--trend-red-line)",
+  tag: "var(--trend-red-tag)",
+  tagText: "#ffffff",
+};
+const INDIGO = {
+  line: "var(--rate-series-1-line)",
+  tag: "var(--rate-series-1-tag)",
+  tagText: "#ffffff",
+};
+const AMBER = {
+  line: "var(--rate-series-2-line)",
+  tag: "var(--rate-series-2-tag)",
+  tagText: "#ffffff",
+};
 
 /** Builds daily points from plain values. */
 function daily(values: readonly (number | null)[]): RateSeries {
@@ -53,6 +65,7 @@ describe("RateChart", () => {
     const tag = document.querySelector<HTMLElement>('[data-slot="rate-chart-tag"]');
     expect(tag?.textContent).toBe("152.00");
     expect(tag?.style.backgroundColor).toBe(RED.tag);
+    expect(tag?.style.color).toBe("#ffffff");
     expect(document.querySelector('[data-slot="rate-chart-x-axis"]')?.textContent).toBe(
       "10/2210/2410/25",
     );

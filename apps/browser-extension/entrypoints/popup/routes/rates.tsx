@@ -18,12 +18,7 @@ import {
   type RateChange,
   type RatePeriod,
 } from "@/lib/rate-series";
-import {
-  getRateSeriesColor,
-  getTrendColor,
-  getTrendColorScheme,
-  type TrendColorScheme,
-} from "@/lib/trend-colors";
+import { getRateSeriesColor, type TrendPalette } from "@/lib/trend-colors";
 import { RateTimestamp } from "@/components/conversion/RateTimestamp";
 import { CurrencyCombobox } from "@/components/currency/CurrencyCombobox";
 import { SectionHeader } from "@/components/layout/SectionHeader";
@@ -48,6 +43,7 @@ import {
   type PopupRatesData,
   usePopupConversion,
 } from "@/entrypoints/popup/stores/conversion";
+import { useTrendPalette } from "@/entrypoints/popup/stores/chart-colors";
 import {
   type RateChartSelection,
   type RateHistoryEntry,
@@ -253,7 +249,7 @@ function RatePanel({
   period,
   selection,
 }: RatePanelProps) {
-  const colorScheme = getTrendColorScheme(locale);
+  const palette = useTrendPalette(locale);
   const periodSelector = (
     <SegmentedControl
       aria-label={translate(locale, "ratesPeriodGroup")}
@@ -297,7 +293,7 @@ function RatePanel({
 
   const view = createRateView({
     baseCurrency,
-    colorScheme,
+    palette,
     history: history.data,
     latestTime,
     lineCurrencies,
@@ -329,7 +325,7 @@ function RatePanel({
 
 interface RateViewOptions {
   readonly baseCurrency: CurrencyCode;
-  readonly colorScheme: TrendColorScheme;
+  readonly palette: TrendPalette;
   readonly history: RateHistory;
   readonly latestTime: number;
   readonly lineCurrencies: readonly CurrencyCode[];
@@ -348,7 +344,7 @@ interface RateView {
 /** Derives the chart series and the summary for the selection, or null without data. */
 function createRateView({
   baseCurrency,
-  colorScheme,
+  palette,
   history,
   latestTime,
   lineCurrencies,
@@ -379,7 +375,7 @@ function createRateView({
     if (change === null) {
       return null;
     }
-    const trend = getTrendColor(change.direction, colorScheme);
+    const trend = palette[change.direction];
     return {
       label: translate(locale, "rateChartLabel", {
         base: baseCurrency,
@@ -392,7 +388,7 @@ function createRateView({
         <RateSummary
           baseCurrency={baseCurrency}
           change={change}
-          colorScheme={colorScheme}
+          palette={palette}
           currencyCode={selection}
           locale={locale}
           periodLabel={describeStart(change) ?? periodText}
@@ -423,7 +419,7 @@ function createRateView({
           base: baseCurrency,
           period: periodText,
         })}
-        colorScheme={colorScheme}
+        palette={palette}
         items={seriesByCurrency.map((item) => {
           const change = getRateChange(item.rates);
           return {

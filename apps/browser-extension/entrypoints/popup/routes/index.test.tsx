@@ -32,7 +32,9 @@ describe("popup converter route", () => {
     expect(screen.getByText("0.74")).toBeDefined();
     expect(screen.getByRole("button", { name: "Open settings" })).toBeDefined();
     expect(screen.queryByRole("heading", { name: "Appearance" })).toBeNull();
-    expect(screen.queryByText("Choose the display theme for Currency Lens.")).toBeNull();
+    expect(
+      screen.queryByText("Choose the display theme and chart colors for Currency Lens."),
+    ).toBeNull();
     expect(screen.queryByRole("button", { name: /save|update/u })).toBeNull();
     const targetList = screen.getByRole("list", { name: "Conversion targets" });
     expect(within(targetList).getAllByRole("listitem")).toHaveLength(3);
@@ -114,6 +116,22 @@ describe("popup converter route", () => {
         "true",
       ),
     );
+  });
+
+  it("draws sparklines in the user's chart colors", async () => {
+    await renderPopup({
+      ...PREVIEW,
+      chartColors: { down: "#8b5cf6", up: "#e3b63f" },
+      history: POPUP_HISTORY,
+    });
+    const jpy = await screen.findByRole("button", { name: "Open JPY rates" });
+    await waitFor(() =>
+      expect(jpy.querySelectorAll("path")[1]?.style.stroke).toBe("#e3b63f"),
+    );
+    expect(
+      screen.getByRole("button", { name: "Open EUR rates" }).querySelectorAll("path")[1]
+        ?.style.stroke,
+    ).toBe("#8b5cf6");
   });
 
   it("leaves an aligned empty cell instead of a sparkline for the source currency", async () => {
@@ -309,7 +327,9 @@ describe("popup converter route", () => {
     expect(screen.queryByText("その場で為替換算")).toBeNull();
     expect(screen.queryByText("レート取得済み")).toBeNull();
     expect(screen.getByRole("button", { name: "設定を開く" })).toBeDefined();
-    expect(screen.queryByText("Currency Lens の表示テーマを選びます。")).toBeNull();
+    expect(
+      screen.queryByText("Currency Lens の表示テーマとチャートの色を選びます。"),
+    ).toBeNull();
     expect(screen.queryByText("自動保存済み")).toBeNull();
     expect(
       screen.queryByText("ページ上の金額を選択し、横に表示されるレンズを開きます。"),

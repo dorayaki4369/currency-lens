@@ -74,7 +74,8 @@ describe("popup layout", () => {
     await userEvent.click(settingsRow);
     await expect.element(page.getByRole("heading", { name: "外観" })).toBeVisible();
 
-    const card = requireElement('[data-slot="card"]');
+    // The theme row is the first row of the appearance card, above the chart colors.
+    const card = requireElement('[data-slot="card"] [data-slot="list-item"]');
     const cardBounds = card.getBoundingClientRect();
     const labelBounds = requireElement("label", card).getBoundingClientRect();
     const selectBounds = requireElement(
@@ -249,6 +250,52 @@ describe("popup layout", () => {
     await expect
       .element(page.getByRole("radio", { name: "換算", exact: true }))
       .toHaveFocus();
+  });
+
+  it("anchors the chart color picker below each card inside the popup", async () => {
+    await openPopupScreen();
+    await userEvent.click(page.getByRole("button", { name: "設定を開く" }));
+    await userEvent.click(page.getByRole("button", { name: "外観" }));
+    const popup = requireElement('[data-slot="popup-root"]').getBoundingClientRect();
+
+    for (const [name, edge] of [
+      ["上昇", "left"],
+      ["下落", "right"],
+    ] as const) {
+      // Each picker closes before the next opens, so the checks run in order.
+      /* eslint-disable no-await-in-loop */
+      const card = page.getByRole("button", { name: `${name}の色を変える` });
+      await userEvent.click(card);
+      const picker = page.getByRole("dialog", { name: `${name}の色` });
+      await expect.element(picker).toBeVisible();
+      const cardBounds = card.element().getBoundingClientRect();
+      const bounds = picker.element().getBoundingClientRect();
+      expectEdge(bounds.width, rem(14.375));
+      expectEdge(bounds.height, rem(10.1875));
+      expectEdge(bounds.top - cardBounds.bottom, 6);
+      expectEdge(bounds[edge], cardBounds[edge]);
+      expect(bounds.left).toBeGreaterThanOrEqual(popup.left);
+      expect(bounds.right).toBeLessThanOrEqual(popup.right);
+      const swatchTops = new Set(
+        queryAll('[data-slot="trend-color-swatch"]').map((swatch) =>
+          Math.round(swatch.getBoundingClientRect().top),
+        ),
+      );
+      expect(swatchTops.size).toBe(3);
+      await userEvent.keyboard("{Escape}");
+      await expect.element(picker).not.toBeInTheDocument();
+      await expect.element(card).toHaveFocus();
+
+      // A click outside also closes it, and focus returns to the card, not the click target.
+      await userEvent.click(card);
+      await expect.element(picker).toBeVisible();
+      await userEvent.click(
+        page.getByText("Currency Lens の表示テーマとチャートの色を選びます。"),
+      );
+      await expect.element(picker).not.toBeInTheDocument();
+      await expect.element(card).toHaveFocus();
+      /* eslint-enable no-await-in-loop */
+    }
   });
 
   it("scales with enlarged text and stays usable on a narrow screen", async () => {

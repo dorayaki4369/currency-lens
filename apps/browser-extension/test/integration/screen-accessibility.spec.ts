@@ -102,6 +102,46 @@ it.each(["light", "dark"] as const)(
   },
 );
 
+it.each(["light", "dark"] as const)(
+  "keeps the %s chart color picker and a light custom color free of violations",
+  async (theme) => {
+    const failures: string[] = [];
+
+    await openPopupSettings(theme);
+    await userEvent.click(page.getByRole("button", { name: "外観" }));
+    await userEvent.click(page.getByRole("button", { name: "上昇の色を変える" }));
+    const picker = page.getByRole("dialog", { name: "上昇の色" });
+    await expect.element(picker).toBeVisible();
+    await collectViolations(failures, "popup chart color picker", "#root");
+    await collectViolations(
+      failures,
+      "chart color picker",
+      '[data-slot="trend-color-picker"]',
+    );
+    await saveReviewScreenshot(`popup-${theme}-chart-color-picker`);
+
+    // Yellow is the lightest swatch, so it checks that no text depends on the chosen color.
+    await userEvent.click(picker.getByRole("button", { name: "黄", exact: true }));
+    await expect.element(picker).not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "上昇の色を変える" }))
+      .toHaveFocus();
+    await saveReviewScreenshot(`popup-${theme}-chart-colors-custom`);
+    await userEvent.click(page.getByRole("button", { name: "戻る" }));
+    await userEvent.click(page.getByRole("button", { name: "戻る" }));
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect.element(page.getByRole("heading", { name: "基準" })).toBeVisible();
+    await collectViolations(failures, "popup rates with a custom rise color", "#root");
+    await saveReviewScreenshot(`popup-${theme}-rates-custom-color`);
+    await userEvent.click(page.getByRole("radio", { name: "EUR", exact: true }));
+    await expect.element(page.getByRole("slider")).toBeVisible();
+    await collectViolations(failures, "popup rate with a custom rise color", "#root");
+    await saveReviewScreenshot(`popup-${theme}-rate-custom-color`);
+
+    expect(failures.length, failures.join("\n\n")).toBe(0);
+  },
+);
+
 it.each(["loading", "empty", "error"] as const)(
   "explains the %s rate history state without automatically detectable violations",
   async (history) => {

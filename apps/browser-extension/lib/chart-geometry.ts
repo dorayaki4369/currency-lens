@@ -23,12 +23,14 @@ export interface SlotRange {
 export interface AxisTagInput {
   readonly color: string;
   readonly text: string;
+  readonly textColor: string;
   readonly value: number;
 }
 
 export interface PlacedAxisTag {
   readonly color: string;
   readonly text: string;
+  readonly textColor: string;
   readonly top: number;
 }
 
@@ -204,6 +206,7 @@ export function layoutAxis(
     .map((tag) => ({
       color: tag.color,
       text: tag.text,
+      textColor: tag.textColor,
       top: clamp(scale.y(tag.value) - AXIS_TAG_HEIGHT / 2, 0, bottomLimit),
     }))
     .toSorted((first, second) => first.top - second.top);

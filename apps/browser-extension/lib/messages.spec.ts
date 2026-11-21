@@ -103,6 +103,36 @@ describe("message schemas", () => {
     ).toThrow();
   });
 
+  it("validates chart color requests and responses as #rrggbb choices", () => {
+    expect(
+      messageSchema.safeParse({
+        type: messageTypes.SET_CHART_COLORS,
+        payload: { color: "#3b82f6", direction: "down" },
+      }).success,
+    ).toBe(true);
+    expect(
+      messageSchema.safeParse({
+        type: messageTypes.SET_CHART_COLORS,
+        payload: { color: null, direction: "up" },
+      }).success,
+    ).toBe(true);
+    expect(
+      messageSchema.safeParse({
+        type: messageTypes.SET_CHART_COLORS,
+        payload: { color: "#3b82f6", direction: "flat" },
+      }).success,
+    ).toBe(false);
+    expect(
+      parseMessageResponse(messageTypes.GET_CHART_COLORS, { success: true, data: {} }),
+    ).toEqual({ success: true, data: {} });
+    expect(() =>
+      parseMessageResponse(messageTypes.SET_CHART_COLORS, {
+        success: true,
+        data: { up: "blue" },
+      }),
+    ).toThrow();
+  });
+
   it("limits rate history requests to one to six unique currencies", () => {
     expect(isValidHistoryRequest(["JPY", "EUR", "GBP", "CAD", "AUD", "CHF"])).toBe(true);
     expect(isValidHistoryRequest([])).toBe(false);

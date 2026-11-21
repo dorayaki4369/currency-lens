@@ -11,6 +11,7 @@ import {
   FIXTURE_CONFIG,
   FIXTURE_CONVERSION_DATA,
   FIXTURE_DETECTION,
+  FIXTURE_HISTORY,
   FIXTURE_RATES,
 } from "@/test/integration/fixture-data";
 import { ComponentFixture } from "@/test/integration/component-fixtures/ComponentFixture";
@@ -24,7 +25,10 @@ export interface ConversionScreenOptions {
   readonly state: ConversionCardState;
 }
 
+export type PopupHistoryState = "data" | "empty" | "error" | "loading";
+
 export interface PopupScreenOptions {
+  readonly history: PopupHistoryState;
   readonly theme: PopupPreviewData["config"]["theme"];
 }
 
@@ -60,6 +64,7 @@ export function mountPopupScreen(container: Element, options: PopupScreenOptions
   const root = createRoot(container);
   const preview: PopupPreviewData = {
     config: { ...FIXTURE_CONFIG, theme: options.theme },
+    history: options.history === "data" ? FIXTURE_HISTORY : { kind: options.history },
     locale: "ja",
     rates: FIXTURE_RATES,
   };

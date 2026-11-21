@@ -1,6 +1,6 @@
 import type { CurrencyCode } from "@cl/currency";
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useMemo } from "react";
 import { MAX_FAVORITE_CURRENCIES, type Config } from "@/lib/currency";
 import {
   CURRENCY_CODES_BY_ISO_CODE,
@@ -8,6 +8,10 @@ import {
 } from "@/lib/currency-order";
 import { translate, type UiLocale } from "@/lib/i18n";
 import { convertCurrencyBatch } from "@/lib/rates";
+import { getRateHistorySymbols } from "@/lib/rate-history";
+import { getCrossRateSeries, getRateChange, slicePeriod } from "@/lib/rate-series";
+import { getTrendColor, getTrendColorScheme } from "@/lib/trend-colors";
+import { Sparkline } from "@/components/rates/Sparkline";
 import {
   ConversionEditor,
   parseConversionSourceAmount,
@@ -22,6 +26,10 @@ import {
   type PopupRatesData,
   usePopupConversion,
 } from "@/entrypoints/popup/stores/conversion";
+import {
+  usePopupRateHistory,
+  useRateHistory,
+} from "@/entrypoints/popup/stores/rate-history";
 import { useConfigStore } from "@/stores/config";
 
 export const Route = createFileRoute("/")({
@@ -119,6 +127,13 @@ function Converter({
     [config.favorites, conversionResults, locale, parsedAmount, ratesLoading],
   );
 
+  const renderTargetTrend = useCallback(
+    (currencyCode: CurrencyCode) => (
+      <TargetSparkline currencyCode={currencyCode} favorites={config.favorites} />
+    ),
+    [config.favorites],
+  );
+
   return (
     <ConversionEditor
       amountText={sourceAmount}
@@ -128,6 +143,7 @@ function Converter({
       onAmountTextChange={onSourceAmountChange}
       onCurrencyChange={onSourceCurrencyChange}
       onReorderTarget={onReorderFavorite}
+      renderTargetTrend={renderTargetTrend}
       targetAmounts={targetAmounts}
       targetCurrencies={config.favorites}
       targetEditing={{
@@ -146,6 +162,43 @@ function Converter({
         )
       }
       targetTitle={translate(locale, "targetsHeading")}
+    />
+  );
+}
+
+/** Draws the past month of one target against the source and opens its rate chart. */
+function TargetSparkline({
+  currencyCode,
+  favorites,
+}: {
+  readonly currencyCode: CurrencyCode;
+  readonly favorites: readonly CurrencyCode[];
+}) {
+  const popup = usePopupApplicationContext();
+  const sourceCurrency = usePopupConversion((state) => state.sourceCurrency);
+  const setRateSelection = usePopupRateHistory((state) => state.setSelection);
+  const navigate = useNavigate();
+  const symbols = useMemo(
+    () => getRateHistorySymbols(favorites, sourceCurrency),
+    [favorites, sourceCurrency],
+  );
+  const history = useRateHistory("daily", symbols);
+  const series =
+    history.data === null
+      ? []
+      : slicePeriod(getCrossRateSeries(history.data, currencyCode, sourceCurrency), "1M");
+  const direction = getRateChange(series)?.direction ?? "flat";
+
+  return (
+    <Sparkline
+      color={getTrendColor(direction, getTrendColorScheme(popup.locale)).line}
+      label={translate(popup.locale, "openRates", { currency: currencyCode })}
+      onOpen={() => {
+        setRateSelection(currencyCode);
+        // The rates screen is a peer of the converter, so it swaps in without a slide.
+        void navigate({ to: "/rates" });
+      }}
+      values={series.map((point) => point.value)}
     />
   );
 }

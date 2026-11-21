@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as i18n from "@/lib/i18n";
 import {
   choosePopupCurrency as chooseCurrency,
+  POPUP_HISTORY,
   POPUP_PREVIEW as PREVIEW,
   readPopupMessagePayload as readMessagePayload,
   readPopupMessageType as readMessageType,
@@ -81,6 +82,38 @@ describe("popup converter route", () => {
         .getAllByLabelText(/^Remove /u)
         .map((button) => button.getAttribute("aria-label")),
     ).toEqual(["Remove JPY", "Remove EUR", "Remove GBP"]);
+  });
+
+  it("draws a month of each target against the source and opens its chart", async () => {
+    await renderPopup({ ...PREVIEW, history: POPUP_HISTORY });
+
+    const jpy = await screen.findByRole("button", { name: "Open JPY rates" });
+    await waitFor(() => expect(jpy.querySelectorAll("path")).toHaveLength(2));
+    expect(jpy.querySelectorAll("path")[1]?.style.stroke).toBe("var(--trend-green-line)");
+    expect(
+      screen.getByRole("button", { name: "Open EUR rates" }).querySelectorAll("path")[1]
+        ?.style.stroke,
+    ).toBe("var(--trend-red-line)");
+
+    fireEvent.click(jpy);
+    await screen.findByRole("heading", { name: "Base" });
+    const ratesToggle = screen.getByRole("button", { name: "Rates" });
+    await waitFor(() => expect(document.activeElement).toBe(ratesToggle));
+    expect(ratesToggle.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "JPY" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Convert" }));
+    await screen.findByRole("heading", { name: "Original" });
+    const convertToggle = screen.getByRole("button", { name: "Convert" });
+    await waitFor(() => expect(document.activeElement).toBe(convertToggle));
+    fireEvent.click(screen.getByRole("button", { name: "Rates" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "ALL" }).getAttribute("aria-pressed")).toBe(
+        "true",
+      ),
+    );
   });
 
   it("recalculates targets when the source amount or currency changes", async () => {

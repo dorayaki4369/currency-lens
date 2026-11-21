@@ -60,7 +60,10 @@ export async function openPopupScreen(
   options: Partial<PopupScreenOptions> = {},
 ): Promise<void> {
   mountScreen((container) =>
-    mountPopupScreen(container, { theme: options.theme ?? "light" }),
+    mountPopupScreen(container, {
+      history: options.history ?? "data",
+      theme: options.theme ?? "light",
+    }),
   );
   await expect.element(page.getByRole("heading", { name: "Currency Lens" })).toBeVisible();
 }

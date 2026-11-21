@@ -61,6 +61,61 @@ it.each(["light", "dark"] as const)(
   },
 );
 
+it.each(["light", "dark"] as const)(
+  "keeps the %s rates screen free of automatically detectable violations",
+  async (theme) => {
+    const failures: string[] = [];
+
+    await openPopupScreen({ theme });
+    await userEvent.click(page.getByRole("button", { name: "レート", exact: true }));
+    await expect
+      .element(page.getByRole("slider", { name: "対 USD の変化率のチャート（過去1か月）" }))
+      .toBeVisible();
+    await collectViolations(failures, "popup rates for all targets", "#root");
+    await saveReviewScreenshot(`popup-${theme}-rates-all`);
+
+    await userEvent.click(page.getByRole("button", { name: "JPY", exact: true }));
+    const chart = page.getByRole("slider", {
+      name: "USD に対する JPY のチャート（過去1か月）",
+    });
+    await expect.element(chart).toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "1年", exact: true }));
+    await expect
+      .element(page.getByRole("slider", { name: "USD に対する JPY のチャート（過去1年）" }))
+      .toBeVisible();
+    await collectViolations(failures, "popup rates for one target", "#root");
+    await saveReviewScreenshot(`popup-${theme}-rates-single`);
+
+    expect(failures.length, failures.join("\n\n")).toBe(0);
+  },
+);
+
+it.each(["loading", "empty", "error"] as const)(
+  "explains the %s rate history state without automatically detectable violations",
+  async (history) => {
+    const failures: string[] = [];
+    const messages = {
+      empty: "レートの履歴はまだありません。",
+      error: "レートの履歴を取得できませんでした。",
+      loading: "レートの履歴を読み込み中",
+    } as const;
+
+    await openPopupScreen({ history });
+    await userEvent.click(page.getByRole("button", { name: "レート", exact: true }));
+    await expect
+      .element(
+        history === "loading"
+          ? page.getByRole("status", { name: messages.loading })
+          : page.getByText(new RegExp(`^${messages[history]}`, "u")),
+      )
+      .toBeVisible();
+    await collectViolations(failures, `popup rates ${history}`, "#root");
+    await saveReviewScreenshot(`popup-rates-${history}`);
+
+    expect(failures.length, failures.join("\n\n")).toBe(0);
+  },
+);
+
 it.each(["success", "loading", "empty", "error"] as const)(
   "keeps the %s conversion card free of automatically detectable violations",
   async (state) => {

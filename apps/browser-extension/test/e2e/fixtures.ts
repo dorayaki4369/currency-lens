@@ -8,6 +8,7 @@ import {
   type Route,
 } from "@playwright/test";
 import { z } from "zod";
+import { settleFiniteAnimations } from "@/test/animation-settle";
 import { getHeadlessChromiumLaunchArguments } from "@/test/chromium-launch";
 import { E2E_WORKER_URL } from "@/test/e2e/global-setup";
 
@@ -75,6 +76,7 @@ export const test = base.extend<ExtensionFixtures>({
 
 /** Saves the page as an uncompared image for manual design review, beside integration images. */
 export async function saveReviewScreenshot(page: Page, name: string): Promise<void> {
+  await page.evaluate(settleFiniteAnimations);
   await page.screenshot({ path: `${reviewScreenshotDirectory}${name}.png` });
 }
 

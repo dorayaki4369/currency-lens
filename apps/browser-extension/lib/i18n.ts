@@ -62,8 +62,6 @@ const messages = {
     conversionEmpty: "No supported monetary amount was found.",
     conversionError: "Couldn’t focus the rates",
     conversionRetry: "Try selecting the price again after rates are available.",
-    conversionMissingTarget:
-      "Add at least one conversion target in Currency Lens settings.",
     conversionResult: "Conversion result",
     conversionUnavailable: "Rate unavailable",
     convertedHeading: "Converted",
@@ -87,6 +85,7 @@ const messages = {
     openApp: "Open Currency Lens",
     openSettings: "Open settings",
     popupBack: "Back",
+    quickConversion: "{amount} ({currency}). Show all conversions",
     ratesStale: "Using the last available rates. They are at least 24 hours old.",
     removeCurrency: "Remove {currency}",
     reorderCurrency: "Reorder {currency}, position {position} of {total}",
@@ -105,7 +104,6 @@ const messages = {
     targetChoose: "Choose currency…",
     targetDescription:
       "The selected price is converted into each currency below, in this order.",
-    targetEmpty: "Add a currency to activate conversions.",
     targetsHeading: "Conversion targets",
   },
   ja: {
@@ -121,8 +119,6 @@ const messages = {
     conversionEmpty: "対応している金額が見つかりませんでした。",
     conversionError: "為替レートを取得できませんでした",
     conversionRetry: "レート取得後に、もう一度金額を選択してください。",
-    conversionMissingTarget:
-      "Currency Lens の設定で換算後の通貨を1件以上追加してください。",
     conversionResult: "換算結果",
     conversionUnavailable: "レートを利用できません",
     convertedHeading: "換算後",
@@ -146,6 +142,7 @@ const messages = {
     openApp: "Currency Lens を開く",
     openSettings: "設定を開く",
     popupBack: "戻る",
+    quickConversion: "{amount}（{currency}）。すべての換算先を表示",
     ratesStale: "24時間以上前に取得したレートを表示しています。",
     removeCurrency: "{currency} を削除",
     reorderCurrency: "{currency} を並べ替え、{total}件中{position}番目",
@@ -163,7 +160,6 @@ const messages = {
     supportedCurrenciesHeading: "対応通貨一覧",
     targetChoose: "通貨を選択…",
     targetDescription: "選択した金額を、次の通貨へ上から順に換算します。",
-    targetEmpty: "換算を有効にする通貨を追加してください。",
     targetsHeading: "換算後",
   },
 } as const;
@@ -228,6 +224,31 @@ export function getRegionDisplayNames(
       .join(" · ");
   } catch {
     return regionCodes.slice(0, limit).join(" · ");
+  }
+}
+
+/** Formats a converted amount with the target currency's narrow symbol and its own fraction digits. */
+export function formatCurrencyAmount(
+  value: string,
+  currencyCode: string,
+  fractionDigits: number,
+  locale: UiLocale,
+): string {
+  const digits = {
+    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: fractionDigits,
+  };
+  const numericValue = Number(value);
+  try {
+    return new Intl.NumberFormat(locale, {
+      ...digits,
+      currency: currencyCode,
+      currencyDisplay: "narrowSymbol",
+      style: "currency",
+    }).format(numericValue);
+  } catch {
+    // Intl accepts only three-letter codes, so codes such as DASH are appended instead.
+    return `${new Intl.NumberFormat(locale, digits).format(numericValue)} ${currencyCode}`;
   }
 }
 

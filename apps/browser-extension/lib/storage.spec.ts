@@ -127,6 +127,49 @@ describe("configuration storage", () => {
     });
   });
 
+  it.each([
+    {
+      name: "current",
+      stored: { favorites: [], symbolOverrides: { $: "CAD" }, theme: "dark" },
+    },
+    {
+      name: "previous",
+      stored: {
+        favorites: [],
+        symbolOverrides: { $: "CAD" },
+        theme: "dark",
+        showCurrencyIcon: false,
+        showCurrencyCode: false,
+      },
+    },
+    {
+      name: "legacy",
+      stored: {
+        favorites: [],
+        defaultConversions: { $: "CAD" },
+        theme: "dark",
+        showCurrencyIcon: false,
+        showCurrencyCode: false,
+      },
+    },
+  ])(
+    "restores the default target for an empty $name target list without resetting other settings",
+    async ({ stored }) => {
+      syncState["config"] = stored;
+
+      await expect(getConfig()).resolves.toEqual({
+        favorites: getDefaultConfig().favorites,
+        symbolOverrides: { $: "CAD" },
+        theme: "dark",
+      });
+    },
+  );
+
+  it("rejects an empty target list before writing storage", async () => {
+    await expect(setConfig({ ...getDefaultConfig(), favorites: [] })).rejects.toThrow();
+    expect(syncStorage.set).not.toHaveBeenCalled();
+  });
+
   it("rejects more than five favorites before writing storage", async () => {
     const invalidConfig = {
       ...getDefaultConfig(),

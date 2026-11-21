@@ -701,26 +701,6 @@ describe("ConversionPopup", () => {
     expect(screen.queryByText("1.2")).toBeNull();
   });
 
-  it("explains when no conversion target has been configured", () => {
-    render(
-      <ConversionPopup
-        data={null}
-        detection={DETECTION}
-        error="MISSING_CONVERSION_TARGET"
-        floatingStyles={{}}
-        loading={false}
-        locale="en"
-        onClose={vi.fn<() => void>()}
-        setFloating={vi.fn<(element: HTMLElement | null) => void>()}
-        visible
-      />,
-    );
-
-    expect(screen.getByRole("alert").textContent).toContain(
-      "Add at least one conversion target",
-    );
-  });
-
   it("shows a retryable error without leaking the background message", () => {
     render(
       <ConversionPopup

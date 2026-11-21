@@ -10,6 +10,7 @@ import {
   type PopupScreenOptions,
 } from "@/test/integration/screens";
 import { WCAG_AA_TAGS } from "@/test/accessibility-rules";
+import { settleFiniteAnimations } from "@/test/animation-settle";
 import type { MediaEmulation, PointerPosition } from "@/test/integration/browser-commands";
 import type { ComponentFixtureId } from "@/test/integration/component-fixtures/fixtures";
 import { COMPONENT_FIXTURES } from "@/test/integration/component-fixtures/fixtures";
@@ -95,6 +96,7 @@ export async function openComponentFixture(fixtureId: ComponentFixtureId): Promi
 
 /** Saves the painted page as an uncompared image for manual design review. */
 export async function saveReviewScreenshot(name: string): Promise<void> {
+  await settleFiniteAnimations();
   await nextFrames();
   await page.screenshot({ path: `${REVIEW_SCREENSHOT_DIRECTORY}/${name}.png` });
 }

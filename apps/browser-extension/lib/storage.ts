@@ -37,10 +37,12 @@ const legacyExchangeRateCacheSchema = z
   })
   .loose();
 
+const DEFAULT_FAVORITES = ["USD"] as const satisfies readonly CurrencyCode[];
+
 /** Returns a fresh, runtime-validated configuration for a new installation. */
 export function getDefaultConfig(): Config {
   return configSchema.parse({
-    favorites: ["USD"],
+    favorites: [...DEFAULT_FAVORITES],
     symbolOverrides: {},
     theme: "system",
   });
@@ -76,7 +78,8 @@ export async function clearExchangeRateCache(): Promise<void> {
 }
 
 /** Parses current configuration and removes retired display preferences when possible. */
-export function parseStoredConfig(value: unknown): Config | null {
+export function parseStoredConfig(storedValue: unknown): Config | null {
+  const value = restoreEmptyFavorites(storedValue);
   const current = configSchema.safeParse(value);
   if (current.success) {
     return current.data;
@@ -104,6 +107,15 @@ export function parseStoredConfig(value: unknown): Config | null {
     theme: legacy.data.theme,
   });
   return migrated.success ? migrated.data : null;
+}
+
+/** Keeps at least one conversion target when storage holds an empty list from an earlier version. */
+function restoreEmptyFavorites(value: unknown): unknown {
+  const stored = z
+    .object({ favorites: z.array(z.unknown()).length(0) })
+    .loose()
+    .safeParse(value);
+  return stored.success ? { ...stored.data, favorites: [...DEFAULT_FAVORITES] } : value;
 }
 
 /** Removes overrides whose symbol earlier versions accepted but the current table no longer has. */

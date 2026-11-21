@@ -13,6 +13,7 @@ import { FloatingIcon } from "@/entrypoints/content/components/FloatingIcon";
 import { useConversion } from "@/entrypoints/content/hooks/useConversion";
 import { useConversionSession } from "@/entrypoints/content/hooks/useConversionSession";
 import { useCurrencyDetection } from "@/entrypoints/content/hooks/useCurrencyDetection";
+import { useQuickConversion } from "@/entrypoints/content/hooks/useQuickConversion";
 import { useSelection } from "@/entrypoints/content/hooks/useSelection";
 import { ConfigStoreProvider, useConfigStore } from "@/stores/config";
 
@@ -176,6 +177,7 @@ function ContentApplication() {
     config !== null && !showPopup && selectionRect !== undefined
       ? detections[0]
       : undefined;
+  const quickConversion = useQuickConversion(triggerDetection, config, uiLocale);
   const theme = getContentTheme(config);
   const targetEditing = useMemo(
     () => ({ onAdd: handleAddTarget, onRemove: handleRemoveTarget }),
@@ -189,6 +191,7 @@ function ContentApplication() {
           floatingStyles={floatingStyles}
           locale={uiLocale}
           onClick={() => handleOpen(triggerDetection)}
+          quickConversion={quickConversion}
           setFloating={handleSetTrigger}
         />
       ) : null}

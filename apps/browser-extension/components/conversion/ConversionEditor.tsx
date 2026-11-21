@@ -17,6 +17,7 @@ import type { CurrencyDropPlacement } from "@/lib/currency-order";
 import { getCurrencyDisplayName, translate, type UiLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { ConversionTargetAmount } from "@/components/conversion/conversion-target-amounts";
+import { ConvertedAmount, useHeldAmount } from "@/components/conversion/ConvertedAmount";
 import { CurrencyValueRow } from "@/components/conversion/CurrencyValueRow";
 import { ReorderableCurrencyList } from "@/components/conversion/ReorderableCurrencyList";
 import { CurrencyCombobox } from "@/components/currency/CurrencyCombobox";
@@ -30,7 +31,6 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { ListItem } from "@/components/ui/list";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AnimatedNumber } from "@/components/ui/animated-number";
 
 export type { ConversionTargetAmount } from "@/components/conversion/conversion-target-amounts";
 
@@ -69,6 +69,8 @@ interface ConversionEditorProps {
 const UNAVAILABLE_TARGET_AMOUNT: ConversionTargetAmount = { status: "unavailable" };
 const EMPTY_TARGET_AMOUNTS: ReadonlyMap<CurrencyCode, ConversionTargetAmount> = new Map();
 const TargetAmountsContext = createContext(EMPTY_TARGET_AMOUNTS);
+// Amount cells remount when target editing swaps the list frame; this outlives them.
+const ShownTargetAmountsContext = createContext<Set<CurrencyCode> | null>(null);
 const TARGET_EDITING_MOTION_SELECTOR = [
   '[data-slot="currency-value-row"]',
   '[data-slot="currency-leading-action"]',
@@ -312,6 +314,7 @@ function ConversionTargetArea({
   targetCurrencies,
 }: ConversionTargetAreaProps) {
   const isJoined = editing !== undefined && fallback === undefined;
+  const shownTargetAmounts = useRef(new Set<CurrencyCode>());
   const content = fallback ?? (
     <ConversionTargetList
       locale={locale}
@@ -324,28 +327,30 @@ function ConversionTargetArea({
 
   return (
     <TargetAmountsContext.Provider value={targetAmounts}>
-      {editing === undefined ? (
-        fallback === undefined ? (
-          <Card className="overflow-hidden" spacing="none">
-            {content}
-          </Card>
+      <ShownTargetAmountsContext.Provider value={shownTargetAmounts.current}>
+        {editing === undefined ? (
+          fallback === undefined ? (
+            <Card className="overflow-hidden" spacing="none">
+              {content}
+            </Card>
+          ) : (
+            content
+          )
         ) : (
-          content
-        )
-      ) : (
-        <EditableConversionTargets
-          editing={editing}
-          entering={entering}
-          exiting={exiting}
-          isJoined={isJoined}
-          locale={locale}
-          onExitComplete={onExitComplete}
-          portalled={portalled}
-          targetCurrencies={targetCurrencies}
-        >
-          {content}
-        </EditableConversionTargets>
-      )}
+          <EditableConversionTargets
+            editing={editing}
+            entering={entering}
+            exiting={exiting}
+            isJoined={isJoined}
+            locale={locale}
+            onExitComplete={onExitComplete}
+            portalled={portalled}
+            targetCurrencies={targetCurrencies}
+          >
+            {content}
+          </EditableConversionTargets>
+        )}
+      </ShownTargetAmountsContext.Provider>
     </TargetAmountsContext.Provider>
   );
 }
@@ -469,13 +474,6 @@ const ConversionTargetList = memo(function ConversionTargetList({
   portalled,
   targetCurrencies,
 }: ConversionTargetListProps) {
-  if (targetCurrencies.length === 0) {
-    return (
-      <p className="p-4 text-center text-sm text-muted-foreground">
-        {translate(locale, "targetEmpty")}
-      </p>
-    );
-  }
   return (
     <ReorderableCurrencyList
       ariaLabel={translate(locale, "targetsHeading")}
@@ -561,42 +559,28 @@ function ConversionTargetAmountView({
 
   const amount = freeze ? frozenAmount.current : currentAmount;
   const convertedAmount = amount.status === "converted" ? amount : null;
-  const lastConvertedAmount = useRef(convertedAmount);
+  // The card keeps its last amount through placeholder and unavailable states, as before.
+  const held = useHeldAmount(
+    convertedAmount,
+    amount.status === "loading" ? "pending" : "idle",
+  );
+  const rollIn = useFirstAppearance(currencyCode, held.amount !== null);
 
-  useEffect(() => {
-    if (convertedAmount !== null) {
-      lastConvertedAmount.current = convertedAmount;
-    }
-  }, [convertedAmount]);
-
+  if (held.amount !== null) {
+    return (
+      <ConvertedAmount
+        amount={held.amount}
+        busyLabel={held.held ? translate(locale, "loadingConversion") : undefined}
+        rollIn={rollIn}
+      />
+    );
+  }
   if (amount.status === "loading") {
-    if (lastConvertedAmount.current !== null) {
-      return (
-        <strong
-          aria-busy="true"
-          className={getTargetAmountClassName(lastConvertedAmount.current.text)}
-        >
-          <AnimatedNumber
-            aria-hidden="true"
-            text={lastConvertedAmount.current.text}
-            value={lastConvertedAmount.current.value}
-          />
-          <span className="sr-only">{translate(locale, "loadingConversion")}</span>
-        </strong>
-      );
-    }
     return (
       <>
         <span className="sr-only">{translate(locale, "loadingConversion")}</span>
         <Skeleton aria-hidden="true" className="h-5 w-16" />
       </>
-    );
-  }
-  if (amount.status === "converted") {
-    return (
-      <strong className={getTargetAmountClassName(amount.text)}>
-        <AnimatedNumber text={amount.text} value={amount.value} />
-      </strong>
     );
   }
   if (amount.status === "placeholder") {
@@ -609,12 +593,18 @@ function ConversionTargetAmountView({
   );
 }
 
-/** Keeps compact exponent values inside the fixed amount column. */
-function getTargetAmountClassName(text: string): string {
-  return cn(
-    "block max-w-full whitespace-nowrap tabular-nums",
-    /E[+-]\d+$/u.test(text) && "text-xs",
-  );
+/** Rolls a target amount in only the first time it appears while the editor stays open. */
+function useFirstAppearance(currencyCode: CurrencyCode, visible: boolean): boolean {
+  const shownTargetAmounts = useContext(ShownTargetAmountsContext);
+  const [firstAppearance] = useState(() => shownTargetAmounts?.has(currencyCode) !== true);
+
+  useEffect(() => {
+    if (visible) {
+      shownTargetAmounts?.add(currencyCode);
+    }
+  }, [currencyCode, shownTargetAmounts, visible]);
+
+  return firstAppearance;
 }
 
 /** Reveals the remaining currency choices while target editing is active. */

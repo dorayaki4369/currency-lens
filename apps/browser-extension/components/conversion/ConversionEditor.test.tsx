@@ -69,24 +69,6 @@ describe("ConversionEditor", () => {
     ).toHaveLength(2);
   });
 
-  it("renders a standalone empty state when target editing is unavailable", () => {
-    render(
-      <ConversionEditor
-        amountText="1"
-        currencyCode="USD"
-        locale="en"
-        onAmountTextChange={() => undefined}
-        onCurrencyChange={() => undefined}
-        targetAmounts={new Map()}
-        targetCurrencies={[]}
-        targetTitle="Converted"
-      />,
-    );
-
-    expect(screen.getByText("Add a currency to activate conversions.")).toBeDefined();
-    expect(screen.queryByLabelText("Add a target")).toBeNull();
-  });
-
   it("shows target management only while edit mode is active", async () => {
     const onAdd = vi.fn<(currencyCode: CurrencyCode) => void>();
     const onRemove = vi.fn<(currencyCode: CurrencyCode) => void>();
@@ -538,6 +520,67 @@ describe("ConversionEditor", () => {
     ).toBe("up");
   });
 
+  it("keeps the last amount through a placeholder until the next conversion lands", () => {
+    const editorProps = {
+      amountText: "1",
+      currencyCode: "USD" as const,
+      locale: "en" as const,
+      onAmountTextChange: () => undefined,
+      onCurrencyChange: () => undefined,
+      targetCurrencies: ["JPY"] as const,
+      targetTitle: "Converted",
+    };
+    const { rerender } = render(
+      <ConversionEditor
+        {...editorProps}
+        targetAmounts={
+          new Map([["JPY", { status: "converted", text: "150.00", value: 150 }]])
+        }
+      />,
+    );
+
+    rerender(
+      <ConversionEditor
+        {...editorProps}
+        targetAmounts={new Map([["JPY", { status: "placeholder" }]])}
+      />,
+    );
+    expect(screen.queryByText("150.00")).toBeNull();
+
+    rerender(
+      <ConversionEditor
+        {...editorProps}
+        targetAmounts={new Map([["JPY", { status: "loading" }]])}
+      />,
+    );
+    expect(screen.getByText("150.00")).toBeDefined();
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeNull();
+  });
+
+  it("rolls amounts in when they first appear but not when edit mode swaps the list", () => {
+    render(
+      <ConversionEditor
+        amountText="1"
+        currencyCode="USD"
+        locale="en"
+        onAmountTextChange={() => undefined}
+        onCurrencyChange={() => undefined}
+        targetAmounts={
+          new Map([["JPY", { status: "converted", text: "150.00", value: 150 }]])
+        }
+        targetCurrencies={["JPY"]}
+        targetEditing={{ onAdd: () => undefined, onRemove: () => undefined }}
+        targetTitle="Converted"
+      />,
+    );
+    expect(readAmountDirection()).toBe("up");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit conversion targets" }));
+
+    expect(document.querySelector('[data-slot="target-editing-list"]')).not.toBeNull();
+    expect(readAmountDirection()).toBeUndefined();
+  });
+
   it("compacts an exponential converted amount to keep it inside the result column", () => {
     render(
       <ConversionEditor
@@ -631,4 +674,11 @@ function stubEditingTransitions(finished: Promise<void>): void {
   for (const element of document.querySelectorAll<HTMLElement>(selector)) {
     element.getAnimations = () => [animation];
   }
+}
+
+/** Reads which way the first target amount is currently rolling. */
+function readAmountDirection(): string | undefined {
+  return document.querySelector<HTMLElement>(
+    '[data-slot="currency-amount"] [data-slot="animated-number"]',
+  )?.dataset["direction"];
 }

@@ -24,18 +24,14 @@ export function useConversion() {
 
   const convert = useCallback(
     async (
-      detectedCurrency: DetectedCurrency | null,
+      detectedCurrency: Pick<DetectedCurrency, "amount" | "currencyCode"> | null,
       targetCurrencies: readonly CurrencyCode[],
     ) => {
       const generation = requestGeneration.current + 1;
       requestGeneration.current = generation;
 
-      if (detectedCurrency === null || targetCurrencies.length === 0) {
-        setState({
-          data: null,
-          loading: false,
-          error: targetCurrencies.length === 0 ? "MISSING_CONVERSION_TARGET" : null,
-        });
+      if (detectedCurrency === null) {
+        setState(INITIAL_STATE);
         return;
       }
 

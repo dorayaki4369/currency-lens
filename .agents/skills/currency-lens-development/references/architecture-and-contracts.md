@@ -15,6 +15,10 @@ Open Exchange Rates
   -> R2 latest.json
   -> GET /v1/latest
   -> Background の last-good cache（古いデータの要求時は更新完了を待って応答）
+
+R2 のアーカイブ
+  -> Cron Trigger が history/hourly.json と history/daily/YYYY-MM.json へ集約（上限つきの自己修復）
+  -> GET /v1/history（USD 基準、最大6通貨）
 ```
 
 WXT は開発時と配布時のどちらも `API_ENDPOINT` を API のベース URL とし、HTTPS または loopback の HTTP だけを許可します。
@@ -54,6 +58,9 @@ Content Script の換算操作は単一の `ContentApplication` が所有し、�
 `/v1/latest` と旧 `/latest` は、`base`、`rates`、`timestamp` だけを持つ同じ strict schema として維持します。
 トップレベル項目の追加を含む破壊的変更は既存 route へ入れず、`/v2/latest` のような新しい route を追加します。
 旧 route は対応する配布済み拡張機能が残る間は削除せず、廃止時期は利用状況を確認した人間が判断します。
+
+`/v1/history` は `base`、`resolution`、`start`、`rates` だけを持ち、`/v1/latest` と同じく形の変更は新しい route へ分けます。
+履歴の集約ファイルはアーカイブから作り直せる派生データです。集約の失敗で最新レートの保存を失敗させません。
 
 レートの時刻は次の意味を分けます。
 

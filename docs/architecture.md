@@ -10,7 +10,7 @@ flowchart LR
     CS -->|金額・通貨コード・換算先| BG[Background Script\n検証・換算・更新]
     PU[Extension Popup\n設定・レート状態] <--> BG
     BG <--> BS[(Browser Storage)]
-    BG -->|GET /v1/latest| WK[Cloudflare Worker]
+    BG -->|GET /v1/latest\nGET /v1/history| WK[Cloudflare Worker]
     WK <--> R2[(Cloudflare R2)]
     WK -->|latest.json| OXR[Open Exchange Rates]
 ```
@@ -19,14 +19,14 @@ R2は公開しません。Content ScriptとPopupからの外部通信、レー�
 
 ## コンポーネント
 
-| コンポーネント       | 責務                                                                                                                                                        |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Content Script       | 選択範囲の監視、金額候補の検出、先頭1件の換算依頼、Shadow DOM内のUI表示                                                                                     |
-| Background Script    | メッセージの検証、最大5件の換算先との一括換算、レート更新、設定とキャッシュへのアクセス                                                                     |
-| Extension Popup      | 手入力換算、換算先通貨の即時保存、曖昧な記号設定、対応通貨一覧、レート日時と古さの表示                                                                      |
-| Currency Lens Worker | `GET /v1/latest`と旧`GET /latest`、R2データの検証、空のR2の初期化、Cron Triggerによるレート更新、静的アセットとしての`GET /privacy`（プライバシーポリシー） |
-| `packages/currency`  | 拡張機能が検出・設定・表示できる通貨コード、記号、補助単位、換算精度のメタデータ                                                                            |
-| `packages/oxr`       | Open Exchange RatesのHTTPクライアント、timeoutとエラー分類、レスポンス検証                                                                                  |
+| コンポーネント       | 責務                                                                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Content Script       | 選択範囲の監視、金額候補の検出、先頭1件の換算依頼、Shadow DOM内のUI表示                                                                                                                    |
+| Background Script    | メッセージの検証、最大5件の換算先との一括換算、レート更新、設定とキャッシュへのアクセス                                                                                                    |
+| Extension Popup      | 手入力換算、換算先通貨の即時保存、曖昧な記号設定、対応通貨一覧、レート日時と古さの表示                                                                                                     |
+| Currency Lens Worker | `GET /v1/latest`と旧`GET /latest`、`GET /v1/history`、R2データの検証、空のR2の初期化、Cron Triggerによるレート更新と履歴の集約、静的アセットとしての`GET /privacy`（プライバシーポリシー） |
+| `packages/currency`  | 拡張機能が検出・設定・表示できる通貨コード、記号、補助単位、換算精度のメタデータ                                                                                                           |
+| `packages/oxr`       | Open Exchange RatesのHTTPクライアント、timeoutとエラー分類、レスポンス検証                                                                                                                 |
 
 ## データの正本
 
@@ -73,6 +73,7 @@ R2は公開しません。Content ScriptとPopupからの外部通信、レー�
 2. HTTP成功、JSON、通貨コード、正の有限レート、base、提供元時刻を検証します。OXRが追加する未知の通貨コードは、形式と値が妥当なら受け入れます。
 3. R2へ提供元時刻別のアーカイブを書き、その後で`latest.json`を更新します。
 4. `GET /v1/latest`と旧`GET /latest`はR2の`latest.json`を改めて検証し、拡張機能に必要な`base`、`rates`、`timestamp`だけを返します。
+5. 同じCron Triggerが、アーカイブから派生した履歴の集約ファイル（1時間ごと121時間分と、UTCの日ごとの終値）を更新します。失敗しても手順3の保存は取り消しません。`GET /v1/history`は集約ファイルを検証し、要求された最大6通貨のUSD基準の系列だけを返します。詳細は[WorkerのREADME](../apps/server/README.md)にあります。
 
 アーカイブより先に`latest.json`を書くことはありません。
 

@@ -22,6 +22,7 @@ describe("popup settings index route", () => {
       screen.getByRole("button", { name: "Currency conversion settings" }),
     ).toBeDefined();
     expect(screen.getByRole("button", { name: "Supported currencies" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "About" })).toBeDefined();
     expect(screen.queryByRole("list", { name: "Conversion targets" })).toBeNull();
     await waitFor(() =>
       expect(document.activeElement).toBe(screen.getByRole("button", { name: "Back" })),
@@ -36,5 +37,6 @@ describe("popup settings index route", () => {
     expect(screen.getByRole("button", { name: "外観" })).toBeDefined();
     expect(screen.getByRole("button", { name: "通貨変換設定" })).toBeDefined();
     expect(screen.getByRole("button", { name: "対応通貨一覧" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "このアプリについて" })).toBeDefined();
   });
 });

@@ -34,7 +34,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+  selectSegmentedOption,
+} from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   PopupRouteFrame,
@@ -180,19 +184,24 @@ function RatesScreen({
           ) : (
             <>
               <SegmentedControl
-                className="mr-1.5"
-                label={translate(locale, "ratesCurrencyGroup")}
-                onValueChange={onSelectionChange}
-                options={[
-                  { label: translate(locale, "ratesAll"), value: ALL_SELECTION },
-                  ...lineCurrencies.map((currencyCode) => ({
-                    label: currencyCode,
-                    value: currencyCode,
-                  })),
-                ]}
+                aria-label={translate(locale, "ratesCurrencyGroup")}
+                className="mr-1.5 flex"
+                onValueChange={selectSegmentedOption<RateChartSelection>(
+                  [ALL_SELECTION, ...lineCurrencies],
+                  onSelectionChange,
+                )}
+                size="sm"
                 value={activeSelection}
-                variant="compact"
-              />
+              >
+                <SegmentedControlItem value={ALL_SELECTION}>
+                  {translate(locale, "ratesAll")}
+                </SegmentedControlItem>
+                {lineCurrencies.map((currencyCode) => (
+                  <SegmentedControlItem key={currencyCode} value={currencyCode}>
+                    {currencyCode}
+                  </SegmentedControlItem>
+                ))}
+              </SegmentedControl>
               <RatePanel
                 baseCurrency={baseCurrency}
                 history={history}
@@ -247,16 +256,18 @@ function RatePanel({
   const colorScheme = getTrendColorScheme(locale);
   const periodSelector = (
     <SegmentedControl
-      className="mr-1.5"
-      label={translate(locale, "ratesPeriodGroup")}
-      onValueChange={onPeriodChange}
-      options={RATE_PERIODS.map((value) => ({
-        label: translate(locale, PERIOD_LABEL_KEYS[value]),
-        value,
-      }))}
+      aria-label={translate(locale, "ratesPeriodGroup")}
+      className="mr-1.5 flex"
+      onValueChange={selectSegmentedOption(RATE_PERIODS, onPeriodChange)}
       value={period}
       variant="pill"
-    />
+    >
+      {RATE_PERIODS.map((value) => (
+        <SegmentedControlItem key={value} value={value}>
+          {translate(locale, PERIOD_LABEL_KEYS[value])}
+        </SegmentedControlItem>
+      ))}
+    </SegmentedControl>
   );
   if (history.status === "loading") {
     return <RatePanelSkeleton locale={locale} periodSelector={periodSelector} />;

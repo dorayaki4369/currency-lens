@@ -97,20 +97,20 @@ describe("popup converter route", () => {
 
     fireEvent.click(jpy);
     await screen.findByRole("heading", { name: "Base" });
-    const ratesToggle = screen.getByRole("button", { name: "Rates" });
+    const ratesToggle = screen.getByRole("radio", { name: "Rates" });
     await waitFor(() => expect(document.activeElement).toBe(ratesToggle));
-    expect(ratesToggle.getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: "JPY" }).getAttribute("aria-pressed")).toBe(
+    expect(ratesToggle.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: "JPY" }).getAttribute("aria-checked")).toBe(
       "true",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Convert" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Convert" }));
     await screen.findByRole("heading", { name: "Original" });
-    const convertToggle = screen.getByRole("button", { name: "Convert" });
+    const convertToggle = screen.getByRole("radio", { name: "Convert" });
     await waitFor(() => expect(document.activeElement).toBe(convertToggle));
-    fireEvent.click(screen.getByRole("button", { name: "Rates" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Rates" }));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "ALL" }).getAttribute("aria-pressed")).toBe(
+      expect(screen.getByRole("radio", { name: "ALL" }).getAttribute("aria-checked")).toBe(
         "true",
       ),
     );

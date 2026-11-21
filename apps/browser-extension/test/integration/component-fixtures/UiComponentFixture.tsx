@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Stack } from "@/components/layout/Stack";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -37,6 +38,7 @@ const UI_FIXTURE_IDS = [
   "input",
   "native-select",
   "popover",
+  "segmented-control",
   "skeleton",
   "tooltip",
 ] as const satisfies readonly ComponentFixtureId[];
@@ -129,6 +131,7 @@ export function UiComponentFixture({ fixtureId }: UiComponentFixtureProps) {
         </PopoverContent>
       </Popover>
     ),
+    "segmented-control": <SegmentedControlFixture />,
     skeleton: (
       <div className="flex items-center gap-3">
         <Skeleton className="size-9 rounded-full" />
@@ -180,5 +183,21 @@ function NativeSelectFixture() {
         <NativeSelectOption value="dark">ダーク</NativeSelectOption>
       </NativeSelect>
     </Stack>
+  );
+}
+
+function SegmentedControlFixture() {
+  const labelId = useId();
+  return (
+    <Card spacing="none">
+      <div className="flex items-center justify-between gap-4 px-3 py-2">
+        <Label id={labelId}>テーマ</Label>
+        <SegmentedControl aria-labelledby={labelId} defaultValue="light">
+          <SegmentedControlItem value="system">システム</SegmentedControlItem>
+          <SegmentedControlItem value="light">ライト</SegmentedControlItem>
+          <SegmentedControlItem value="dark">ダーク</SegmentedControlItem>
+        </SegmentedControl>
+      </div>
+    </Card>
   );
 }

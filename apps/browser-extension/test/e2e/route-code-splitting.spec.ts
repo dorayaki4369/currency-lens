@@ -19,11 +19,12 @@ test("the built popup loads converter, rates, and settings screens as lazy route
     (match) => (match[1] === undefined ? [] : [match[1]]),
   );
 
-  expect(lazyChunkNames.filter((name) => name.startsWith("index-"))).toHaveLength(2);
+  expect(lazyChunkNames.filter((name) => name.startsWith("index-"))).toHaveLength(3);
   expect(lazyChunkNames).toEqual(
     expect.arrayContaining([
       expect.stringMatching(/^currencies-[\w-]+\.js$/u),
       expect.stringMatching(/^display-[\w-]+\.js$/u),
+      expect.stringMatching(/^licenses-[\w-]+\.js$/u),
       expect.stringMatching(/^rates-[\w-]+\.js$/u),
       expect.stringMatching(/^symbols-[\w-]+\.js$/u),
     ]),

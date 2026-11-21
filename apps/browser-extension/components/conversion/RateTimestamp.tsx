@@ -2,13 +2,19 @@ import { TriangleAlert } from "lucide-react";
 import { translate, type UiLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
+/** Rate provider credited next to every displayed rate time. */
+const RATE_SOURCE = {
+  name: "Open Exchange Rates",
+  url: "https://openexchangerates.org/",
+} as const;
+
 interface RateTimestampProps {
   readonly isStale: boolean;
   readonly locale: UiLocale;
   readonly sourceTimestamp: number;
 }
 
-/** Shows the source rate time and turns the same footer into a stale-data warning. */
+/** Shows the source rate time and provider, and turns the same footer into a stale-data warning. */
 export function RateTimestamp({ isStale, locale, sourceTimestamp }: RateTimestampProps) {
   return (
     <div
@@ -26,6 +32,15 @@ export function RateTimestamp({ isStale, locale, sourceTimestamp }: RateTimestam
           {translate(locale, "ratesFrom", {
             timestamp: formatRateTimestamp(sourceTimestamp, locale),
           })}
+          <span aria-hidden="true"> • </span>
+          <a
+            className="underline underline-offset-2 hover:text-foreground focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+            href={RATE_SOURCE.url}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {RATE_SOURCE.name}
+          </a>
         </span>
         {isStale ? <span className="block">{translate(locale, "ratesStale")}</span> : null}
       </span>

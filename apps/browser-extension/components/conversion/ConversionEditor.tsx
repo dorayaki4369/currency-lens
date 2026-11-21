@@ -469,13 +469,6 @@ const ConversionTargetList = memo(function ConversionTargetList({
   portalled,
   targetCurrencies,
 }: ConversionTargetListProps) {
-  if (targetCurrencies.length === 0) {
-    return (
-      <p className="p-4 text-center text-sm text-muted-foreground">
-        {translate(locale, "targetEmpty")}
-      </p>
-    );
-  }
   return (
     <ReorderableCurrencyList
       ariaLabel={translate(locale, "targetsHeading")}

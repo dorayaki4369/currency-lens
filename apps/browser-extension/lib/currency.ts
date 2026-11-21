@@ -13,6 +13,7 @@ export const currencyCodeSchema = z
 
 const favoriteCurrenciesSchema = z
   .array(currencyCodeSchema)
+  .min(1)
   .max(MAX_FAVORITE_CURRENCIES)
   .refine(
     (codes) => new Set(codes).size === codes.length,

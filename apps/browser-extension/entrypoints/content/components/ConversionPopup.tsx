@@ -185,7 +185,7 @@ function ConversionCardBody({
       return <ConversionSkeleton locale={locale} />;
     }
     if (error !== null) {
-      return <ErrorState error={error} locale={locale} />;
+      return <ErrorState locale={locale} />;
     }
     return (
       <p className="py-6 text-center text-sm text-muted-foreground">
@@ -376,7 +376,7 @@ function getConversionTargetFallback(
     return <ConversionResultsSkeleton locale={locale} />;
   }
   if (error !== null) {
-    return <ErrorState error={error} locale={locale} />;
+    return <ErrorState locale={locale} />;
   }
   if (data === null && useBoundaryFallback) {
     return (
@@ -491,25 +491,14 @@ function ConversionSkeleton({ locale }: { readonly locale: UiLocale }) {
 }
 
 /** Presents a localized conversion failure without leaking boundary details. */
-function ErrorState({
-  error,
-  locale,
-}: {
-  readonly error: string;
-  readonly locale: UiLocale;
-}) {
-  const isMissingTarget = error === "MISSING_CONVERSION_TARGET";
+function ErrorState({ locale }: { readonly locale: UiLocale }) {
   return (
     <Alert variant="destructive">
       <CircleAlert aria-hidden="true" />
-      <AlertTitle>
-        {translate(locale, isMissingTarget ? "conversionMissingTarget" : "conversionError")}
-      </AlertTitle>
-      {isMissingTarget ? null : (
-        <AlertDescription className="text-pretty">
-          {translate(locale, "conversionRetry")}
-        </AlertDescription>
-      )}
+      <AlertTitle>{translate(locale, "conversionError")}</AlertTitle>
+      <AlertDescription className="text-pretty">
+        {translate(locale, "conversionRetry")}
+      </AlertDescription>
     </Alert>
   );
 }

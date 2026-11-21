@@ -69,24 +69,6 @@ describe("ConversionEditor", () => {
     ).toHaveLength(2);
   });
 
-  it("renders a standalone empty state when target editing is unavailable", () => {
-    render(
-      <ConversionEditor
-        amountText="1"
-        currencyCode="USD"
-        locale="en"
-        onAmountTextChange={() => undefined}
-        onCurrencyChange={() => undefined}
-        targetAmounts={new Map()}
-        targetCurrencies={[]}
-        targetTitle="Converted"
-      />,
-    );
-
-    expect(screen.getByText("Add a currency to activate conversions.")).toBeDefined();
-    expect(screen.queryByLabelText("Add a target")).toBeNull();
-  });
-
   it("shows target management only while edit mode is active", async () => {
     const onAdd = vi.fn<(currencyCode: CurrencyCode) => void>();
     const onRemove = vi.fn<(currencyCode: CurrencyCode) => void>();

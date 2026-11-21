@@ -125,7 +125,11 @@ function createConfigStore(previewConfig: Config | undefined): ConfigStore {
       if (configReference === null) {
         return;
       }
-      const nextConfig = configSchema.parse(update(configReference));
+      const updatedConfig = update(configReference);
+      if (updatedConfig === configReference) {
+        return;
+      }
+      const nextConfig = configSchema.parse(updatedConfig);
       configReference = nextConfig;
       set({ config: nextConfig });
       persistConfig(nextConfig);
@@ -143,10 +147,13 @@ function createConfigStore(previewConfig: Config | undefined): ConfigStore {
         }));
       },
       removeFavorite: (currencyCode) => {
-        updateConfig((current) => ({
-          ...current,
-          favorites: current.favorites.filter((favorite) => favorite !== currencyCode),
-        }));
+        updateConfig((current) => {
+          const favorites = current.favorites.filter(
+            (favorite) => favorite !== currencyCode,
+          );
+          // At least one conversion target must remain.
+          return favorites.length === 0 ? current : { ...current, favorites };
+        });
       },
       reorderFavorite: (sourceCurrency, targetCurrency, placement) => {
         updateConfig((current) => ({

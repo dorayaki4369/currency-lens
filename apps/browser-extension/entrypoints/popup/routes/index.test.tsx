@@ -328,14 +328,12 @@ describe("popup boundary and edge states", () => {
     expect(screen.getByText("149.00")).toBeDefined();
   });
 
-  it("shows stale rates and an empty conversion-target state", async () => {
+  it("shows stale rates", async () => {
     await renderPopup({
       ...PREVIEW,
-      config: { ...PREVIEW.config, favorites: [] },
       rates: { ...PREVIEW.rates, isStale: true },
     });
 
-    expect(screen.getByText("Add a currency to activate conversions.")).toBeDefined();
     const warning = screen.getByRole("status");
     expect(warning.textContent).toContain("Rates from");
     expect(warning.textContent).toContain("at least 24 hours old");

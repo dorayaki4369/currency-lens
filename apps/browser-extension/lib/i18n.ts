@@ -62,8 +62,6 @@ const messages = {
     conversionEmpty: "No supported monetary amount was found.",
     conversionError: "Couldn’t focus the rates",
     conversionRetry: "Try selecting the price again after rates are available.",
-    conversionMissingTarget:
-      "Add at least one conversion target in Currency Lens settings.",
     conversionResult: "Conversion result",
     conversionUnavailable: "Rate unavailable",
     convertedHeading: "Converted",
@@ -106,7 +104,6 @@ const messages = {
     targetChoose: "Choose currency…",
     targetDescription:
       "The selected price is converted into each currency below, in this order.",
-    targetEmpty: "Add a currency to activate conversions.",
     targetsHeading: "Conversion targets",
   },
   ja: {
@@ -122,8 +119,6 @@ const messages = {
     conversionEmpty: "対応している金額が見つかりませんでした。",
     conversionError: "為替レートを取得できませんでした",
     conversionRetry: "レート取得後に、もう一度金額を選択してください。",
-    conversionMissingTarget:
-      "Currency Lens の設定で換算後の通貨を1件以上追加してください。",
     conversionResult: "換算結果",
     conversionUnavailable: "レートを利用できません",
     convertedHeading: "換算後",
@@ -165,7 +160,6 @@ const messages = {
     supportedCurrenciesHeading: "対応通貨一覧",
     targetChoose: "通貨を選択…",
     targetDescription: "選択した金額を、次の通貨へ上から順に換算します。",
-    targetEmpty: "換算を有効にする通貨を追加してください。",
     targetsHeading: "換算後",
   },
 } as const;

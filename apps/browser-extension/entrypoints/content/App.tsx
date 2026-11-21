@@ -150,10 +150,18 @@ function ContentApplication() {
 
   const handleSourceChange = useCallback(
     (source: DetectedCurrency | null) => {
+      // An equivalent edit starts no new request, so its current result must stay.
+      const preservesConversion =
+        source !== null &&
+        config !== null &&
+        conversionFingerprint.current ===
+          createConversionFingerprint(source, config.favorites);
       updateSource(source);
-      reset();
+      if (!preservesConversion) {
+        reset();
+      }
     },
-    [reset, updateSource],
+    [config, reset, updateSource],
   );
 
   const handleSetTrigger = useCallback(

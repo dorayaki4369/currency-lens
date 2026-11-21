@@ -10,7 +10,7 @@ Firefoxの最低対応バージョンは140です。manifestの`data_collection_
 
 ### ページ上の換算
 
-1. Content Scriptが、選択テキストから通貨記号、通貨コード、または各言語の通貨名と金額を検出します。検出は拡張機能の中だけで行います。
+1. Content Scriptが、選択テキストから通貨記号、通貨コード、各言語の通貨名、または補助単位と金額を検出します。検出は拡張機能の中だけで行います。
 2. 選択範囲の近くにロゴのボタンを表示します。
 3. ボタンを押すと、選択範囲で最初に見つかった金額を、登録した最大5件の通貨へ換算して換算カードに表示します。
 4. 換算カードで換算元の金額や通貨を書き換えると、その内容で換算し直します。
@@ -58,7 +58,7 @@ Popupのトップでは、金額と換算元の通貨を入力して、登録し
 | `entrypoints/content`       | 選択範囲の監視、金額の検出、Shadow DOMへのUIの描画                         |
 | `entrypoints/background.ts` | メッセージの検証、設定とレートの管理、換算、定期的なレート取得             |
 | `entrypoints/popup`         | Popupのルート、手入力での換算、設定画面、レートの表示                      |
-| `lib/currency-detection.ts` | 通貨コード、通貨記号、数値表記の検出                                       |
+| `lib/currency-detection.ts` | 通貨コード、通貨記号、補助単位、数値表記の検出                             |
 | `lib/messages.ts`           | Content Script、Popup、Background Scriptの間でやりとりするメッセージの形式 |
 | `lib/rates.ts`              | Workerの応答の検証、鮮度の判定、換算                                       |
 | `lib/storage.ts`            | 設定と、最後に取得できたレートの検証・保存                                 |

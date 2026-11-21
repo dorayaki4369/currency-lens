@@ -50,6 +50,7 @@ const currencyDisplayNameOverrides: Readonly<
 const messages = {
   en: {
     addTarget: "Add a target",
+    ambiguousAutomatic: "Automatic (page language)",
     ambiguousDescription:
       "Choose how symbols with more than one meaning should be interpreted.",
     ambiguousHeading: "Currency conversion settings",
@@ -78,7 +79,7 @@ const messages = {
     displayThemeSystem: "System",
     editTargets: "Edit conversion targets",
     extensionDescription:
-      "Convert selected prices into your chosen currencies without leaving the page.",
+      "Currency converter: select any price on a web page and convert it into up to 5 currencies with live exchange rates.",
     finishTargetEditing: "Finish editing conversion targets",
     interfaceEyebrow: "Interface",
     loadingApp: "Loading Currency Lens",
@@ -110,6 +111,7 @@ const messages = {
   },
   ja: {
     addTarget: "換算通貨を追加",
+    ambiguousAutomatic: "自動判定（ページの言語）",
     ambiguousDescription: "複数の通貨を表す記号を、どの通貨として読むか設定します。",
     ambiguousHeading: "通貨変換設定",
     ambiguousMixed: "別表記ごとの設定が混在しています · 選び直してください",
@@ -136,7 +138,8 @@ const messages = {
     displayThemeLight: "ライト",
     displayThemeSystem: "システム",
     editTargets: "換算後を編集",
-    extensionDescription: "選択した金額を、ページを離れずに指定通貨へ換算します。",
+    extensionDescription:
+      "通貨換算コンバーター。Webページ上の金額を選択するだけで、最大5通貨へその場で換算します。最新の為替レート対応。",
     finishTargetEditing: "換算後の編集を終了",
     interfaceEyebrow: "インターフェース",
     loadingApp: "Currency Lens を読み込み中",

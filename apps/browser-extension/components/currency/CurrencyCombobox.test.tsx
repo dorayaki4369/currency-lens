@@ -64,6 +64,67 @@ describe("CurrencyCombobox", () => {
     expect(screen.queryByRole("option", { name: /^USD\b/u })).toBeNull();
   });
 
+  it("offers a selectable null option before the currencies", () => {
+    const onSelect = vi.fn<() => void>();
+    const onValueChange = vi.fn<(currencyCode: CurrencyCode) => void>();
+    render(
+      <CurrencyCombobox
+        ariaLabel="Currency"
+        currencyCodes={["USD", "CAD"]}
+        defaultOpen
+        locale="en"
+        nullOption={{ label: "Automatic", onSelect, selected: true }}
+        nullValueLabel="Automatic"
+        onValueChange={onValueChange}
+        placeholder="Choose a currency"
+        portalled={false}
+        value={null}
+      />,
+    );
+
+    const options = screen.getAllByRole("option");
+    expect(options.map((option) => option.textContent?.slice(0, 9))).toEqual([
+      "Automatic",
+      "CADCanadi",
+      "USDUS Dol",
+    ]);
+    expect(options[0]?.querySelector("svg")).not.toBeNull();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Search currencies" }), {
+      target: { value: "auto" },
+    });
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("option", { name: "Automatic" }));
+
+    expect(onSelect).toHaveBeenCalledOnce();
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole("option", { name: "Automatic" })).toBeNull();
+  });
+
+  it("marks only the chosen currency when the null option is not selected", () => {
+    render(
+      <CurrencyCombobox
+        ariaLabel="Currency"
+        currencyCodes={["USD", "CAD"]}
+        defaultOpen
+        locale="en"
+        nullOption={{ label: "Automatic", onSelect: () => undefined, selected: false }}
+        onValueChange={() => undefined}
+        placeholder="Choose a currency"
+        portalled={false}
+        value="USD"
+      />,
+    );
+
+    expect(
+      screen.getByRole("option", { name: "Automatic" }).querySelector("svg"),
+    ).toBeNull();
+    fireEvent.change(screen.getByRole("combobox", { name: "Search currencies" }), {
+      target: { value: "USD" },
+    });
+    expect(screen.queryByRole("option", { name: "Automatic" })).toBeNull();
+  });
+
   it("renders a disabled placeholder without opening options", () => {
     render(
       <CurrencyCombobox

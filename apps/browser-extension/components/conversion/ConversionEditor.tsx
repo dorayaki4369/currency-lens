@@ -317,6 +317,7 @@ function ConversionTargetArea({
       locale={locale}
       onRemove={editing?.onRemove}
       onReorder={onReorder}
+      portalled={portalled}
       targetCurrencies={targetCurrencies}
     />
   );
@@ -456,6 +457,7 @@ interface ConversionTargetListProps {
   readonly locale: UiLocale;
   readonly onRemove?: ((currencyCode: CurrencyCode) => void) | undefined;
   readonly onReorder?: ConversionEditorProps["onReorderTarget"];
+  readonly portalled: boolean;
   readonly targetCurrencies: readonly CurrencyCode[];
 }
 
@@ -464,6 +466,7 @@ const ConversionTargetList = memo(function ConversionTargetList({
   locale,
   onRemove,
   onReorder,
+  portalled,
   targetCurrencies,
 }: ConversionTargetListProps) {
   if (targetCurrencies.length === 0) {
@@ -484,6 +487,7 @@ const ConversionTargetList = memo(function ConversionTargetList({
       locale={locale}
       onDelete={onRemove}
       onReorder={onReorder}
+      portalled={portalled}
       renderItem={(currencyCode, _index, actions) =>
         renderConversionTargetValueRow({
           ...actions,

@@ -26,7 +26,7 @@
 
 ## ストアの初期設定
 
-WXTは既存listingの更新を自動化しますが、最初のlistingは作成しません。Chrome Web Storeとaddons.mozilla.orgで初回登録、説明、画像、プライバシー情報を手動で設定してください。プライバシーポリシーのURLには、Workerが配信する`https://cl.dryk.net/privacy`を指定します。このページは`main`へのmerge後の`deploy Worker`で公開されます。
+WXTは既存listingの更新を自動化しますが、最初のlistingは作成しません。Chrome Web Storeとaddons.mozilla.orgで初回登録、説明、画像、プライバシー情報を手動で設定してください。掲載文と掲載設定の正本は[apps/browser-extension/store/listing/README.md](../apps/browser-extension/store/listing/README.md)にあります。AMOの名前、要約、詳細説明、既定言語、カテゴリ、タグは、提出のたびにこの正本で上書きされるため、AMOのdashboardでは変更しません。プライバシーポリシーのURLには、Workerが配信する`https://cl.dryk.net/privacy`を指定します。このページは`main`へのmerge後の`deploy Worker`で公開されます。
 
 ChromeではChrome Web Store APIを有効にしたGoogle Cloud projectを用意し、listing所有者のGoogle accountでOAuth refresh tokenを発行します。Firefoxではaddons.mozilla.orgのAPI credentialsからJWT issuerとJWT secretを発行します。
 

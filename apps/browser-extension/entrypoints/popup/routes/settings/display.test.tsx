@@ -7,24 +7,21 @@ import { POPUP_PREVIEW, renderPopup, resetPopupTestEnvironment } from "@/test/po
 afterEach(resetPopupTestEnvironment);
 
 describe("popup display settings route", () => {
-  it("updates the theme and ignores unsupported select values", async () => {
+  it("updates the theme from the segmented control", async () => {
     const { container } = await renderPopup(POPUP_PREVIEW);
     await openDisplaySettings("Open settings", "Appearance");
     expect(
       await screen.findByRole("heading", { level: 1, name: "Appearance" }),
     ).toBeDefined();
     expect(screen.queryByRole("heading", { level: 2, name: "Appearance" })).toBeNull();
-    const theme = screen.getByLabelText<HTMLSelectElement>("Theme");
+    const theme = screen.getByRole("radiogroup", { name: "Theme" });
+    expect(screen.getByRole("radio", { name: "Light" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
 
-    fireEvent.change(theme, { target: { value: "dark" } });
+    fireEvent.click(screen.getByRole("radio", { name: "Dark" }));
     expect(container.querySelector("main")?.dataset["theme"]).toBe("dark");
-
-    const unsupported = document.createElement("option");
-    unsupported.value = "sepia";
-    unsupported.textContent = "Sepia";
-    theme.append(unsupported);
-    fireEvent.change(theme, { target: { value: "sepia" } });
-    expect(container.querySelector("main")?.dataset["theme"]).toBe("dark");
+    expect(theme.querySelector('[aria-checked="true"]')?.textContent).toBe("Dark");
     expect(screen.getByText("Choose the display theme for Currency Lens.")).toBeDefined();
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
 
@@ -45,7 +42,7 @@ describe("popup display settings route", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "外観" })).toBeDefined();
     expect(screen.getByText("Currency Lens の表示テーマを選びます。")).toBeDefined();
-    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+    expect(screen.getAllByRole("radio").map((option) => option.textContent)).toEqual([
       "システム",
       "ライト",
       "ダーク",

@@ -77,7 +77,10 @@ describe("popup layout", () => {
     const card = requireElement('[data-slot="card"]');
     const cardBounds = card.getBoundingClientRect();
     const labelBounds = requireElement("label", card).getBoundingClientRect();
-    const selectBounds = requireElement("select", card).getBoundingClientRect();
+    const selectBounds = requireElement(
+      '[data-slot="segmented-control"]',
+      card,
+    ).getBoundingClientRect();
 
     expectEdge(settingsRowBounds.height, rem(2.75));
     expectEdge(cardBounds.height, rem(3));
@@ -85,6 +88,15 @@ describe("popup layout", () => {
     expectEdge(cardBounds.right - selectBounds.right, rem(0.75));
     expectEdge(selectBounds.top - cardBounds.top, rem(0.5));
     expectEdge(cardBounds.bottom - selectBounds.bottom, rem(0.5));
+
+    const thumb = requireElement('[data-slot="segmented-control-thumb"]', card);
+    await userEvent.click(page.getByRole("radio", { name: "ダーク" }));
+    const dark = page.getByRole("radio", { name: "ダーク" }).element();
+    await expect.poll(() => thumb.getAnimations().length).toBe(0);
+    const thumbBounds = thumb.getBoundingClientRect();
+    const darkBounds = dark.getBoundingClientRect();
+    expectEdge(thumbBounds.left, darkBounds.left);
+    expectEdge(thumbBounds.width, darkBounds.width);
   });
 
   it("lets the symbol list consume the height left below its description", async () => {

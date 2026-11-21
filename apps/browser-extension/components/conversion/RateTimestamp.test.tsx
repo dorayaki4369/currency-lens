@@ -22,4 +22,15 @@ describe("RateTimestamp", () => {
     expect(screen.getByRole("status").textContent).toContain("at least 24 hours old");
     expect(screen.getByText(/^Rates from /u)).toBeDefined();
   });
+
+  it("links the rate provider in a new tab without leaking the opener", () => {
+    render(
+      <RateTimestamp isStale={false} locale="ja" sourceTimestamp={Date.UTC(2026, 7, 28)} />,
+    );
+
+    const link = screen.getByRole("link", { name: "Open Exchange Rates" });
+    expect(link.getAttribute("href")).toBe("https://openexchangerates.org/");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+  });
 });

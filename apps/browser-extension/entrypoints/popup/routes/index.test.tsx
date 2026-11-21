@@ -116,6 +116,20 @@ describe("popup converter route", () => {
     );
   });
 
+  it("leaves an aligned empty cell instead of a sparkline for the source currency", async () => {
+    await renderPopup({ ...PREVIEW, history: POPUP_HISTORY });
+    await chooseCurrency("Currency", "JPY", "Japanese Yen");
+
+    expect(screen.queryByRole("button", { name: "Open JPY rates" })).toBeNull();
+    const jpyRow = document.querySelector(
+      '[data-currency-code="JPY"][data-mode="display"]',
+    );
+    expect(jpyRow?.querySelector('[data-slot="sparkline-spacer"]')?.className).toContain(
+      "w-20",
+    );
+    expect(screen.getByRole("button", { name: "Open EUR rates" })).toBeDefined();
+  });
+
   it("recalculates targets when the source amount or currency changes", async () => {
     await renderPopup(PREVIEW);
 

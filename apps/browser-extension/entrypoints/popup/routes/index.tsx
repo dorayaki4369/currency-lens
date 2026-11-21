@@ -129,7 +129,7 @@ function Converter({
 
   const renderTargetTrend = useCallback(
     (currencyCode: CurrencyCode) => (
-      <TargetSparkline currencyCode={currencyCode} favorites={config.favorites} />
+      <TargetTrend currencyCode={currencyCode} favorites={config.favorites} />
     ),
     [config.favorites],
   );
@@ -166,16 +166,31 @@ function Converter({
   );
 }
 
+interface TargetTrendProps {
+  readonly currencyCode: CurrencyCode;
+  readonly favorites: readonly CurrencyCode[];
+}
+
+/**
+ * Leaves an empty cell for a target that equals the source: its rate is always 1, and
+ * the rates screen does not list the base.
+ */
+function TargetTrend(props: TargetTrendProps) {
+  const sourceCurrency = usePopupConversion((state) => state.sourceCurrency);
+  return props.currencyCode === sourceCurrency ? (
+    <span aria-hidden="true" className="w-20 shrink-0" data-slot="sparkline-spacer" />
+  ) : (
+    <TargetSparkline {...props} sourceCurrency={sourceCurrency} />
+  );
+}
+
 /** Draws the past month of one target against the source and opens its rate chart. */
 function TargetSparkline({
   currencyCode,
   favorites,
-}: {
-  readonly currencyCode: CurrencyCode;
-  readonly favorites: readonly CurrencyCode[];
-}) {
+  sourceCurrency,
+}: TargetTrendProps & { readonly sourceCurrency: CurrencyCode }) {
   const popup = usePopupApplicationContext();
-  const sourceCurrency = usePopupConversion((state) => state.sourceCurrency);
   const setRateSelection = usePopupRateHistory((state) => state.setSelection);
   const navigate = useNavigate();
   const symbols = useMemo(
@@ -186,7 +201,11 @@ function TargetSparkline({
   const series =
     history.data === null
       ? []
-      : slicePeriod(getCrossRateSeries(history.data, currencyCode, sourceCurrency), "1M");
+      : slicePeriod(
+          // The sparkline draws values only, so the latest point's time does not matter.
+          getCrossRateSeries(history.data, currencyCode, sourceCurrency, 0),
+          "1M",
+        );
   const direction = getRateChange(series)?.direction ?? "flat";
 
   return (

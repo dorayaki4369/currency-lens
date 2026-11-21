@@ -6,6 +6,10 @@ const localized = {
   addTarget: /^(?:Add a target|換算通貨を追加)$/u,
   amount: /^(?:Amount|金額)$/u,
   conversionResult: /^(?:Conversion result|換算結果)$/u,
+  rateHistoryEmpty:
+    /^(?:Rate history isn’t available yet\.|レートの履歴はまだありません。)/u,
+  rates: /^(?:Rates|レート)$/u,
+  base: /^(?:Base|基準)$/u,
   quickConversion:
     /^(?:¥37,213 \(Japanese Yen\)\. Show all conversions|￥37,213（日本円）。すべての換算先を表示)$/u,
   converted: /^(?:Converted|換算後)$/u,
@@ -67,6 +71,16 @@ test("the built extension exposes an accessible popup and content flow", async (
 
   await expectNoAutomatedAccessibilityViolations(popup, testInfo, {
     attachmentName: "axe-results-built-popup",
+  });
+
+  // The local Worker starts with no history, so the rates screen explains the empty state.
+  await popup.getByRole("button", { name: localized.rates }).click();
+  await expect(popup.getByRole("heading", { name: localized.base })).toBeVisible();
+  await expect(popup.getByText(localized.rateHistoryEmpty)).toBeVisible();
+  expect(apiRequests).toContain("/v1/history");
+  await saveReviewScreenshot(popup, "e2e-popup-rates-empty");
+  await expectNoAutomatedAccessibilityViolations(popup, testInfo, {
+    attachmentName: "axe-results-built-popup-rates",
   });
 
   await page.goto(HOST_PAGE_URL, { waitUntil: "domcontentloaded" });

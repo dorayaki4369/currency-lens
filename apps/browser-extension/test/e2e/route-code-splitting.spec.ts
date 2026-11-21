@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 // `pnpm test:e2e` builds this package before Playwright starts.
 const outputRoot = new URL("../../.output/chrome-mv3/", import.meta.url);
 
-test("the built popup loads converter and settings screens as lazy route chunks", async () => {
+test("the built popup loads converter, rates, and settings screens as lazy route chunks", async () => {
   const popupHtml = await readFile(new URL("popup.html", outputRoot), "utf8");
   const popupEntryPath = popupHtml.match(
     /<script[^>]+src="\/(chunks\/popup-[^"]+\.js)"/u,
@@ -24,6 +24,7 @@ test("the built popup loads converter and settings screens as lazy route chunks"
     expect.arrayContaining([
       expect.stringMatching(/^currencies-[\w-]+\.js$/u),
       expect.stringMatching(/^display-[\w-]+\.js$/u),
+      expect.stringMatching(/^rates-[\w-]+\.js$/u),
       expect.stringMatching(/^symbols-[\w-]+\.js$/u),
     ]),
   );

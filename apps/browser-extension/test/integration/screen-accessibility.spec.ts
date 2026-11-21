@@ -14,6 +14,7 @@ const SETTINGS_ROUTES = [
   ["外観", "display"],
   ["通貨変換設定", "symbols"],
   ["対応通貨一覧", "currencies"],
+  ["このアプリについて", "about"],
 ] as const;
 
 it.each(["light", "dark"] as const)(
@@ -56,6 +57,17 @@ it.each(["light", "dark"] as const)(
       await saveReviewScreenshot(`popup-${theme}-settings-${slug}`);
       /* eslint-enable no-await-in-loop */
     }
+
+    await userEvent.click(page.getByRole("button", { name: "オープンソースライセンス" }));
+    await expect
+      .element(page.getByRole("heading", { name: "オープンソースライセンス" }))
+      .toBeVisible();
+    await userEvent.click(page.getByText("react-dom", { exact: true }));
+    await expect
+      .poll(() => document.querySelector("details[open] > div")?.textContent)
+      .toMatch(/Copyright \(c\) Meta Platforms/u);
+    await collectViolations(failures, "popup open source licenses", "#root");
+    await saveReviewScreenshot(`popup-${theme}-settings-licenses`);
 
     expect(failures.length, failures.join("\n\n")).toBe(0);
   },

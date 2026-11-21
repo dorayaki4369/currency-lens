@@ -87,6 +87,22 @@ describe("popup layout", () => {
     expectEdge(cardBounds.bottom - selectBounds.bottom, rem(0.5));
   });
 
+  it("keeps the header in place while a long route body scrolls", async () => {
+    await openSettingsRoute("このアプリについて");
+    const popup = requireElement("main");
+    const body = requireElement('[data-slot="popup-route-body"]');
+    const header = requireElement("header");
+    const headerTop = header.getBoundingClientRect().top;
+
+    // Force the body to overflow regardless of copy length, then scroll it to the end.
+    body.style.maxHeight = `${rem(10)}px`;
+    body.scrollTop = body.scrollHeight;
+
+    expect(body.scrollTop).toBeGreaterThan(0);
+    expect(popup.scrollHeight).toBe(popup.clientHeight);
+    expectEdge(header.getBoundingClientRect().top, headerTop);
+  });
+
   it("lets the symbol list consume the height left below its description", async () => {
     await openSettingsRoute("通貨変換設定");
     const section = requireElement('section[aria-labelledby="symbol-settings-title"]');

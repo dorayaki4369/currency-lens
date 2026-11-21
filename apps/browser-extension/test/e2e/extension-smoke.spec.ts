@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+import packageManifest from "@/package.json" with { type: "json" };
 import { expectNoAutomatedAccessibilityViolations } from "@/test/accessibility";
 import { expect, HOST_PAGE_URL, saveReviewScreenshot, test } from "@/test/e2e/fixtures";
 
@@ -12,6 +13,10 @@ const localized = {
   currencySearch: /^(?:Code, name, or region|コード・通貨名・地域)$/u,
   editTargets: /^(?:Edit conversion targets|換算後を編集)$/u,
   finishTargetEditing: /^(?:Finish editing conversion targets|換算後の編集を終了)$/u,
+  about: /^(?:About|このアプリについて)$/u,
+  licenses: /^(?:Open source licenses|オープンソースライセンス)$/u,
+  openSettings: /^(?:Open settings|設定を開く)$/u,
+  review: /^(?:Write a review on Chrome Web Store|Chrome ウェブストアでレビューを書く)/u,
 } as const;
 
 interface ChromeExtensionGlobal {
@@ -42,6 +47,33 @@ test("the toolbar popup opens at its full size", async ({ context, extensionId }
       }),
     )
     .toEqual({ width: 400, height: 600 });
+});
+
+test("the built popup shows its version, store review link, and bundled licenses", async ({
+  context,
+  extensionId,
+}) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole("button", { name: localized.openSettings }).click();
+  await popup.getByRole("button", { name: localized.about }).click();
+
+  await expect(
+    popup.getByText(new RegExp(`${packageManifest.version}$`, "u")),
+  ).toBeVisible();
+  await expect(popup.getByRole("link", { name: localized.review })).toHaveAttribute(
+    "href",
+    "https://chromewebstore.google.com/detail/cfpmgblhfmfomcgkpkghcgkcfblbpgkm/reviews",
+  );
+
+  await saveReviewScreenshot(popup, "e2e-popup-about");
+
+  await popup.getByRole("button", { name: localized.licenses }).click();
+  const licenses = popup.getByRole("list", { name: localized.licenses });
+  await expect(licenses.getByText("react-dom", { exact: true })).toBeVisible();
+  await expect(licenses.getByText("tailwindcss", { exact: true })).toBeVisible();
+  await licenses.getByText("react-dom", { exact: true }).click();
+  await saveReviewScreenshot(popup, "e2e-popup-licenses");
 });
 
 test("the built extension exposes an accessible popup and content flow", async ({

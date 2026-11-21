@@ -1,12 +1,7 @@
 import { TriangleAlert } from "lucide-react";
+import { RATE_SOURCE_NAME, RATE_SOURCE_URL } from "@/lib/about";
 import { translate, type UiLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-
-/** Rate provider credited next to every displayed rate time. */
-const RATE_SOURCE = {
-  name: "Open Exchange Rates",
-  url: "https://openexchangerates.org/",
-} as const;
 
 interface RateTimestampProps {
   readonly isStale: boolean;
@@ -37,11 +32,11 @@ export function RateTimestamp({ isStale, locale, sourceTimestamp }: RateTimestam
             <span aria-hidden="true">• </span>
             <a
               className="underline underline-offset-2 hover:text-foreground focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
-              href={RATE_SOURCE.url}
+              href={RATE_SOURCE_URL}
               rel="noopener noreferrer"
               target="_blank"
             >
-              {RATE_SOURCE.name}
+              {RATE_SOURCE_NAME}
             </a>
           </span>
         </span>

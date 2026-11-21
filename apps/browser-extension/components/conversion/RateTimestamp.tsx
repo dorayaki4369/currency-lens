@@ -29,18 +29,21 @@ export function RateTimestamp({ isStale, locale, sourceTimestamp }: RateTimestam
       ) : null}
       <span>
         <span className="block">
-          {translate(locale, "ratesFrom", {
-            timestamp: formatRateTimestamp(sourceTimestamp, locale),
-          })}
-          <span aria-hidden="true"> • </span>
-          <a
-            className="underline underline-offset-2 hover:text-foreground focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
-            href={RATE_SOURCE.url}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            {RATE_SOURCE.name}
-          </a>
+          <time dateTime={new Date(sourceTimestamp).toISOString()}>
+            {formatRateTimestamp(sourceTimestamp, locale)}
+          </time>{" "}
+          {/* Wraps the separator and provider together so neither is split across lines. */}
+          <span className="whitespace-nowrap">
+            <span aria-hidden="true">• </span>
+            <a
+              className="underline underline-offset-2 hover:text-foreground focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+              href={RATE_SOURCE.url}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {RATE_SOURCE.name}
+            </a>
+          </span>
         </span>
         {isStale ? <span className="block">{translate(locale, "ratesStale")}</span> : null}
       </span>

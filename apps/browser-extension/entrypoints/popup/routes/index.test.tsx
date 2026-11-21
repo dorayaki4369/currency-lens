@@ -35,7 +35,7 @@ describe("popup converter route", () => {
     expect(screen.queryByRole("button", { name: /save|update/u })).toBeNull();
     const targetList = screen.getByRole("list", { name: "Conversion targets" });
     expect(within(targetList).getAllByRole("listitem")).toHaveLength(3);
-    expect(screen.getByText(/^Rates from /u)).toBeDefined();
+    expect(screen.getByRole("link", { name: "Open Exchange Rates" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Edit conversion targets" })).toBeDefined();
     expect(screen.queryByLabelText("Add a target")).toBeNull();
     expect(screen.queryByRole("button", { name: /^Reorder /u })).toBeNull();
@@ -337,7 +337,7 @@ describe("popup boundary and edge states", () => {
 
     expect(screen.getByText("Add a currency to activate conversions.")).toBeDefined();
     const warning = screen.getByRole("status");
-    expect(warning.textContent).toContain("Rates from");
+    expect(warning.textContent).toContain("Open Exchange Rates");
     expect(warning.textContent).toContain("at least 24 hours old");
   });
 
@@ -356,7 +356,7 @@ describe("popup boundary and edge states", () => {
       await renderPopup();
 
       expect(await screen.findAllByText("Rate unavailable")).toHaveLength(3);
-      expect(screen.queryByText(/^Rates from /u)).toBeNull();
+      expect(screen.queryByRole("link", { name: "Open Exchange Rates" })).toBeNull();
     },
   );
 

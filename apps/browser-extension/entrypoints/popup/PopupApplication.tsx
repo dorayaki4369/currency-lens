@@ -9,7 +9,7 @@ import {
 } from "react";
 import { ArrowLeft, Settings } from "lucide-react";
 import type { Config } from "@/lib/currency";
-import { getUiLocale, translate, type UiLocale } from "@/lib/i18n";
+import { getUiLocale, translate, type TranslationKey, type UiLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { Brand } from "@/components/layout/Brand";
 import { Stack } from "@/components/layout/Stack";
@@ -31,9 +31,11 @@ export interface PopupPreviewData {
 }
 
 type PopupScreen =
+  | "about"
   | "converter"
   | "currencies"
   | "display-settings"
+  | "licenses"
   | "settings"
   | "symbol-settings";
 
@@ -48,11 +50,13 @@ interface PopupApplicationProps {
 type UpdateConfig = (update: (current: Config) => Config) => void;
 
 export interface PopupApplicationContextValue {
+  readonly aboutTriggerReference: RefObject<HTMLButtonElement | null>;
   readonly backButtonReference: RefObject<HTMLButtonElement | null>;
   readonly config: Config | null;
   readonly currenciesTriggerReference: RefObject<HTMLButtonElement | null>;
   readonly displaySettingsTriggerReference: RefObject<HTMLButtonElement | null>;
   readonly error: string | null;
+  readonly licensesTriggerReference: RefObject<HTMLButtonElement | null>;
   readonly loading: boolean;
   readonly locale: UiLocale;
   readonly previousScreenReference: RefObject<PopupScreen | null>;
@@ -85,6 +89,8 @@ function PopupApplicationContent({ locale }: { readonly locale: UiLocale }) {
   const displaySettingsTriggerReference = useRef<HTMLButtonElement>(null);
   const symbolSettingsTriggerReference = useRef<HTMLButtonElement>(null);
   const currenciesTriggerReference = useRef<HTMLButtonElement>(null);
+  const aboutTriggerReference = useRef<HTMLButtonElement>(null);
+  const licensesTriggerReference = useRef<HTMLButtonElement>(null);
   const previousScreenReference = useRef<PopupScreen | null>(null);
 
   const theme = config?.theme ?? "system";
@@ -93,11 +99,13 @@ function PopupApplicationContent({ locale }: { readonly locale: UiLocale }) {
   return (
     <PopupApplicationContext.Provider
       value={{
+        aboutTriggerReference,
         backButtonReference,
         config,
         currenciesTriggerReference,
         displaySettingsTriggerReference,
         error,
+        licensesTriggerReference,
         loading,
         locale,
         previousScreenReference,
@@ -132,9 +140,11 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
   const popup = usePopupApplicationContext();
   const navigate = useNavigate();
   const {
+    aboutTriggerReference,
     backButtonReference,
     currenciesTriggerReference,
     displaySettingsTriggerReference,
+    licensesTriggerReference,
     previousScreenReference,
     settingsTriggerReference,
     symbolSettingsTriggerReference,
@@ -148,32 +158,32 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
     );
   useEffect(() => {
     previousScreenReference.current = screen;
-    if (screen === "converter") {
-      if (enteredFromScreen === "settings") {
-        settingsTriggerReference.current?.focus({ preventScroll: true });
-      }
+    const returnTrigger = findReturnFocusTrigger(
+      {
+        aboutTriggerReference,
+        currenciesTriggerReference,
+        displaySettingsTriggerReference,
+        licensesTriggerReference,
+        settingsTriggerReference,
+        symbolSettingsTriggerReference,
+      },
+      screen,
+      enteredFromScreen,
+    );
+    if (returnTrigger !== undefined) {
+      returnTrigger.current?.focus({ preventScroll: true });
       return;
     }
-    if (screen === "settings") {
-      const previousTrigger =
-        enteredFromScreen === "currencies"
-          ? currenciesTriggerReference
-          : enteredFromScreen === "display-settings"
-            ? displaySettingsTriggerReference
-            : enteredFromScreen === "symbol-settings"
-              ? symbolSettingsTriggerReference
-              : undefined;
-      if (previousTrigger !== undefined) {
-        previousTrigger.current?.focus({ preventScroll: true });
-        return;
-      }
+    if (screen !== "converter") {
+      backButtonReference.current?.focus({ preventScroll: true });
     }
-    backButtonReference.current?.focus({ preventScroll: true });
   }, [
+    aboutTriggerReference,
     backButtonReference,
     currenciesTriggerReference,
     displaySettingsTriggerReference,
     enteredFromScreen,
+    licensesTriggerReference,
     previousScreenReference,
     screen,
     settingsTriggerReference,
@@ -184,7 +194,7 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
     void navigatePopupRoute(
       () =>
         navigate({
-          to: screen === "settings" ? "/" : "/settings",
+          to: PARENT_ROUTES[screen],
           viewTransition: true,
         }),
       "backward",
@@ -209,7 +219,12 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
         settingsButtonReference={popup.settingsTriggerReference}
       />
 
-      <Stack className="min-h-0 flex-1 p-4" gap={4}>
+      {/* Only the body scrolls, so the header stays in place on long screens. */}
+      <Stack
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4"
+        data-slot="popup-route-body"
+        gap={4}
+      >
         {alert}
         {popup.loading ? (
           <PopupSkeleton locale={popup.locale} />
@@ -295,24 +310,62 @@ function PopupHeader({
   );
 }
 
+const SCREEN_TITLE_KEYS = {
+  about: "aboutHeading",
+  currencies: "supportedCurrenciesHeading",
+  "display-settings": "displayHeading",
+  licenses: "licensesHeading",
+  settings: "settingsHeading",
+  "symbol-settings": "ambiguousHeading",
+} as const satisfies Record<Exclude<PopupScreen, "converter">, TranslationKey>;
+
 /** Maps nested screens to their visible header titles. */
-function getScreenTitleKey(
-  screen: Exclude<PopupScreen, "converter">,
-):
-  | "ambiguousHeading"
-  | "displayHeading"
-  | "settingsHeading"
-  | "supportedCurrenciesHeading" {
-  if (screen === "display-settings") {
-    return "displayHeading";
-  }
-  if (screen === "symbol-settings") {
-    return "ambiguousHeading";
-  }
-  if (screen === "currencies") {
-    return "supportedCurrenciesHeading";
-  }
-  return "settingsHeading";
+function getScreenTitleKey(screen: Exclude<PopupScreen, "converter">): TranslationKey {
+  return SCREEN_TITLE_KEYS[screen];
+}
+
+/** Routes one level above each screen, which the back button opens. */
+const PARENT_ROUTES = {
+  about: "/settings",
+  converter: "/",
+  currencies: "/settings",
+  "display-settings": "/settings",
+  licenses: "/settings/about",
+  settings: "/",
+  "symbol-settings": "/settings",
+} as const satisfies Record<PopupScreen, "/" | "/settings" | "/settings/about">;
+
+type ReturnFocusTriggers = Pick<
+  PopupApplicationContextValue,
+  | "aboutTriggerReference"
+  | "currenciesTriggerReference"
+  | "displaySettingsTriggerReference"
+  | "licensesTriggerReference"
+  | "settingsTriggerReference"
+  | "symbolSettingsTriggerReference"
+>;
+
+/** Finds the control that opened the child screen the user just returned from. */
+function findReturnFocusTrigger(
+  triggers: ReturnFocusTriggers,
+  screen: PopupScreen,
+  enteredFromScreen: PopupScreen | null,
+): RefObject<HTMLButtonElement | null> | undefined {
+  const childTriggers: Partial<
+    Record<PopupScreen, Partial<Record<PopupScreen, RefObject<HTMLButtonElement | null>>>>
+  > = {
+    about: { licenses: triggers.licensesTriggerReference },
+    converter: { settings: triggers.settingsTriggerReference },
+    settings: {
+      about: triggers.aboutTriggerReference,
+      currencies: triggers.currenciesTriggerReference,
+      "display-settings": triggers.displaySettingsTriggerReference,
+      "symbol-settings": triggers.symbolSettingsTriggerReference,
+    },
+  };
+  return enteredFromScreen === null
+    ? undefined
+    : childTriggers[screen]?.[enteredFromScreen];
 }
 
 /** Extends the active theme behind the popup to prevent white browser overscroll gaps. */

@@ -274,6 +274,10 @@ jobs:
           compression-level: 0
           retention-days: 30
 
+      # AMO keeps its listing separate from the manifest, so each release sends the listing too.
+      - name: Build the AMO listing metadata
+        run: node apps/browser-extension/store/amo-metadata.ts "$RUNNER_TEMP/amo-metadata.json"
+
       - name: Submit packages with WXT
         working-directory: apps/browser-extension
         env:
@@ -295,6 +299,7 @@ jobs:
             --chrome-zip "$PWD/${chrome_archives[0]}"
             --firefox-zip "$PWD/${firefox_archives[0]}"
             --firefox-sources-zip "$PWD/${source_archives[0]}"
+            --firefox-amo-metadata-file "$RUNNER_TEMP/amo-metadata.json"
           )
 
           if [[ "$DRY_RUN" == "true" ]]; then

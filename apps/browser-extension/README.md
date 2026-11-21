@@ -30,7 +30,7 @@ Popupのトップでは、金額と換算元の通貨を入力して、登録し
 - 対応通貨一覧（閲覧のみ）
 - このアプリについて（バージョン、為替レートの提供元、ライセンス、外部ページへのリンク）
 
-「このアプリについて」には、ビルド先のストア（Chrome Web StoreかFirefox Add-ons）のレビューページへのリンクと、オープンソースライセンスの画面へのリンクがあります。ライセンスの一覧は、ビルド時に`scripts/about-metadata.ts`が`package.json`の`dependencies`から依存関係をたどって集め、各パッケージの`package.json`のライセンスとLICENSEファイルの本文を載せます。Tailwind CSSとshadcn/uiは開発時の依存ですが、生成したCSSとコピーしたコンポーネントが配布物に含まれるため、一覧に加えています。依存関係を基準に集めるので、`radix-ui`のようにまとめて入るパッケージは、実際には使っていない部品も一覧に含まれます。
+「このアプリについて」には、ビルド先のストア（Chrome Web StoreかFirefox Add-ons）のレビューページへのリンクと、オープンソースライセンスの画面へのリンクがあります。ライセンスの一覧は、ビルド時に`scripts/about-metadata.ts`が`package.json`の`dependencies`から依存関係をたどって集め、各パッケージの`package.json`のライセンスとLICENSEファイルの本文を載せます。Tailwind CSS、shadcn/ui、WXTは開発時の依存ですが、生成したCSS、コピーしたコンポーネント、WXTのエントリーポイントの外枠とContent Script用のShadow DOMのUIが配布物に含まれるため、一覧に加えています。WXTについては、配布物に入るコードがimportするパッケージだけをたどります。WXTを更新してその範囲が変わると、`scripts/about-metadata.spec.ts`のテストが失敗します。依存関係を基準に集めるので、`radix-ui`のようにまとめて入るパッケージは、実際には使っていない部品も一覧に含まれます。
 
 画面の切り替えにはTanStack Routerのメモリ履歴を使うため、PopupのURLは変わりません。各画面はファイルベースのルートとして実装し、ビルドではルートごとに別のチャンクへ分割します。
 

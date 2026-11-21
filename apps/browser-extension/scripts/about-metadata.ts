@@ -9,9 +9,15 @@ export interface ThirdPartyLicense {
   readonly version: string;
 }
 
+/** A development package whose code still ships, listed without its build-only dependencies. */
+export interface AdditionalPackage {
+  readonly name: string;
+  /** Dependencies of this package that its shipped code imports; these are walked fully. */
+  readonly runtimeDependencies?: readonly string[] | undefined;
+}
+
 interface CollectThirdPartyLicensesOptions {
-  /** Packages shipped without being runtime dependencies, listed without their dependencies. */
-  readonly additionalPackages?: readonly string[] | undefined;
+  readonly additionalPackages?: readonly AdditionalPackage[] | undefined;
 }
 
 /** Vite plugin hooks used here, typed locally so both WXT's and Vitest's Vite accept it. */
@@ -39,10 +45,23 @@ const UNKNOWN_LICENSE = "UNKNOWN";
 const LICENSE_FILE_PATTERN = /^(?:licen[cs]e|copying)(?:[.-].*)?$/iu;
 
 /**
- * Tailwind CSS emits its preflight into the shipped stylesheet, and components/ui copies
- * shadcn/ui sources, so both ship even though neither is a runtime dependency.
+ * Development packages whose code ships: components/ui copies shadcn/ui sources, Tailwind CSS
+ * emits its preflight into the stylesheet, and WXT bundles its entrypoint wrappers and the
+ * Shadow DOM UI used by the content script, which import only the listed runtime dependencies.
  */
-export const BUNDLED_BUILD_PACKAGES = ["shadcn", "tailwindcss"] as const;
+export const BUNDLED_BUILD_PACKAGES: readonly AdditionalPackage[] = [
+  { name: "shadcn" },
+  { name: "tailwindcss" },
+  {
+    name: "wxt",
+    runtimeDependencies: [
+      "@1natsu/wait-element",
+      "@webext-core/isolated-element",
+      "@webext-core/match-patterns",
+      "@wxt-dev/browser",
+    ],
+  },
+];
 
 /**
  * Exposes the extension version and the shipped third-party licenses to popup code as
@@ -112,8 +131,12 @@ export function collectThirdPartyLicenses(
 
   const rootDirectory = realpathSync(packageRoot);
   visit(rootDirectory, false, true);
-  for (const name of options.additionalPackages ?? []) {
-    visit(requirePackageDirectory(rootDirectory, name), true, false);
+  for (const { name, runtimeDependencies = [] } of options.additionalPackages ?? []) {
+    const packageDirectory = requirePackageDirectory(rootDirectory, name);
+    visit(packageDirectory, true, false);
+    for (const dependency of runtimeDependencies) {
+      visit(requirePackageDirectory(packageDirectory, dependency), true, true);
+    }
   }
 
   return [...licenses.values()].toSorted(

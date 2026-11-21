@@ -1,6 +1,13 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -83,7 +90,7 @@ describe("third-party license collection", () => {
     ]);
   });
 
-  it("lists additional packages without their dependencies", () => {
+  it("lists additional packages without build-only dependencies but walks runtime ones", () => {
     const root = createWorkspace();
     writePackage(root, { name: "app" });
     writePackage(join(root, "node_modules/css"), {
@@ -93,8 +100,31 @@ describe("third-party license collection", () => {
       dependencies: { "build-only": "^1" },
     });
 
-    expect(collectThirdPartyLicenses(root, { additionalPackages: ["css"] })).toEqual([
+    writePackage(join(root, "node_modules/runtime"), {
+      name: "runtime",
+      version: "1.0.0",
+      license: "MIT",
+    });
+    writePackage(join(root, "node_modules/runtime/node_modules/shipped"), {
+      name: "shipped",
+      version: "2.0.0",
+      license: "MIT",
+      dependencies: { leaf: "^1" },
+    });
+    writePackage(join(root, "node_modules/leaf"), { name: "leaf", version: "1.0.0" });
+
+    expect(
+      collectThirdPartyLicenses(root, {
+        additionalPackages: [
+          { name: "css" },
+          { name: "runtime", runtimeDependencies: ["shipped"] },
+        ],
+      }),
+    ).toEqual([
       { license: "MIT", licenseText: null, name: "css", version: "4.0.0" },
+      { license: "UNKNOWN", licenseText: null, name: "leaf", version: "1.0.0" },
+      { license: "MIT", licenseText: null, name: "runtime", version: "1.0.0" },
+      { license: "MIT", licenseText: null, name: "shipped", version: "2.0.0" },
     ]);
   });
 
@@ -135,10 +165,31 @@ describe("third-party license collection", () => {
     const names = licenses.map((entry) => entry.name);
 
     expect(names).toEqual(
-      expect.arrayContaining(["react", "react-dom", "zod", "tailwindcss", "shadcn"]),
+      expect.arrayContaining([
+        "react",
+        "react-dom",
+        "zod",
+        "tailwindcss",
+        "shadcn",
+        "wxt",
+        "@wxt-dev/browser",
+      ]),
     );
     expect(names).not.toContain("@cl/currency");
     expect(names.some((name) => name.startsWith("@types/"))).toBe(false);
+  });
+});
+
+describe("WXT runtime dependencies", () => {
+  it("cover every package imported by the WXT code bundled into the extension", () => {
+    const wxtRoot = realpathSync(
+      fileURLToPath(new URL("../node_modules/wxt", import.meta.url)),
+    );
+    const wxt = BUNDLED_BUILD_PACKAGES.find((entry) => entry.name === "wxt");
+
+    expect(collectBareImports(wxtRoot).toSorted()).toEqual(
+      [...(wxt?.runtimeDependencies ?? [])].toSorted(),
+    );
   });
 });
 
@@ -147,7 +198,10 @@ describe("about metadata Vite plugin", () => {
     const root = createWorkspace();
     writePackage(root, { name: "app", version: "9.8.7", dependencies: { a: "^1" } });
     writePackage(join(root, "node_modules/a"), { name: "a", version: "1.0.0" });
-    for (const name of BUNDLED_BUILD_PACKAGES) {
+    const shippedNames = BUNDLED_BUILD_PACKAGES.flatMap((entry) =>
+      [entry.name].concat(entry.runtimeDependencies ?? []),
+    );
+    for (const name of shippedNames) {
       writePackage(join(root, "node_modules", name), { name, version: "1.0.0" });
     }
     const plugin = aboutMetadataPlugin(root);
@@ -161,7 +215,7 @@ describe("about metadata Vite plugin", () => {
     expect(plugin.load("react")).toBeNull();
     expect(plugin.load(resolvedId ?? "")).toBe(
       `export default ${JSON.stringify(
-        ["a", ...BUNDLED_BUILD_PACKAGES].map((name) => ({
+        ["a", ...shippedNames].toSorted().map((name) => ({
           license: "UNKNOWN",
           licenseText: null,
           name,
@@ -171,6 +225,54 @@ describe("about metadata Vite plugin", () => {
     );
   });
 });
+
+/**
+ * Follows WXT's shipped runtime modules (entrypoint wrappers and the Shadow DOM UI used by the
+ * content script) and returns the external packages they import.
+ */
+function collectBareImports(wxtRoot: string): string[] {
+  const manifest = JSON.parse(readFileSync(join(wxtRoot, "package.json"), "utf8")) as {
+    exports: Record<string, { default: string }>;
+  };
+  const visited = new Set<string>();
+  const packages = new Set<string>();
+  const importPattern =
+    /(?:import|export)[^"']*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']/gu;
+  const visit = (file: string): void => {
+    if (visited.has(file)) {
+      return;
+    }
+    visited.add(file);
+    // Comments contain example imports, so only code is scanned.
+    const code = readFileSync(file, "utf8").replaceAll(
+      /\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gmu,
+      "",
+    );
+    for (const match of code.matchAll(importPattern)) {
+      const id = match[1] ?? match[2] ?? "";
+      if (id.startsWith(".")) {
+        visit(join(dirname(file), id));
+      } else if (id.startsWith("wxt/")) {
+        visit(join(wxtRoot, manifest.exports[`.${id.slice(3)}`]?.default ?? ""));
+      } else if (!id.startsWith("virtual:")) {
+        packages.add(
+          id
+            .split("/")
+            .slice(0, id.startsWith("@") ? 2 : 1)
+            .join("/"),
+        );
+      }
+    }
+  };
+  for (const entry of [
+    "dist/utils/content-script-ui/shadow-root.mjs",
+    "dist/virtual/background-entrypoint.mjs",
+    "dist/virtual/content-script-isolated-world-entrypoint.mjs",
+  ]) {
+    visit(join(wxtRoot, entry));
+  }
+  return [...packages];
+}
 
 /** Creates an isolated directory tree that mimics node_modules layouts. */
 function createWorkspace(): string {

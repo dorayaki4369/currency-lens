@@ -66,16 +66,11 @@ export function formatChartTick(
       time,
     );
   }
-  if (period === "5D") {
-    return new Intl.DateTimeFormat(locale, { day: "numeric", month: "numeric" }).format(
-      time,
-    );
-  }
-  // Daily slots are UTC calendar days, so they are labelled in UTC to keep their date.
+  // Points carry the moment their value represents, so every label uses local time.
   const options: Intl.DateTimeFormatOptions =
     period === "1Y"
-      ? { month: "numeric", timeZone: "UTC", year: "numeric" }
-      : { day: "numeric", month: "numeric", timeZone: "UTC" };
+      ? { month: "numeric", year: "numeric" }
+      : { day: "numeric", month: "numeric" };
   return new Intl.DateTimeFormat(locale, options).format(time);
 }
 
@@ -88,7 +83,7 @@ export function formatChartTime(
   const options: Intl.DateTimeFormatOptions =
     resolution === "hourly"
       ? { day: "numeric", hour: "numeric", minute: "2-digit", month: "short" }
-      : { dateStyle: "medium", timeZone: "UTC" };
+      : { dateStyle: "medium" };
   return new Intl.DateTimeFormat(locale, options).format(time);
 }
 
@@ -101,7 +96,7 @@ export function formatChangeStart(
   const options: Intl.DateTimeFormatOptions =
     resolution === "hourly"
       ? { day: "numeric", hour: "numeric", minute: "2-digit", month: "numeric" }
-      : { day: "numeric", month: "numeric", timeZone: "UTC" };
+      : { day: "numeric", month: "numeric" };
   return new Intl.DateTimeFormat(locale, options).format(time);
 }
 

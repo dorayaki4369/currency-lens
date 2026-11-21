@@ -1,5 +1,6 @@
 import type { CurrencyCode } from "@cl/currency";
 import { createFileRoute } from "@tanstack/react-router";
+import { RotateCw } from "lucide-react";
 import { type ReactNode, useId, useMemo } from "react";
 import type { Config } from "@/lib/currency";
 import { CURRENCY_CODES_BY_ISO_CODE } from "@/lib/currency-order";
@@ -30,6 +31,7 @@ import { Stack } from "@/components/layout/Stack";
 import { RateChart, type RateChartSeries } from "@/components/rates/RateChart";
 import { RateChangeLegend, RateSummary } from "@/components/rates/RateSummary";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -139,7 +141,9 @@ function RatesScreen({
     () => getRateHistorySymbols(config.favorites, baseCurrency),
     [baseCurrency, config.favorites],
   );
-  const history = useRateHistory(getPeriodResolution(period), symbols);
+  const resolution = getPeriodResolution(period);
+  const history = useRateHistory(resolution, symbols);
+  const loadHistory = usePopupRateHistory((state) => state.loadHistory);
 
   return (
     <Stack gap={3}>
@@ -192,9 +196,11 @@ function RatesScreen({
               <RatePanel
                 baseCurrency={baseCurrency}
                 history={history}
+                latestTime={rates?.sourceTimestamp ?? Date.now()}
                 lineCurrencies={lineCurrencies}
                 locale={locale}
                 onPeriodChange={onPeriodChange}
+                onRetry={() => void loadHistory(resolution, symbols)}
                 period={period}
                 selection={activeSelection}
               />
@@ -216,9 +222,12 @@ function RatesScreen({
 interface RatePanelProps {
   readonly baseCurrency: CurrencyCode;
   readonly history: RateHistoryEntry;
+  /** When the newest rate was published; dates today's daily point. */
+  readonly latestTime: number;
   readonly lineCurrencies: readonly CurrencyCode[];
   readonly locale: UiLocale;
   readonly onPeriodChange: (period: RatePeriod) => void;
+  readonly onRetry: () => void;
   readonly period: RatePeriod;
   readonly selection: RateChartSelection;
 }
@@ -227,9 +236,11 @@ interface RatePanelProps {
 function RatePanel({
   baseCurrency,
   history,
+  latestTime,
   lineCurrencies,
   locale,
   onPeriodChange,
+  onRetry,
   period,
   selection,
 }: RatePanelProps) {
@@ -255,7 +266,19 @@ function RatePanel({
       <>
         {periodSelector}
         <Alert className="mr-1.5" variant="destructive">
-          <AlertDescription>{translate(locale, "rateHistoryError")}</AlertDescription>
+          <AlertDescription>
+            <p>{translate(locale, "rateHistoryError")}</p>
+            <Button
+              className="text-foreground"
+              onClick={onRetry}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <RotateCw aria-hidden="true" />
+              {translate(locale, "rateHistoryRetry")}
+            </Button>
+          </AlertDescription>
         </Alert>
       </>
     );
@@ -265,6 +288,7 @@ function RatePanel({
     baseCurrency,
     colorScheme,
     history: history.data,
+    latestTime,
     lineCurrencies,
     locale,
     period,
@@ -279,6 +303,8 @@ function RatePanel({
       ) : (
         <RateChart
           area={view.mode === "rate"}
+          // A new selection starts without the previous cursor.
+          key={`${baseCurrency}:${selection}:${period}`}
           label={view.label}
           locale={locale}
           mode={view.mode}
@@ -294,6 +320,7 @@ interface RateViewOptions {
   readonly baseCurrency: CurrencyCode;
   readonly colorScheme: TrendColorScheme;
   readonly history: RateHistory;
+  readonly latestTime: number;
   readonly lineCurrencies: readonly CurrencyCode[];
   readonly locale: UiLocale;
   readonly period: RatePeriod;
@@ -312,6 +339,7 @@ function createRateView({
   baseCurrency,
   colorScheme,
   history,
+  latestTime,
   lineCurrencies,
   locale,
   period,
@@ -328,7 +356,10 @@ function createRateView({
   const seriesByCurrency = lineCurrencies.map((currencyCode, index) => ({
     color: getRateSeriesColor(index),
     currencyCode,
-    rates: slicePeriod(getCrossRateSeries(history, currencyCode, baseCurrency), period),
+    rates: slicePeriod(
+      getCrossRateSeries(history, currencyCode, baseCurrency, latestTime),
+      period,
+    ),
   }));
 
   if (selection !== ALL_SELECTION) {

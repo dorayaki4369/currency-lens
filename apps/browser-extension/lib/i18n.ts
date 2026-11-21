@@ -102,8 +102,9 @@ const messages = {
     rateChangeSince: "since {date}",
     rateHistoryEmpty:
       "Rate history isn’t available yet. It builds up as rates are collected every hour.",
-    rateHistoryError: "Couldn’t load the rate history. Reopen Currency Lens to try again.",
+    rateHistoryError: "Couldn’t load the rate history.",
     rateHistoryLoading: "Loading rate history",
+    rateHistoryRetry: "Retry",
     rateHistoryNoData: "No data",
     rateHistoryNoTargets: "Add a conversion target other than {base} to see its rates.",
     ratesAll: "ALL",
@@ -190,9 +191,9 @@ const messages = {
     rateChangeSince: "{date} から",
     rateHistoryEmpty:
       "レートの履歴はまだありません。履歴は1時間ごとに取得したレートから作られます。",
-    rateHistoryError:
-      "レートの履歴を取得できませんでした。Currency Lens を開き直すと、もう一度取得します。",
+    rateHistoryError: "レートの履歴を取得できませんでした。",
     rateHistoryLoading: "レートの履歴を読み込み中",
+    rateHistoryRetry: "再読み込み",
     rateHistoryNoData: "データなし",
     rateHistoryNoTargets: "{base} 以外の換算先を追加すると、レートを表示します。",
     ratesAll: "ALL",

@@ -49,34 +49,38 @@ export function getPeriodResolution(period: RatePeriod): RateHistoryResolution {
 
 /**
  * Derives `1 base = value code` for every slot from the USD-based history.
- * A missing series on either side leaves that slot empty.
+ * A missing series on either side leaves that slot empty. `latestTime` is when the
+ * newest rate was published; it dates today's still-moving daily point.
  */
 export function getCrossRateSeries(
   history: RateHistory,
   currencyCode: string,
   baseCurrency: string,
+  latestTime: number,
 ): RateSeries {
   const slotCount = Object.values(history.rates)[0]?.length ?? 0;
   const start = Date.parse(history.start);
-  const step = history.resolution === "hourly" ? HOUR_MS : DAY_MS;
   return Array.from({ length: slotCount }, (_, index) => {
     const numerator = readUsdRate(history, currencyCode, index);
     const denominator = readUsdRate(history, baseCurrency, index);
     return {
-      time: start + index * step,
+      time: getSlotTime(history.resolution, start, index, slotCount, latestTime),
       value: numerator === null || denominator === null ? null : numerator / denominator,
     };
   });
 }
 
-/** Keeps the trailing slots that belong to a period, or the current UTC year for YTD. */
+/**
+ * Keeps the trailing slots that belong to a period. YTD keeps the points dated on or
+ * after January 1 of the latest point's year in the viewer's time zone.
+ */
 export function slicePeriod(series: RateSeries, period: RatePeriod): RateSeries {
   if (period === "YTD") {
     const latest = series.at(-1);
     if (latest === undefined) {
       return [];
     }
-    const yearStart = Date.UTC(new Date(latest.time).getUTCFullYear(), 0, 1);
+    const yearStart = new Date(new Date(latest.time).getFullYear(), 0, 1).getTime();
     return series.filter((point) => point.time >= yearStart);
   }
   return series.slice(-PERIOD_SLOT_COUNTS[period]);
@@ -126,6 +130,27 @@ function findValuedPoint(
     }
   }
   return null;
+}
+
+/**
+ * Dates a slot by the moment its value represents: the start of an hour, the last
+ * instant of a completed UTC day, or the latest publication within today.
+ */
+function getSlotTime(
+  resolution: RateHistory["resolution"],
+  start: number,
+  index: number,
+  slotCount: number,
+  latestTime: number,
+): number {
+  if (resolution === "hourly") {
+    return start + index * HOUR_MS;
+  }
+  const dayStart = start + index * DAY_MS;
+  const dayEnd = dayStart + DAY_MS - 1;
+  return index === slotCount - 1
+    ? Math.min(dayEnd, Math.max(dayStart, latestTime))
+    : dayEnd;
 }
 
 /** Reads one USD-based rate, treating USD as the constant 1. */

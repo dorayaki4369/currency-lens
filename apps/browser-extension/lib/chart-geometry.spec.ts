@@ -4,9 +4,8 @@ import {
   buildMonotoneCurve,
   buildSeriesPaths,
   createChartScale,
-  downsampleSeries,
   findEmptySlotRanges,
-  findNearestPointIndex,
+  findNearestSlot,
   getEmptyRangeBounds,
   layoutAxis,
   type ChartScale,
@@ -54,31 +53,6 @@ describe("buildMonotoneCurve", () => {
   });
 });
 
-describe("downsampleSeries", () => {
-  it("keeps short series and the exact latest value", () => {
-    expect(downsampleSeries([1, null, 3])).toEqual([
-      { index: 0, value: 1 },
-      { index: 1, value: null },
-      { index: 2, value: 3 },
-    ]);
-    expect(downsampleSeries([])).toEqual([]);
-  });
-
-  it("averages buckets and leaves any bucket that touches a gap empty", () => {
-    const values = [1, 3, 5, null, 7, 9, 11, 13];
-    expect(downsampleSeries(values, 4)).toEqual([
-      { index: 0, value: 2 },
-      { index: 2.5, value: null },
-      { index: 4.5, value: 8 },
-      { index: 7, value: 13 },
-    ]);
-  });
-
-  it("uses about forty buckets for a year of days", () => {
-    expect(downsampleSeries(Array.from({ length: 366 }, () => 1))).toHaveLength(37);
-  });
-});
-
 describe("createChartScale", () => {
   it("fits every series into one padded range", () => {
     const scale = requireScale(
@@ -109,9 +83,9 @@ describe("createChartScale", () => {
 });
 
 describe("buildSeriesPaths", () => {
-  it("breaks the line and closes one area per run of values", () => {
+  it("draws every slot and breaks the line exactly at empty slots", () => {
     const scale = requireScale([[0, 100, null, 50, 50]]);
-    const paths = buildSeriesPaths(downsampleSeries([0, 100, null, 50, 50]), scale);
+    const paths = buildSeriesPaths([0, 100, null, 50, 50], scale);
     expect(paths.line.match(/M/gu)).toHaveLength(2);
     expect(paths.area.match(/Z/gu)).toHaveLength(2);
     expect(paths.area).toContain("L50.0 100.0 L0.0 100.0 Z");
@@ -119,7 +93,7 @@ describe("buildSeriesPaths", () => {
 
   it("returns empty paths when every point is empty", () => {
     const scale = requireScale([[1]]);
-    expect(buildSeriesPaths([{ index: 0, value: null }], scale)).toEqual({
+    expect(buildSeriesPaths([null], scale)).toEqual({
       area: "",
       line: "",
     });
@@ -194,12 +168,12 @@ describe("layoutAxis", () => {
   });
 });
 
-describe("findNearestPointIndex", () => {
-  it("snaps a position to the closest drawn point", () => {
+describe("findNearestSlot", () => {
+  it("snaps a position to the closest slot inside the plot", () => {
     const scale = requireScale([[1, 2, 3, 4, 5]]);
-    const points = downsampleSeries([1, 2, 3, 4, 5]);
-    expect(findNearestPointIndex(points, scale, -10)).toBe(0);
-    expect(findNearestPointIndex(points, scale, 90)).toBe(2);
-    expect(findNearestPointIndex(points, scale, 400)).toBe(4);
+    expect(findNearestSlot(scale, -10)).toBe(0);
+    expect(findNearestSlot(scale, 90)).toBe(2);
+    expect(findNearestSlot(scale, 400)).toBe(4);
+    expect(findNearestSlot(requireScale([[1]]), 100)).toBe(0);
   });
 });

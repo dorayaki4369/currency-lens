@@ -10,14 +10,13 @@ import {
 import {
   buildSeriesPaths,
   createChartScale,
-  downsampleSeries,
   findEmptySlotRanges,
-  findNearestPointIndex,
+  findNearestSlot,
   getEmptyRangeBounds,
   layoutAxis,
   type AxisLayout,
   type ChartScale,
-  type DisplayPoint,
+  type ChartValue,
 } from "@/lib/chart-geometry";
 import { translate, type UiLocale } from "@/lib/i18n";
 import {
@@ -67,13 +66,13 @@ interface CursorDetails {
 }
 
 interface ChartModel {
-  readonly anchorPoints: readonly DisplayPoint[];
   readonly axis: AxisLayout;
   readonly describe: (index: number) => CursorDetails;
-  readonly displays: readonly (readonly DisplayPoint[])[];
   readonly emptyRanges: readonly { readonly left: number; readonly width: number }[];
   readonly scale: ChartScale;
+  readonly slotCount: number;
   readonly tickLabels: readonly string[];
+  readonly valueLists: readonly (readonly ChartValue[])[];
   readonly zeroY: number | null;
 }
 
@@ -86,6 +85,8 @@ const GRID_INTERVALS = [0, 1, 2] as const;
 const MIN_LABELLED_GAP_WIDTH = 44;
 const TOOLTIP_OFFSET = 10;
 const DOT_RADIUS = 5;
+// Page keys jump about a tenth of the period, at least one slot.
+const PAGE_STEP_RATIO = 0.1;
 
 /** Draws rate history with a right-hand axis, gap markers, and a pointer/keyboard cursor. */
 export function RateChart({ area, label, locale, mode, period, series }: RateChartProps) {
@@ -98,7 +99,7 @@ export function RateChart({ area, label, locale, mode, period, series }: RateCha
     return null;
   }
 
-  const lastCursor = model.anchorPoints.length - 1;
+  const lastCursor = model.slotCount - 1;
   const cursorIndex = cursor === null ? null : Math.min(cursor, lastCursor);
   const current = model.describe(cursorIndex ?? lastCursor);
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -110,9 +111,7 @@ export function RateChart({ area, label, locale, mode, period, series }: RateCha
   };
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    setCursor(
-      findNearestPointIndex(model.anchorPoints, model.scale, event.clientX - bounds.left),
-    );
+    setCursor(findNearestSlot(model.scale, event.clientX - bounds.left));
   };
 
   return (
@@ -152,11 +151,11 @@ export function RateChart({ area, label, locale, mode, period, series }: RateCha
             width={width}
           >
             {area ? <AreaGradient color={series[0]!.color.line} id={gradientId} /> : null}
-            {model.displays.map((display, index) => (
+            {model.valueLists.map((values, index) => (
               <SeriesPath
                 areaFill={area && index === 0 ? `url(#${gradientId})` : null}
                 color={series[index]!.color.line}
-                display={display}
+                values={values}
                 key={series[index]!.code}
                 scale={model.scale}
               />
@@ -206,21 +205,13 @@ function createChartModel({
   }
 
   const times = series[0]!.points.map((point) => point.time);
-  const displays = valueLists.map((values) => downsampleSeries(values));
-  const displayRates = series.map((item) =>
-    item.rates === undefined
-      ? null
-      : downsampleSeries(item.rates.map((point) => point.value)),
-  );
   const formatValue = createValueFormatter(mode, locale);
   const axisDigits =
     mode === "percent" ? PERCENT_TICK_DIGITS : getRateFractionDigits(scale.max);
   const noDataLabel = translate(locale, "rateHistoryNoData");
   const resolution = getPeriodResolution(period);
-  const anchorPoints = displays[0]!;
 
   return {
-    anchorPoints,
     axis: layoutAxis(
       scale,
       series.flatMap((item) => {
@@ -239,11 +230,10 @@ function createChartModel({
       (value) => formatValue(value, axisDigits),
     ),
     describe: (index) => {
-      const anchor = anchorPoints[index]!;
       return {
         rows: series.map((item, seriesIndex) => {
-          const value = displays[seriesIndex]![index]!.value;
-          const rate = displayRates[seriesIndex]?.[index]?.value ?? null;
+          const value = valueLists[seriesIndex]![index] ?? null;
+          const rate = item.rates?.[index]?.value ?? null;
           return {
             code: item.code,
             color: item.color.line,
@@ -252,18 +242,19 @@ function createChartModel({
             y: value === null ? null : scale.y(value),
           };
         }),
-        time: formatChartTime(times[Math.round(anchor.index)]!, resolution, locale),
-        x: scale.x(anchor.index),
+        time: formatChartTime(times[index]!, resolution, locale),
+        x: scale.x(index),
       };
     },
-    displays,
     emptyRanges: findEmptySlotRanges(valueLists).map((range) =>
       getEmptyRangeBounds(range, scale),
     ),
     scale,
+    slotCount: scale.slotCount,
     tickLabels: [times[0]!, times[Math.floor(times.length / 2)]!, times.at(-1)!].map(
       (time) => formatChartTick(time, period, locale),
     ),
+    valueLists,
     zeroY: mode === "percent" && scale.min < 0 && scale.max > 0 ? scale.y(0) : null,
   };
 }
@@ -354,15 +345,15 @@ function AreaGradient({ color, id }: { readonly color: string; readonly id: stri
 function SeriesPath({
   areaFill,
   color,
-  display,
   scale,
+  values,
 }: {
   readonly areaFill: string | null;
   readonly color: string;
-  readonly display: readonly DisplayPoint[];
   readonly scale: ChartScale;
+  readonly values: readonly ChartValue[];
 }) {
-  const paths = buildSeriesPaths(display, scale);
+  const paths = buildSeriesPaths(values, scale);
   return (
     <>
       {areaFill === null ? null : <path d={paths.area} fill={areaFill} stroke="none" />}
@@ -500,6 +491,13 @@ function getKeyboardCursor(key: string, current: number, last: number): number |
   }
   if (key === "ArrowRight" || key === "ArrowUp") {
     return Math.min(last, current + 1);
+  }
+  const pageStep = Math.max(1, Math.round((last + 1) * PAGE_STEP_RATIO));
+  if (key === "PageDown") {
+    return Math.max(0, current - pageStep);
+  }
+  if (key === "PageUp") {
+    return Math.min(last, current + pageStep);
   }
   if (key === "Home") {
     return 0;

@@ -1,10 +1,5 @@
 import { useId } from "react";
-import {
-  buildSeriesPaths,
-  createChartScale,
-  downsampleSeries,
-  type ChartValue,
-} from "@/lib/chart-geometry";
+import { buildSeriesPaths, createChartScale, type ChartValue } from "@/lib/chart-geometry";
 import { cn } from "@/lib/utils";
 import { FOCUS_RING_CLASS_NAME } from "@/components/ui/focus-ring";
 
@@ -27,7 +22,7 @@ export function Sparkline({ color, label, onOpen, values }: SparklineProps) {
     padding: SPARKLINE_PADDING,
     width: SPARKLINE_WIDTH,
   });
-  const paths = scale === null ? null : buildSeriesPaths(downsampleSeries(values), scale);
+  const paths = scale === null ? null : buildSeriesPaths(values, scale);
 
   return (
     <button

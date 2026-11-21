@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RateHistory } from "@/lib/rate-history";
 import {
   getCrossRateSeries,
@@ -14,6 +14,10 @@ import {
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
 const START = Date.parse("2026-01-01T00:00:00.000Z");
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 /** Builds a series with consecutive times from plain values. */
 function series(
@@ -50,15 +54,28 @@ describe("periods", () => {
     expect(slicePeriod(daily, "1M").at(-1)?.value).toBe(365);
   });
 
-  it("starts YTD at the first UTC day of the latest slot's year", () => {
-    const daily = series(
-      Array.from({ length: 40 }, (_, index) => index),
-      DAY_MS,
-      Date.parse("2025-12-15T00:00:00.000Z"),
-    );
-    const ytd = slicePeriod(daily, "YTD");
-    expect(new Date(ytd[0]!.time).toISOString()).toBe("2026-01-01T00:00:00.000Z");
-    expect(ytd).toHaveLength(23);
+  it("starts YTD on January 1 of the latest point's local year", () => {
+    const history: RateHistory = {
+      base: "USD",
+      resolution: "daily",
+      start: "2025-12-15T00:00:00.000Z",
+      rates: { JPY: Array.from({ length: 18 }, (_, index) => 150 + index) },
+    };
+    const latestTime = Date.parse("2026-01-01T03:00:00.000Z");
+
+    vi.stubEnv("TZ", "Asia/Tokyo");
+    const tokyo = slicePeriod(getCrossRateSeries(history, "JPY", "USD", latestTime), "YTD");
+    // The completed UTC day of Dec 31 ends at 08:59 on Jan 1 in Tokyo.
+    expect(tokyo.map((point) => new Date(point.time).toISOString())).toEqual([
+      "2025-12-31T23:59:59.999Z",
+      "2026-01-01T03:00:00.000Z",
+    ]);
+
+    vi.stubEnv("TZ", "America/New_York");
+    // The latest rate is still Dec 31 in New York, so the whole of 2025 is in range.
+    expect(
+      slicePeriod(getCrossRateSeries(history, "JPY", "USD", latestTime), "YTD"),
+    ).toHaveLength(18);
     expect(slicePeriod([], "YTD")).toEqual([]);
   });
 });
@@ -72,7 +89,7 @@ describe("getCrossRateSeries", () => {
   };
 
   it("divides the target's USD rate by the base's for each slot", () => {
-    expect(getCrossRateSeries(history, "JPY", "EUR")).toEqual([
+    expect(getCrossRateSeries(history, "JPY", "EUR", 0)).toEqual([
       { time: START, value: 200 },
       { time: START + HOUR_MS, value: 200 },
       { time: START + 2 * HOUR_MS, value: null },
@@ -80,25 +97,29 @@ describe("getCrossRateSeries", () => {
   });
 
   it("treats USD as 1 on either side and leaves missing currencies empty", () => {
-    expect(getCrossRateSeries(history, "USD", "EUR").map((point) => point.value)).toEqual([
-      1.25,
-      1 / 0.9,
-      null,
-    ]);
-    expect(getCrossRateSeries(history, "JPY", "USD").map((point) => point.value)).toEqual([
-      160, 180, 150,
-    ]);
-    expect(getCrossRateSeries(history, "GBP", "USD").map((point) => point.value)).toEqual([
-      null,
-      null,
-      null,
-    ]);
+    expect(
+      getCrossRateSeries(history, "USD", "EUR", 0).map((point) => point.value),
+    ).toEqual([1.25, 1 / 0.9, null]);
+    expect(
+      getCrossRateSeries(history, "JPY", "USD", 0).map((point) => point.value),
+    ).toEqual([160, 180, 150]);
+    expect(
+      getCrossRateSeries(history, "GBP", "USD", 0).map((point) => point.value),
+    ).toEqual([null, null, null]);
   });
 
-  it("uses one-day steps for daily history and returns nothing without series", () => {
+  it("dates completed days at their last instant and today at the latest rate", () => {
     const daily = { ...history, resolution: "daily" as const };
-    expect(getCrossRateSeries(daily, "JPY", "USD")[1]?.time).toBe(START + DAY_MS);
-    expect(getCrossRateSeries({ ...history, rates: {} }, "JPY", "USD")).toEqual([]);
+    const times = (latestTime: number) =>
+      getCrossRateSeries(daily, "JPY", "USD", latestTime).map((point) => point.time);
+    expect(times(START + 2 * DAY_MS + 5 * HOUR_MS)).toEqual([
+      START + DAY_MS - 1,
+      START + 2 * DAY_MS - 1,
+      START + 2 * DAY_MS + 5 * HOUR_MS,
+    ]);
+    expect(times(0).at(-1)).toBe(START + 2 * DAY_MS);
+    expect(times(START + 9 * DAY_MS).at(-1)).toBe(START + 3 * DAY_MS - 1);
+    expect(getCrossRateSeries({ ...history, rates: {} }, "JPY", "USD", 0)).toEqual([]);
   });
 });
 

@@ -164,6 +164,28 @@ describe("RateChart", () => {
     expect(chart.getAttribute("aria-valuenow")).toBe("2");
   });
 
+  it("moves through every raw slot and jumps a tenth of the period with page keys", () => {
+    const values = Array.from({ length: 366 }, (_, index) => 100 + index);
+    renderRateChart([{ code: "JPY", color: RED, points: daily(values) }], "rate");
+    const chart = screen.getByRole("slider");
+    expect(chart.getAttribute("aria-valuemax")).toBe("365");
+    expect(chart.querySelectorAll("path")[1]?.getAttribute("d")?.match(/C/gu)).toHaveLength(
+      365,
+    );
+
+    fireEvent.focus(chart);
+    fireEvent.keyDown(chart, { key: "PageDown" });
+    expect(chart.getAttribute("aria-valuenow")).toBe("328");
+    fireEvent.keyDown(chart, { key: "ArrowLeft" });
+    expect(chart.getAttribute("aria-valuetext")).toMatch(/: JPY 427\.00$/u);
+    fireEvent.keyDown(chart, { key: "PageUp" });
+    fireEvent.keyDown(chart, { key: "PageUp" });
+    expect(chart.getAttribute("aria-valuenow")).toBe("365");
+    fireEvent.keyDown(chart, { key: "Home" });
+    fireEvent.keyDown(chart, { key: "PageDown" });
+    expect(chart.getAttribute("aria-valuenow")).toBe("0");
+  });
+
   it("sizes the plot from the rendered width", () => {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(200);
     renderRateChart([{ code: "JPY", color: RED, points: daily([1, 2]) }], "rate");

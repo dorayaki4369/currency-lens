@@ -2,7 +2,7 @@
 
 import { RouterProvider } from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPopupRouter, type PopupPreviewData } from "@/entrypoints/popup/App";
 import {
   choosePopupCurrency,
@@ -14,7 +14,15 @@ import {
   stubPopupBrowser,
 } from "@/test/popup";
 
-afterEach(resetPopupTestEnvironment);
+// Daily points carry their local date, so the dates below assume a fixed time zone.
+beforeEach(() => {
+  vi.stubEnv("TZ", "America/New_York");
+});
+
+afterEach(() => {
+  resetPopupTestEnvironment();
+  vi.unstubAllEnvs();
+});
 
 const PREVIEW: PopupPreviewData = { ...POPUP_PREVIEW, history: POPUP_HISTORY };
 
@@ -143,6 +151,32 @@ describe("popup rates route", () => {
       expect(screen.queryByRole("slider")).toBeNull();
     },
   );
+
+  it("requests a failed history window again from the retry button", async () => {
+    let historyAttempts = 0;
+    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) => {
+      const type = readPopupMessageType(message);
+      if (type === "GET_CONFIG") {
+        return Promise.resolve({ data: POPUP_PREVIEW.config, success: true });
+      }
+      if (type === "GET_RATES") {
+        return Promise.resolve({ data: POPUP_PREVIEW.rates, success: true });
+      }
+      historyAttempts += 1;
+      // The converter's sparklines and the rates screen each try once before the retry.
+      return historyAttempts <= 2
+        ? Promise.resolve({ error: "Rate history API returned HTTP 503", success: false })
+        : Promise.resolve({ data: POPUP_HISTORY.daily, success: true });
+    });
+    stubPopupBrowser(sendMessage);
+    await renderPopup();
+    fireEvent.click(await screen.findByRole("button", { name: "Rates" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(3));
+    expect(screen.queryByText("Couldn’t load the rate history.")).toBeNull();
+    expect(historyAttempts).toBe(3);
+  });
 
   it("keeps the chart footprint while history loads", async () => {
     await openRates({ ...PREVIEW, history: { kind: "loading" } });

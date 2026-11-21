@@ -72,6 +72,27 @@ describe("popup rate history store", () => {
     expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 
+  it("never shows a late response for a selection the user already left", async () => {
+    const responses = new Map<string, PromiseWithResolvers<unknown>>();
+    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>((message) => {
+      const pending = Promise.withResolvers<unknown>();
+      responses.set(JSON.stringify(message), pending);
+      return pending.promise;
+    });
+    vi.stubGlobal("browser", { runtime: { sendMessage } });
+    const { rerender, result } = renderHistory("daily", JPY_EUR);
+    rerender({ query: { resolution: "daily", symbols: JPY_GBP } });
+
+    const [first] = responses.values();
+    first?.resolve({ data: DAILY, success: true });
+    await act(() => Promise.resolve());
+    expect(result.current.entry).toEqual({ data: null, status: "loading" });
+
+    const gbp = { ...DAILY, rates: { GBP: [0.74, 0.75], JPY: [150, 151] } };
+    [...responses.values()][1]?.resolve({ data: gbp, success: true });
+    await waitFor(() => expect(result.current.entry.data).toEqual(gbp));
+  });
+
   it("shares one in-flight request between components", async () => {
     const response = Promise.withResolvers<unknown>();
     const sendMessage = vi.fn<() => Promise<unknown>>(() => response.promise);

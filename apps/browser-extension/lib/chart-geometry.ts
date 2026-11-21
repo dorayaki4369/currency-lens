@@ -1,11 +1,5 @@
 export type ChartValue = number | null;
 
-export interface DisplayPoint {
-  /** Position on the original slot axis; averaged buckets sit between slots. */
-  readonly index: number;
-  readonly value: ChartValue;
-}
-
 export interface ChartScale {
   readonly height: number;
   readonly max: number;
@@ -55,7 +49,6 @@ interface ChartSize {
   readonly width: number;
 }
 
-export const DEFAULT_BUCKET_COUNT = 40;
 export const AXIS_TAG_HEIGHT = 18;
 export const AXIS_TICK_LINE_HEIGHT = 14;
 const AXIS_TAG_SPACING = AXIS_TAG_HEIGHT + 1;
@@ -109,35 +102,6 @@ export function buildMonotoneCurve(points: readonly (readonly [number, number])[
   return path;
 }
 
-/**
- * Averages long series into about `bucketCount` buckets so the curve stays smooth.
- * A bucket that touches an empty slot stays empty, and the latest slot is kept as is.
- */
-export function downsampleSeries(
-  values: readonly ChartValue[],
-  bucketCount: number = DEFAULT_BUCKET_COUNT,
-): DisplayPoint[] {
-  const slotCount = values.length;
-  if (slotCount === 0) {
-    return [];
-  }
-  const size = Math.max(1, Math.ceil(slotCount / bucketCount));
-  const points: DisplayPoint[] = [];
-  for (let start = 0; start < slotCount; start += size) {
-    const bucket = values.slice(start, start + size);
-    const filled = bucket.filter((value) => value !== null);
-    points.push({
-      index: start === 0 ? 0 : Math.min(slotCount - 1, start + (bucket.length - 1) / 2),
-      value:
-        filled.length === bucket.length
-          ? filled.reduce((sum, value) => sum + value, 0) / bucket.length
-          : null,
-    });
-  }
-  points[points.length - 1] = { index: slotCount - 1, value: values[slotCount - 1]! };
-  return points;
-}
-
 /** Fits every series into one vertical range; returns null when nothing can be drawn. */
 export function createChartScale(
   seriesList: readonly (readonly ChartValue[])[],
@@ -164,9 +128,9 @@ export function createChartScale(
   };
 }
 
-/** Builds line and area paths, breaking both wherever a point is empty. */
+/** Builds line and area paths through every slot, breaking both wherever a slot is empty. */
 export function buildSeriesPaths(
-  points: readonly DisplayPoint[],
+  values: readonly ChartValue[],
   scale: ChartScale,
 ): ChartPaths {
   const lines: string[] = [];
@@ -185,13 +149,13 @@ export function buildSeriesPaths(
     }
     segment = [];
   };
-  for (const point of points) {
-    if (point.value === null) {
+  values.forEach((value, index) => {
+    if (value === null) {
       flush();
     } else {
-      segment.push([scale.x(point.index), scale.y(point.value)]);
+      segment.push([scale.x(index), scale.y(value)]);
     }
-  }
+  });
   flush();
   return { area: areas.join(" "), line: lines.join(" ") };
 }
@@ -282,21 +246,13 @@ export function layoutAxis(
   return { tags: placed, ticks };
 }
 
-/** Returns the drawn point nearest to a horizontal position. */
-export function findNearestPointIndex(
-  points: readonly DisplayPoint[],
-  scale: ChartScale,
-  x: number,
-): number {
-  let nearest = 0;
-  points.forEach((point, index) => {
-    if (
-      Math.abs(scale.x(point.index) - x) < Math.abs(scale.x(points[nearest]!.index) - x)
-    ) {
-      nearest = index;
-    }
-  });
-  return nearest;
+/** Returns the slot nearest to a horizontal position. */
+export function findNearestSlot(scale: ChartScale, x: number): number {
+  if (scale.slotCount <= 1) {
+    return 0;
+  }
+  const ratio = clamp(x / scale.width, 0, 1);
+  return Math.round(ratio * (scale.slotCount - 1));
 }
 
 /** Keeps a value inside an inclusive range. */

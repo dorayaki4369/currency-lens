@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   formatChangeStart,
   formatChartTick,
@@ -31,18 +31,32 @@ describe("rate numbers", () => {
 });
 
 describe("chart times", () => {
-  it("labels the x axis at each period's granularity", () => {
-    expect(formatChartTick(DAY, "1M", "ja")).toBe("7/22");
-    expect(formatChartTick(DAY, "YTD", "en")).toBe("7/22");
-    expect(formatChartTick(DAY, "1Y", "ja")).toBe("2026/7");
-    expect(formatChartTick(DAY, "5D", "en")).toMatch(/^7\/2[12]$/u);
-    expect(formatChartTick(DAY, "1D", "ja")).toMatch(/^\d{1,2}:00$/u);
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
-  it("names the hovered slot and the start of a shortened change", () => {
+  it("labels the x axis in the viewer's time zone at each period's granularity", () => {
+    vi.stubEnv("TZ", "Asia/Tokyo");
+    expect(formatChartTick(DAY, "1M", "ja")).toBe("7/22");
+    expect(formatChartTick(DAY, "YTD", "en")).toBe("7/22");
+    expect(formatChartTick(DAY, "5D", "en")).toBe("7/22");
+    expect(formatChartTick(DAY, "1Y", "ja")).toBe("2026/7");
+    expect(formatChartTick(DAY, "1D", "ja")).toBe("9:00");
+
+    vi.stubEnv("TZ", "America/New_York");
+    expect(formatChartTick(DAY, "1M", "ja")).toBe("7/21");
+    expect(formatChartTick(DAY, "1D", "en")).toBe("8:00 PM");
+  });
+
+  it("names the hovered slot and the start of a shortened change in local time", () => {
+    vi.stubEnv("TZ", "Asia/Tokyo");
     expect(formatChartTime(DAY, "daily", "en")).toBe("Jul 22, 2026");
-    expect(formatChartTime(DAY, "hourly", "en")).toMatch(/^Jul 2[12],? \d{1,2}:00/u);
+    expect(formatChartTime(DAY, "hourly", "en")).toBe("Jul 22, 9:00 AM");
     expect(formatChangeStart(DAY, "daily", "ja")).toBe("7/22");
-    expect(formatChangeStart(DAY, "hourly", "ja")).toMatch(/^7\/2[12] \d{1,2}:00$/u);
+    expect(formatChangeStart(DAY, "hourly", "ja")).toBe("7/22 9:00");
+
+    vi.stubEnv("TZ", "America/New_York");
+    expect(formatChartTime(DAY, "daily", "en")).toBe("Jul 21, 2026");
+    expect(formatChangeStart(DAY, "daily", "ja")).toBe("7/21");
   });
 });

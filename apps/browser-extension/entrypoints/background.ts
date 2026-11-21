@@ -2,12 +2,15 @@ import {
   convertCurrenciesRequestSchema,
   convertCurrenciesResponseSchema,
   getConfigResponseSchema,
+  getRateHistoryRequestSchema,
+  getRateHistoryResponseSchema,
   getRatesResponseSchema,
   messageSchema,
   parseMessageResponse,
   setConfigRequestSchema,
   setConfigResponseSchema,
   type ConvertCurrenciesRequest,
+  type GetRateHistoryRequest,
   type Message,
   type MessageResponse,
 } from "@/lib/messages";
@@ -17,6 +20,7 @@ import {
   getRateSnapshot,
   isExchangeRateCacheStale,
 } from "@/lib/rates";
+import { createRateHistoryCache, fetchRateHistory } from "@/lib/rate-history";
 import { RATE_REFRESH_ALARM_NAME, ensureRateRefreshAlarm } from "@/lib/rate-refresh";
 import {
   getConfig,
@@ -26,6 +30,9 @@ import {
 } from "@/lib/storage";
 
 const RATE_ENDPOINT = new URL("v1/latest", `${import.meta.env.API_ENDPOINT}/`).href;
+const RATE_HISTORY_ENDPOINT = new URL("v1/history", `${import.meta.env.API_ENDPOINT}/`)
+  .href;
+const rateHistoryCache = createRateHistoryCache();
 let activeRateRefresh: Promise<void> | null = null;
 
 export default defineBackground(() => {
@@ -92,6 +99,8 @@ const messageHandlerByType = {
     handleConvertCurrencies(convertCurrenciesRequestSchema.parse(message)),
   GET_CONFIG: () => handleGetConfig(),
   GET_RATES: () => handleGetRates(),
+  GET_RATE_HISTORY: (message) =>
+    handleGetRateHistory(getRateHistoryRequestSchema.parse(message)),
   SET_CONFIG: (message) => handleSetConfig(setConfigRequestSchema.parse(message).payload),
 } satisfies MessageHandlerByType;
 
@@ -160,6 +169,16 @@ async function handleGetRates(): Promise<MessageResponse> {
     success: true,
     data: { ...getRateSnapshot(cache), rates: cache.rates },
   });
+}
+
+/** Returns validated rate history, reusing a recent response for the same query. */
+async function handleGetRateHistory(
+  request: GetRateHistoryRequest,
+): Promise<MessageResponse> {
+  const history = await rateHistoryCache.get(request.payload, () =>
+    fetchRateHistory(RATE_HISTORY_ENDPOINT, request.payload),
+  );
+  return getRateHistoryResponseSchema.parse({ success: true, data: history });
 }
 
 /** Ensures the alarm at each lifecycle entry and refreshes missing or stale data. */

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as i18n from "@/lib/i18n";
 import {
   choosePopupCurrency as chooseCurrency,
+  POPUP_HISTORY,
   POPUP_PREVIEW as PREVIEW,
   readPopupMessagePayload as readMessagePayload,
   readPopupMessageType as readMessageType,
@@ -81,6 +82,52 @@ describe("popup converter route", () => {
         .getAllByLabelText(/^Remove /u)
         .map((button) => button.getAttribute("aria-label")),
     ).toEqual(["Remove JPY", "Remove EUR", "Remove GBP"]);
+  });
+
+  it("draws a month of each target against the source and opens its chart", async () => {
+    await renderPopup({ ...PREVIEW, history: POPUP_HISTORY });
+
+    const jpy = await screen.findByRole("button", { name: "Open JPY rates" });
+    await waitFor(() => expect(jpy.querySelectorAll("path")).toHaveLength(2));
+    expect(jpy.querySelectorAll("path")[1]?.style.stroke).toBe("var(--trend-green-line)");
+    expect(
+      screen.getByRole("button", { name: "Open EUR rates" }).querySelectorAll("path")[1]
+        ?.style.stroke,
+    ).toBe("var(--trend-red-line)");
+
+    fireEvent.click(jpy);
+    await screen.findByRole("heading", { name: "Base" });
+    const ratesToggle = screen.getByRole("radio", { name: "Rates" });
+    await waitFor(() => expect(document.activeElement).toBe(ratesToggle));
+    expect(ratesToggle.getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: "JPY" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+
+    fireEvent.click(screen.getByRole("radio", { name: "Convert" }));
+    await screen.findByRole("heading", { name: "Original" });
+    const convertToggle = screen.getByRole("radio", { name: "Convert" });
+    await waitFor(() => expect(document.activeElement).toBe(convertToggle));
+    fireEvent.click(screen.getByRole("radio", { name: "Rates" }));
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "ALL" }).getAttribute("aria-checked")).toBe(
+        "true",
+      ),
+    );
+  });
+
+  it("leaves an aligned empty cell instead of a sparkline for the source currency", async () => {
+    await renderPopup({ ...PREVIEW, history: POPUP_HISTORY });
+    await chooseCurrency("Currency", "JPY", "Japanese Yen");
+
+    expect(screen.queryByRole("button", { name: "Open JPY rates" })).toBeNull();
+    const jpyRow = document.querySelector(
+      '[data-currency-code="JPY"][data-mode="display"]',
+    );
+    expect(jpyRow?.querySelector('[data-slot="sparkline-spacer"]')?.className).toContain(
+      "w-20",
+    );
+    expect(screen.getByRole("button", { name: "Open EUR rates" })).toBeDefined();
   });
 
   it("recalculates targets when the source amount or currency changes", async () => {

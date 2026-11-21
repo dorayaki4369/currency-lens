@@ -23,9 +23,21 @@ import { ConfigStoreProvider, useConfigStore } from "@/stores/config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { navigatePopupRoute } from "@/entrypoints/popup/popup-route-transition";
+import {
+  PopupRateHistoryProvider,
+  type RateHistoryPreview,
+  usePopupRateHistory,
+} from "@/entrypoints/popup/stores/rate-history";
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+  selectSegmentedOption,
+} from "@/components/ui/segmented-control";
 
 export interface PopupPreviewData {
   readonly config: Config;
+  /** Defaults to empty history, so previews never request it. */
+  readonly history?: RateHistoryPreview | undefined;
   readonly locale?: UiLocale | undefined;
   readonly rates: PopupRatesData;
 }
@@ -36,8 +48,23 @@ type PopupScreen =
   | "currencies"
   | "display-settings"
   | "licenses"
+  | "rates"
   | "settings"
   | "symbol-settings";
+
+/** Top-level screens that sit side by side behind the screen switcher. */
+type PopupPeerScreen = Extract<PopupScreen, "converter" | "rates">;
+
+const PEER_SCREENS = ["converter", "rates"] as const satisfies readonly PopupPeerScreen[];
+const PEER_SCREEN_LABEL_KEYS = {
+  converter: "screenConverter",
+  rates: "screenRates",
+} as const satisfies Record<PopupPeerScreen, TranslationKey>;
+const PEER_SCREEN_PATHS = { converter: "/", rates: "/rates" } as const satisfies Record<
+  PopupPeerScreen,
+  string
+>;
+const EMPTY_HISTORY_PREVIEW: RateHistoryPreview = { kind: "empty" };
 
 export interface PopupRouterContext {
   readonly preview?: PopupPreviewData | undefined;
@@ -60,6 +87,8 @@ export interface PopupApplicationContextValue {
   readonly loading: boolean;
   readonly locale: UiLocale;
   readonly previousScreenReference: RefObject<PopupScreen | null>;
+  readonly screenSwitcherReference: RefObject<HTMLButtonElement | null>;
+  readonly settingsReturnScreenReference: RefObject<PopupPeerScreen>;
   readonly settingsTriggerReference: RefObject<HTMLButtonElement | null>;
   readonly symbolSettingsTriggerReference: RefObject<HTMLButtonElement | null>;
   readonly updateConfig: UpdateConfig;
@@ -72,7 +101,13 @@ export function PopupApplication({ preview }: PopupApplicationProps) {
   return (
     <ConfigStoreProvider previewConfig={preview?.config}>
       <PopupConversionProvider previewRates={preview?.rates}>
-        <PopupApplicationContent locale={preview?.locale ?? getUiLocale()} />
+        <PopupRateHistoryProvider
+          preview={
+            preview === undefined ? undefined : (preview.history ?? EMPTY_HISTORY_PREVIEW)
+          }
+        >
+          <PopupApplicationContent locale={preview?.locale ?? getUiLocale()} />
+        </PopupRateHistoryProvider>
       </PopupConversionProvider>
     </ConfigStoreProvider>
   );
@@ -92,6 +127,8 @@ function PopupApplicationContent({ locale }: { readonly locale: UiLocale }) {
   const aboutTriggerReference = useRef<HTMLButtonElement>(null);
   const licensesTriggerReference = useRef<HTMLButtonElement>(null);
   const previousScreenReference = useRef<PopupScreen | null>(null);
+  const screenSwitcherReference = useRef<HTMLButtonElement>(null);
+  const settingsReturnScreenReference = useRef<PopupPeerScreen>("converter");
 
   const theme = config?.theme ?? "system";
   usePopupDocumentTheme(theme);
@@ -109,6 +146,8 @@ function PopupApplicationContent({ locale }: { readonly locale: UiLocale }) {
         loading,
         locale,
         previousScreenReference,
+        screenSwitcherReference,
+        settingsReturnScreenReference,
         settingsTriggerReference,
         symbolSettingsTriggerReference,
         updateConfig,
@@ -139,6 +178,7 @@ interface PopupRouteFrameProps {
 export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
   const popup = usePopupApplicationContext();
   const navigate = useNavigate();
+  const setRateSelection = usePopupRateHistory((state) => state.setSelection);
   const {
     aboutTriggerReference,
     backButtonReference,
@@ -146,6 +186,8 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
     displaySettingsTriggerReference,
     licensesTriggerReference,
     previousScreenReference,
+    screenSwitcherReference,
+    settingsReturnScreenReference,
     settingsTriggerReference,
     symbolSettingsTriggerReference,
   } = popup;
@@ -174,9 +216,14 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
       returnTrigger.current?.focus({ preventScroll: true });
       return;
     }
-    if (screen !== "converter") {
-      backButtonReference.current?.focus({ preventScroll: true });
+    if (isPeerScreen(screen)) {
+      // The switcher was replaced with the screen, so keep focus on its new item.
+      if (isPeerScreen(enteredFromScreen)) {
+        screenSwitcherReference.current?.focus({ preventScroll: true });
+      }
+      return;
     }
+    backButtonReference.current?.focus({ preventScroll: true });
   }, [
     aboutTriggerReference,
     backButtonReference,
@@ -186,6 +233,7 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
     licensesTriggerReference,
     previousScreenReference,
     screen,
+    screenSwitcherReference,
     settingsTriggerReference,
     symbolSettingsTriggerReference,
   ]);
@@ -194,14 +242,18 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
     void navigatePopupRoute(
       () =>
         navigate({
-          to: PARENT_ROUTES[screen],
+          to:
+            screen === "settings"
+              ? PEER_SCREEN_PATHS[settingsReturnScreenReference.current]
+              : PARENT_ROUTES[screen],
           viewTransition: true,
         }),
       "backward",
     );
   };
 
-  const handleOpenSettings = () => {
+  const handleOpenSettings = (fromScreen: PopupPeerScreen) => {
+    settingsReturnScreenReference.current = fromScreen;
     void navigatePopupRoute(
       () => navigate({ to: "/settings", viewTransition: true }),
       "forward",
@@ -219,9 +271,41 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
         settingsButtonReference={popup.settingsTriggerReference}
       />
 
+      {isPeerScreen(screen) ? (
+        <div className="shrink-0 px-4 pt-3">
+          <SegmentedControl
+            aria-label={translate(popup.locale, "screenSwitcher")}
+            // The page background is already muted, so the screen switch uses a deeper track.
+            className="flex w-full bg-zinc-200 dark:bg-zinc-800"
+            onValueChange={selectSegmentedOption(PEER_SCREENS, (peer) => {
+              if (peer === "rates") {
+                setRateSelection("ALL");
+              }
+              // Peer screens swap in place, without the nested-screen slide.
+              void navigate({ to: PEER_SCREEN_PATHS[peer] });
+            })}
+            size="lg"
+            value={screen}
+          >
+            {PEER_SCREENS.map((peer) => (
+              <SegmentedControlItem
+                key={peer}
+                ref={peer === screen ? screenSwitcherReference : undefined}
+                value={peer}
+              >
+                {translate(popup.locale, PEER_SCREEN_LABEL_KEYS[peer])}
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+        </div>
+      ) : null}
+
       {/* Only the body scrolls, so the header stays in place on long screens. */}
       <Stack
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4"
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto overscroll-contain p-4",
+          isPeerScreen(screen) && "pt-3",
+        )}
         data-slot="popup-route-body"
         gap={4}
       >
@@ -253,7 +337,7 @@ interface PopupHeaderProps {
   readonly backButtonReference: RefObject<HTMLButtonElement | null>;
   readonly locale: UiLocale;
   readonly onBack: () => void;
-  readonly onOpenSettings: () => void;
+  readonly onOpenSettings: (fromScreen: PopupPeerScreen) => void;
   readonly screen: PopupScreen;
   readonly settingsButtonReference: RefObject<HTMLButtonElement | null>;
 }
@@ -269,14 +353,14 @@ function PopupHeader({
 }: PopupHeaderProps) {
   return (
     <header className="flex shrink-0 items-center justify-between gap-4 border-b p-4">
-      {screen === "converter" ? (
+      {isPeerScreen(screen) ? (
         <>
           <Brand title={translate(locale, "appName")} />
           <div className="flex items-center gap-2">
             <HoverTooltip content={translate(locale, "openSettings")}>
               <IconButton
                 label={translate(locale, "openSettings")}
-                onClick={onOpenSettings}
+                onClick={() => onOpenSettings(screen)}
                 ref={settingsButtonReference}
                 size="icon"
                 type="button"
@@ -317,10 +401,10 @@ const SCREEN_TITLE_KEYS = {
   licenses: "licensesHeading",
   settings: "settingsHeading",
   "symbol-settings": "ambiguousHeading",
-} as const satisfies Record<Exclude<PopupScreen, "converter">, TranslationKey>;
+} as const satisfies Record<Exclude<PopupScreen, PopupPeerScreen>, TranslationKey>;
 
 /** Maps nested screens to their visible header titles. */
-function getScreenTitleKey(screen: Exclude<PopupScreen, "converter">): TranslationKey {
+function getScreenTitleKey(screen: Exclude<PopupScreen, PopupPeerScreen>): TranslationKey {
   return SCREEN_TITLE_KEYS[screen];
 }
 
@@ -331,6 +415,8 @@ const PARENT_ROUTES = {
   currencies: "/settings",
   "display-settings": "/settings",
   licenses: "/settings/about",
+  rates: "/",
+  // Settings returns to whichever peer screen opened it; see handleBack.
   settings: "/",
   "symbol-settings": "/settings",
 } as const satisfies Record<PopupScreen, "/" | "/settings" | "/settings/about">;
@@ -356,6 +442,7 @@ function findReturnFocusTrigger(
   > = {
     about: { licenses: triggers.licensesTriggerReference },
     converter: { settings: triggers.settingsTriggerReference },
+    rates: { settings: triggers.settingsTriggerReference },
     settings: {
       about: triggers.aboutTriggerReference,
       currencies: triggers.currenciesTriggerReference,
@@ -366,6 +453,11 @@ function findReturnFocusTrigger(
   return enteredFromScreen === null
     ? undefined
     : childTriggers[screen]?.[enteredFromScreen];
+}
+
+/** Distinguishes the side-by-side top screens from nested settings screens. */
+function isPeerScreen(screen: PopupScreen | null): screen is PopupPeerScreen {
+  return screen === "converter" || screen === "rates";
 }
 
 /** Extends the active theme behind the popup to prevent white browser overscroll gaps. */

@@ -175,6 +175,82 @@ describe("popup layout", () => {
       .toEqual(expected);
   });
 
+  it("lines up target sparklines after the widest name and pins amounts to the right", async () => {
+    await openPopupScreen();
+    expectTargetRowsAligned(3);
+
+    await setViewport({ height: 600, width: 320 });
+    await userEvent.click(page.getByRole("button", { name: "換算後を編集" }));
+    await userEvent.click(page.getByRole("combobox", { name: "換算通貨を追加" }));
+    await userEvent.fill(page.getByRole("combobox", { name: "通貨を検索" }), "BAM");
+    await userEvent.click(page.getByRole("option", { name: /^BAM\b/u }));
+    await userEvent.click(page.getByRole("button", { name: "換算後の編集を終了" }));
+    await expect.poll(() => queryAll('[data-slot="sparkline"]').length).toBe(4);
+    const popup = requireElement('[data-slot="popup-root"]');
+    expect(popup.scrollWidth > popup.clientWidth).toBe(false);
+    expectTargetRowsAligned(4);
+    await saveReviewScreenshot("popup-narrow-long-target-name");
+  });
+
+  it("keeps the rate chart, its axis tags, and the legend inside the card", async () => {
+    for (const width of [420, 320]) {
+      // Each width mounts a fresh popup, so the checks must run in order.
+      /* eslint-disable no-await-in-loop */
+      await setViewport({ height: 600, width });
+      await openPopupScreen();
+      await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+      await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(3);
+      /* eslint-enable no-await-in-loop */
+      expectRateCardContained();
+    }
+    await saveReviewScreenshot("popup-rates-narrow");
+
+    await userEvent.click(page.getByRole("radio", { name: "GBP", exact: true }));
+    await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(1);
+    expectRateCardContained();
+  });
+
+  it("opens a target's chart from its sparkline and moves the cursor by pointer and key", async () => {
+    await openPopupScreen();
+    await userEvent.click(page.getByRole("button", { name: "EUR のレートを開く" }));
+    const chart = page.getByRole("slider", {
+      name: "USD に対する EUR のチャート（過去1か月）",
+    });
+    await expect.element(chart).toBeVisible();
+    const ratesToggle = page.getByRole("radio", { name: "レート", exact: true });
+    await expect.element(ratesToggle).toHaveAttribute("aria-checked", "true");
+    await expect.element(ratesToggle).toHaveFocus();
+    await expect
+      .element(page.getByRole("radio", { name: "EUR", exact: true }))
+      .toHaveAttribute("aria-checked", "true");
+
+    const plot = chart.element();
+    const bounds = plot.getBoundingClientRect();
+    await userEvent.hover(plot, { position: { x: bounds.width * 0.25, y: 40 } });
+    await expect.poll(() => queryAll('[data-slot="rate-chart-dot"]').length).toBe(1);
+    const tooltip = requireElement('[data-slot="rate-chart-tooltip"]');
+    expect(tooltip.getBoundingClientRect().left).toBeGreaterThan(
+      bounds.left + bounds.width * 0.25,
+    );
+    await saveReviewScreenshot("popup-rates-cursor");
+
+    await userEvent.unhover(plot);
+    await expect.poll(() => queryAll('[data-slot="rate-chart-tooltip"]').length).toBe(0);
+    plot.focus();
+    const lastIndex = plot.getAttribute("aria-valuemax");
+    await expect.element(chart).toHaveAttribute("aria-valuenow", lastIndex);
+    await userEvent.keyboard("{ArrowLeft}");
+    await expect
+      .element(chart)
+      .toHaveAttribute("aria-valuenow", String(Number(lastIndex) - 1));
+    expect(queryAll('[data-slot="rate-chart-tooltip"]')).toHaveLength(1);
+
+    await userEvent.click(page.getByRole("radio", { name: "換算", exact: true }));
+    await expect
+      .element(page.getByRole("radio", { name: "換算", exact: true }))
+      .toHaveFocus();
+  });
+
   it("scales with enlarged text and stays usable on a narrow screen", async () => {
     await setViewport({ height: 700, width: 520 });
     await openPopupScreen();
@@ -218,6 +294,72 @@ async function openSettingsRoute(routeName: string): Promise<void> {
   await userEvent.click(page.getByRole("button", { name: "設定を開く" }));
   await userEvent.click(page.getByRole("button", { name: routeName }));
   await expect.element(page.getByRole("heading", { name: routeName })).toBeVisible();
+}
+
+/** Verifies sparklines share one column 12 px after the names and amounts end together. */
+function expectTargetRowsAligned(rowCount: number): void {
+  const list = requireElement('[data-slot="list"]');
+  const listBounds = list.getBoundingClientRect();
+  const rows = queryAll('[data-slot="currency-value-content"]', list);
+  expect(rows).toHaveLength(rowCount);
+  const [firstRow] = rows;
+  if (firstRow === undefined) {
+    throw new Error("Target rows were not rendered");
+  }
+  const sparklineLeft = requireElement(
+    '[data-slot="sparkline"]',
+    firstRow,
+  ).getBoundingClientRect().left;
+  for (const row of rows) {
+    const identity = requireElement(
+      '[data-slot="currency-identity"]',
+      row,
+    ).getBoundingClientRect();
+    const sparkline = requireElement(
+      '[data-slot="sparkline"]',
+      row,
+    ).getBoundingClientRect();
+    const amount = requireElement(
+      '[data-slot="currency-amount"]',
+      row,
+    ).getBoundingClientRect();
+    expectEdge(identity.left - listBounds.left, rem(0.75));
+    expectEdge(sparkline.left, sparklineLeft);
+    expectEdge(sparkline.left - identity.right, rem(0.75));
+    expectEdge(sparkline.width, rem(5));
+    expectEdge(listBounds.right - amount.right, rem(0.75));
+    expect(amount.width).toBeGreaterThanOrEqual(rem(4.5) - 0.5);
+  }
+}
+
+/** Verifies the rate card's chart parts stay inside it and its axis tags never overlap. */
+function expectRateCardContained(): void {
+  const popup = requireElement('[data-slot="popup-root"]');
+  const card = requireElement('[data-slot="rate-card"]').getBoundingClientRect();
+  const plot = requireElement('[data-slot="rate-chart-plot"]').getBoundingClientRect();
+  const axis = requireElement('[data-slot="rate-chart-y-axis"]').getBoundingClientRect();
+  const legend = document
+    .querySelector('[data-slot="rate-legend"]')
+    ?.getBoundingClientRect();
+  const tags = queryAll('[data-slot="rate-chart-tag"]')
+    .map((tag) => tag.getBoundingClientRect())
+    .toSorted((first, second) => first.top - second.top);
+
+  expect(popup.scrollWidth > popup.clientWidth).toBe(false);
+  expect(axis.right).toBeLessThanOrEqual(card.right);
+  expect(plot.left).toBeGreaterThanOrEqual(card.left);
+  if (legend !== undefined) {
+    expect(legend.right).toBeLessThanOrEqual(card.right);
+  }
+  tags.forEach((tag, index) => {
+    expect(tag.top).toBeGreaterThanOrEqual(plot.top - 0.5);
+    expect(tag.bottom).toBeLessThanOrEqual(plot.bottom + 0.5);
+    expect(tag.right).toBeLessThanOrEqual(card.right);
+    const previous = tags[index - 1];
+    if (previous !== undefined) {
+      expect(tag.top).toBeGreaterThanOrEqual(previous.bottom);
+    }
+  });
 }
 
 /** Verifies a route fills the popup and applies the shared inset on all four sides. */

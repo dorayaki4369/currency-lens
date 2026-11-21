@@ -6,12 +6,14 @@ import {
   exchangeRateCacheSchema,
   rateWarningSchema,
 } from "@/lib/rates";
+import { rateHistoryQuerySchema, rateHistorySchema } from "@/lib/rate-history";
 
 export const messageTypes = {
   GET_CONFIG: "GET_CONFIG",
   SET_CONFIG: "SET_CONFIG",
   CONVERT_CURRENCIES: "CONVERT_CURRENCIES",
   GET_RATES: "GET_RATES",
+  GET_RATE_HISTORY: "GET_RATE_HISTORY",
 } as const;
 
 const failureResponseSchema = z
@@ -108,11 +110,24 @@ export const getRatesResponseSchema = z.union([
   failureResponseSchema,
 ]);
 
+export const getRateHistoryRequestSchema = z
+  .object({
+    type: z.literal(messageTypes.GET_RATE_HISTORY),
+    payload: rateHistoryQuerySchema,
+  })
+  .strict();
+
+export const getRateHistoryResponseSchema = z.union([
+  z.object({ success: z.literal(true), data: rateHistorySchema }).strict(),
+  failureResponseSchema,
+]);
+
 export const messageSchema = z.discriminatedUnion("type", [
   getConfigRequestSchema,
   setConfigRequestSchema,
   convertCurrenciesRequestSchema,
   getRatesRequestSchema,
+  getRateHistoryRequestSchema,
 ]);
 
 export type GetConfigRequest = z.infer<typeof getConfigRequestSchema>;
@@ -123,17 +138,21 @@ export type ConvertCurrenciesRequest = z.infer<typeof convertCurrenciesRequestSc
 export type ConvertCurrenciesResponse = z.infer<typeof convertCurrenciesResponseSchema>;
 export type GetRatesRequest = z.infer<typeof getRatesRequestSchema>;
 export type GetRatesResponse = z.infer<typeof getRatesResponseSchema>;
+export type GetRateHistoryRequest = z.infer<typeof getRateHistoryRequestSchema>;
+export type GetRateHistoryResponse = z.infer<typeof getRateHistoryResponseSchema>;
 export type Message = z.infer<typeof messageSchema>;
 export type MessageResponse =
   | GetConfigResponse
   | SetConfigResponse
   | ConvertCurrenciesResponse
-  | GetRatesResponse;
+  | GetRatesResponse
+  | GetRateHistoryResponse;
 
 const responseSchemaByMessageType: Record<Message["type"], z.ZodType<MessageResponse>> = {
   [messageTypes.CONVERT_CURRENCIES]: convertCurrenciesResponseSchema,
   [messageTypes.GET_CONFIG]: getConfigResponseSchema,
   [messageTypes.GET_RATES]: getRatesResponseSchema,
+  [messageTypes.GET_RATE_HISTORY]: getRateHistoryResponseSchema,
   [messageTypes.SET_CONFIG]: setConfigResponseSchema,
 };
 
@@ -144,6 +163,9 @@ export function sendMessage(
   message: ConvertCurrenciesRequest,
 ): Promise<ConvertCurrenciesResponse>;
 export function sendMessage(message: GetRatesRequest): Promise<GetRatesResponse>;
+export function sendMessage(
+  message: GetRateHistoryRequest,
+): Promise<GetRateHistoryResponse>;
 export async function sendMessage(message: Message): Promise<MessageResponse> {
   const validatedMessage = messageSchema.parse(message);
   const response: unknown = await browser.runtime.sendMessage(validatedMessage);

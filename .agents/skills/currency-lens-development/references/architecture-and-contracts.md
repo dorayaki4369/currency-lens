@@ -19,10 +19,13 @@ Open Exchange Rates
 R2 のアーカイブ
   -> Cron Trigger が history/hourly.tsv と history/daily/YYYY-MM.tsv へ集約（上限つきの自己修復）
   -> GET /v1/history（USD 基準、最大6通貨）
+  -> Background の GET_RATE_HISTORY（拡張機能側の Zod 検証、5分間のメモリキャッシュ）
+  -> Popup の履歴ストア（解像度と通貨の組み合わせごと、Popup を閉じるまで保持）
+  -> lib/ の純粋関数でクロスレート、期間、変化率、グラフの座標を計算
 ```
 
 WXT は開発時と配布時のどちらも `API_ENDPOINT` を API のベース URL とし、HTTPS または loopback の HTTP だけを許可します。
-Background Script は検証済みのベース URL に `/v1/latest` を付けてレートを取得します。
+Background Script は検証済みのベース URL に `/v1/latest` と `/v1/history` を付けてレートと履歴を取得します。
 配布用ビルドは GitHub Actions の Repository variable から同じ環境変数名へ値を渡します。
 `pnpm dev` は `API_ENDPOINT` が未設定ならローカル Worker の `http://localhost:8787` を使いますが、配布用ビルドでは必須のままです。
 
@@ -33,6 +36,7 @@ Background Script は検証済みのベース URL に `/v1/latest` を付けて�
 - 拡張機能 config／rate cache: `apps/browser-extension/lib/storage.ts`
 - runtime message: `apps/browser-extension/lib/messages.ts`
 - 公開 API response: Worker と拡張機能が共有する Zod schema。重複する場合は変更時に両側を同時にテストします。
+  `/v1/history` の拡張機能側の schema は `apps/browser-extension/lib/rate-history.ts` にあります。
 
 ## UIの状態管理
 
@@ -44,6 +48,10 @@ Popup と Content Script は別の実行コンテキストなので、Zustand �
 現行契約は項目単位のマージやリビジョンによる競合検出を保証しません。
 
 Popup の換算元とレート表示状態は内部ルートの切り替えを越えて保持するため、`entrypoints/popup/stores/conversion.tsx` の Popup 単位ストアに置きます。
+換算元はレート画面の基準通貨を兼ねます。
+レート履歴、グラフの期間、表示する通貨は、換算画面とレート画面で共有するため、`entrypoints/popup/stores/rate-history.tsx` の Popup 単位ストアに置きます。
+上昇と下降の色は `lib/trend-colors.ts` の `getTrendColorScheme` が UI の言語から決めます。
+利用者の設定で変える場合は、この関数の入力を差し替えます。
 Popup の各画面実装は対応する `entrypoints/popup/routes` のファイルが所有し、共有する Provider、状態、画面枠だけを `PopupApplication` に置きます。
 WXT とブラウザ統合テストは同じ TanStack Router 設定を使い、画面ルートを自動コード分割します。Content Script は独立した entrypoint であり、このルート分割には含めません。
 Content Script の換算操作は単一の `ContentApplication` が所有し、そのマウント期間を越えて保持しないため、`entrypoints/content/hooks/useConversionSession.ts` のローカル状態に置きます。

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as IndexRouteImport } from "./routes/index";
+import { Route as RatesRouteImport } from "./routes/rates";
 import { Route as SettingsRouteRouteImport } from "./routes/settings/route";
 import { Route as SettingsIndexRouteImport } from "./routes/settings/index";
 import { Route as SettingsCurrenciesRouteImport } from "./routes/settings/currencies";
@@ -21,6 +22,11 @@ import { Route as SettingsAboutLicensesRouteImport } from "./routes/settings/abo
 const IndexRoute = IndexRouteImport.update({
   id: "/",
   path: "/",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const RatesRoute = RatesRouteImport.update({
+  id: "/rates",
+  path: "/rates",
   getParentRoute: () => rootRouteImport,
 } as any);
 const SettingsRouteRoute = SettingsRouteRouteImport.update({
@@ -62,6 +68,7 @@ const SettingsAboutLicensesRoute = SettingsAboutLicensesRouteImport.update({
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
   "/settings": typeof SettingsRouteRouteWithChildren;
+  "/rates": typeof RatesRoute;
   "/settings/currencies": typeof SettingsCurrenciesRoute;
   "/settings/display": typeof SettingsDisplayRoute;
   "/settings/symbols": typeof SettingsSymbolsRoute;
@@ -71,6 +78,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
+  "/rates": typeof RatesRoute;
   "/settings/currencies": typeof SettingsCurrenciesRoute;
   "/settings/display": typeof SettingsDisplayRoute;
   "/settings/symbols": typeof SettingsSymbolsRoute;
@@ -82,6 +90,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
   "/settings": typeof SettingsRouteRouteWithChildren;
+  "/rates": typeof RatesRoute;
   "/settings/currencies": typeof SettingsCurrenciesRoute;
   "/settings/display": typeof SettingsDisplayRoute;
   "/settings/symbols": typeof SettingsSymbolsRoute;
@@ -94,6 +103,7 @@ export interface FileRouteTypes {
   fullPaths:
     | "/"
     | "/settings"
+    | "/rates"
     | "/settings/currencies"
     | "/settings/display"
     | "/settings/symbols"
@@ -103,6 +113,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
+    | "/rates"
     | "/settings/currencies"
     | "/settings/display"
     | "/settings/symbols"
@@ -113,6 +124,7 @@ export interface FileRouteTypes {
     | "__root__"
     | "/"
     | "/settings"
+    | "/rates"
     | "/settings/currencies"
     | "/settings/display"
     | "/settings/symbols"
@@ -124,6 +136,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
   SettingsRouteRoute: typeof SettingsRouteRouteWithChildren;
+  RatesRoute: typeof RatesRoute;
 }
 
 declare module "@tanstack/react-router" {
@@ -133,6 +146,13 @@ declare module "@tanstack/react-router" {
       path: "/";
       fullPath: "/";
       preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/rates": {
+      id: "/rates";
+      path: "/rates";
+      fullPath: "/rates";
+      preLoaderRoute: typeof RatesRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/settings": {
@@ -212,6 +232,7 @@ const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRouteRoute: SettingsRouteRouteWithChildren,
+  RatesRoute: RatesRoute,
 };
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

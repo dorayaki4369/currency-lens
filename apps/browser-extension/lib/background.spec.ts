@@ -146,6 +146,70 @@ describe("background lifecycle", () => {
     });
   });
 
+  it("fetches validated rate history and reuses it for the same symbols", async () => {
+    const history = {
+      base: "USD",
+      resolution: "daily",
+      start: "2026-01-01T00:00:00.000Z",
+      rates: { JPY: [150, 151] },
+    };
+    const fetchImplementation = vi.fn((input: RequestInfo | URL) =>
+      Promise.resolve(
+        readRequestUrl(input).includes("/v1/history")
+          ? Response.json(history)
+          : createRateResponse(),
+      ),
+    );
+    installBrowserHarness(fetchImplementation);
+    const { handleMessage } = await import("@/entrypoints/background");
+    const request = {
+      type: "GET_RATE_HISTORY",
+      payload: { resolution: "daily", symbols: ["JPY", "EUR"] },
+    };
+
+    await expect(handleMessage(request)).resolves.toEqual({ success: true, data: history });
+    await expect(
+      handleMessage({
+        ...request,
+        payload: { resolution: "daily", symbols: ["EUR", "JPY"] },
+      }),
+    ).resolves.toEqual({ success: true, data: history });
+    const historyCalls = fetchImplementation.mock.calls.filter(([input]) =>
+      readRequestUrl(input).includes("/v1/history"),
+    );
+    expect(historyCalls).toHaveLength(1);
+    expect(readRequestUrl(historyCalls[0]![0])).toBe(
+      "https://cl.dryk.net/v1/history?resolution=daily&symbols=JPY%2CEUR",
+    );
+  });
+
+  it("reports a failed rate history request without caching it", async () => {
+    const fetchImplementation = vi.fn((input: RequestInfo | URL) =>
+      Promise.resolve(
+        readRequestUrl(input).includes("/v1/history")
+          ? new Response(null, { status: 503 })
+          : createRateResponse(),
+      ),
+    );
+    installBrowserHarness(fetchImplementation);
+    const { handleMessage } = await import("@/entrypoints/background");
+    const request = {
+      type: "GET_RATE_HISTORY",
+      payload: { resolution: "hourly", symbols: ["JPY"] },
+    };
+
+    await expect(handleMessage(request)).resolves.toEqual({
+      success: false,
+      error: "Rate history API returned HTTP 503",
+    });
+    await handleMessage(request);
+    expect(
+      fetchImplementation.mock.calls.filter(([input]) =>
+        readRequestUrl(input).includes("/v1/history"),
+      ),
+    ).toHaveLength(2);
+  });
+
   it("waits for an active stale-rate refresh and returns the replacement snapshot", async () => {
     const response = Promise.withResolvers<Response>();
     const fetchRates = vi.fn(() => response.promise);
@@ -278,6 +342,14 @@ describe("background lifecycle", () => {
     );
   });
 });
+
+/** Reads the URL of a fetch input without relying on default stringification. */
+function readRequestUrl(input: RequestInfo | URL): string {
+  if (input instanceof URL) {
+    return input.href;
+  }
+  return typeof input === "string" ? input : input.url;
+}
 
 /** Installs a minimal WebExtension environment and exposes its observable boundaries. */
 function installBrowserHarness(

@@ -486,11 +486,12 @@ function expectAmountColumnsAligned(): void {
       sourceRow.getBoundingClientRect().height - targetRow.getBoundingClientRect().height,
     ),
   ).toBeLessThanOrEqual(1);
-  for (const amount of [sourceAmount, targetAmount]) {
-    const ratio = readCurrencyValueColumnRatio(
-      requireClosest(amount, '[data-slot="currency-value-row"]'),
-    );
-    expect(Math.abs(ratio - 1.5)).toBeLessThanOrEqual(0.02);
+  // Rows with a trend column size the name to the widest name instead of a fixed ratio.
+  const ratioRows = [sourceAmount, targetAmount]
+    .map((amount) => requireClosest(amount, '[data-slot="currency-value-row"]'))
+    .filter((row) => row.querySelector('[data-slot="currency-trend"]') === null);
+  for (const row of ratioRows) {
+    expect(Math.abs(readCurrencyValueColumnRatio(row) - 1.5)).toBeLessThanOrEqual(0.02);
   }
 }
 

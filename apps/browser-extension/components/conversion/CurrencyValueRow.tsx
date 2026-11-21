@@ -10,6 +10,8 @@ interface CurrencyValueRowProps extends Omit<ComponentProps<"div">, "children"> 
   readonly leadingAction?: ReactNode | undefined;
   readonly mode: "display" | "edit";
   readonly trailingAction?: ReactNode | undefined;
+  /** Optional column between the identity and the amount, such as a sparkline. */
+  readonly trend?: ReactNode | undefined;
 }
 
 /** Renders editable and display currency values with optional actions inside the row. */
@@ -21,8 +23,10 @@ export function CurrencyValueRow({
   leadingAction,
   mode,
   trailingAction,
+  trend,
   ...props
 }: CurrencyValueRowProps) {
+  const hasTrend = hasRenderableContent(trend);
   const hasLeadingAction = hasRenderableContent(leadingAction);
   const hasTrailingAction = hasRenderableContent(trailingAction);
   const hasActions = hasLeadingAction || hasTrailingAction;
@@ -53,7 +57,10 @@ export function CurrencyValueRow({
       ) : null}
       <div
         className={cn(
-          "grid min-w-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-1",
+          "grid min-w-0 flex-1",
+          hasTrend
+            ? "grid-cols-[minmax(0,max-content)_auto_minmax(4.5rem,1fr)] gap-3"
+            : "grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-1",
           mode === "edit" ? "items-start" : "items-center",
         )}
         data-slot="currency-value-content"
@@ -61,6 +68,11 @@ export function CurrencyValueRow({
         <div className="min-w-0" data-slot="currency-identity">
           {identity}
         </div>
+        {hasTrend ? (
+          <div className="flex" data-slot="currency-trend">
+            {trend}
+          </div>
+        ) : null}
         <Stack
           className="w-full min-w-0 text-right"
           data-slot="currency-amount"

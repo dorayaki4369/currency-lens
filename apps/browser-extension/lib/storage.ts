@@ -8,9 +8,13 @@ import {
 } from "@/lib/currency";
 import type { CurrencyCode } from "@cl/currency";
 import { exchangeRateCacheSchema, type ExchangeRateCache } from "@/lib/rates";
+import { chartColorSettingsSchema, type ChartColorSettings } from "@/lib/trend-colors";
 
 const CONFIG_KEY = "config";
 const CACHE_KEY = "exchangeRateCache";
+// Chart colors live beside `config`, not in it: older versions parse `config` strictly and
+// would reset every setting if it gained a field.
+export const CHART_COLORS_KEY = "chartColors";
 
 const storedSymbolOverridesSchema = z.record(z.string(), currencyCodeSchema);
 
@@ -58,6 +62,24 @@ export async function getConfig(): Promise<Config> {
 export async function setConfig(config: Readonly<Config>): Promise<void> {
   const validated = configSchema.parse(config);
   await browser.storage.sync.set({ [CONFIG_KEY]: validated });
+}
+
+/** Reads the chart color choices, treating missing or corrupt storage as no choice. */
+export async function getChartColorSettings(): Promise<ChartColorSettings> {
+  const stored = await browser.storage.sync.get(CHART_COLORS_KEY);
+  return parseStoredChartColorSettings(stored[CHART_COLORS_KEY]);
+}
+
+/** Validates and persists the chart color choices. */
+export async function setChartColorSettings(settings: ChartColorSettings): Promise<void> {
+  const validated = chartColorSettingsSchema.parse(settings);
+  await browser.storage.sync.set({ [CHART_COLORS_KEY]: validated });
+}
+
+/** Parses stored chart colors, dropping fields a newer version may have added. */
+export function parseStoredChartColorSettings(storedValue: unknown): ChartColorSettings {
+  const parsed = chartColorSettingsSchema.safeParse(storedValue);
+  return parsed.success ? parsed.data : {};
 }
 
 /** Reads the last valid rate cache without deleting it merely because it is stale. */

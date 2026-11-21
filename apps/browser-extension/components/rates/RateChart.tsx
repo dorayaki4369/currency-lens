@@ -221,6 +221,7 @@ function createChartModel({
           : [
               {
                 color: item.color.tag,
+                textColor: item.color.tagText,
                 // Percent tags keep two decimals; rate tags match the tick precision.
                 text: formatValue(latest, mode === "percent" ? undefined : axisDigits),
                 value: latest,
@@ -452,10 +453,10 @@ function AxisLabels({ axis }: { readonly axis: AxisLayout }) {
       ))}
       {axis.tags.map((tag) => (
         <span
-          className="absolute left-0.5 flex h-4.5 items-center rounded-[0.1875rem] px-1 font-semibold whitespace-nowrap text-white"
+          className="absolute left-0.5 flex h-4.5 items-center rounded-[0.1875rem] px-1 font-semibold whitespace-nowrap"
           data-slot="rate-chart-tag"
           key={`${tag.text}-${String(tag.top)}`}
-          style={{ backgroundColor: tag.color, top: tag.top }}
+          style={{ backgroundColor: tag.color, color: tag.textColor, top: tag.top }}
         >
           {tag.text}
         </span>

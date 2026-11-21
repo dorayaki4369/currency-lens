@@ -147,9 +147,9 @@ describe("layoutAxis", () => {
     const layout = layoutAxis(
       scale,
       [
-        { color: "a", text: "A", value: 0 },
-        { color: "b", text: "B", value: 20 },
-        { color: "c", text: "C", value: 60 },
+        { color: "a", text: "A", textColor: "#fff", value: 0 },
+        { color: "b", text: "B", textColor: "#fff", value: 20 },
+        { color: "c", text: "C", textColor: "#fff", value: 60 },
       ],
       format,
     );
@@ -163,7 +163,11 @@ describe("layoutAxis", () => {
   });
 
   it("keeps the top tag at the top edge", () => {
-    const layout = layoutAxis(scale, [{ color: "a", text: "A", value: 95 }], format);
+    const layout = layoutAxis(
+      scale,
+      [{ color: "a", text: "A", textColor: "#fff", value: 95 }],
+      format,
+    );
     expect(layout.tags[0]?.top).toBe(0);
   });
 });

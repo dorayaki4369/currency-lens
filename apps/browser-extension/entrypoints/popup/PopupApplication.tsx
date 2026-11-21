@@ -29,8 +29,12 @@ import {
   usePopupRateHistory,
 } from "@/entrypoints/popup/stores/rate-history";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { PopupChartColorsProvider } from "@/entrypoints/popup/stores/chart-colors";
+import type { ChartColorSettings } from "@/lib/trend-colors";
 
 export interface PopupPreviewData {
+  /** Defaults to no choice, so the locale's colors apply. */
+  readonly chartColors?: ChartColorSettings | undefined;
   readonly config: Config;
   /** Defaults to empty history, so previews never request it. */
   readonly history?: RateHistoryPreview | undefined;
@@ -93,7 +97,11 @@ export function PopupApplication({ preview }: PopupApplicationProps) {
             preview === undefined ? undefined : (preview.history ?? EMPTY_HISTORY_PREVIEW)
           }
         >
-          <PopupApplicationContent locale={preview?.locale ?? getUiLocale()} />
+          <PopupChartColorsProvider
+            preview={preview === undefined ? undefined : (preview.chartColors ?? {})}
+          >
+            <PopupApplicationContent locale={preview?.locale ?? getUiLocale()} />
+          </PopupChartColorsProvider>
         </PopupRateHistoryProvider>
       </PopupConversionProvider>
     </ConfigStoreProvider>

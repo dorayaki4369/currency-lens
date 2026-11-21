@@ -10,7 +10,6 @@ import { translate, type UiLocale } from "@/lib/i18n";
 import { convertCurrencyBatch } from "@/lib/rates";
 import { getRateHistorySymbols } from "@/lib/rate-history";
 import { getCrossRateSeries, getRateChange, slicePeriod } from "@/lib/rate-series";
-import { getTrendColor, getTrendColorScheme } from "@/lib/trend-colors";
 import { Sparkline } from "@/components/rates/Sparkline";
 import {
   ConversionEditor,
@@ -26,6 +25,7 @@ import {
   type PopupRatesData,
   usePopupConversion,
 } from "@/entrypoints/popup/stores/conversion";
+import { useTrendPalette } from "@/entrypoints/popup/stores/chart-colors";
 import {
   usePopupRateHistory,
   useRateHistory,
@@ -191,6 +191,7 @@ function TargetSparkline({
   sourceCurrency,
 }: TargetTrendProps & { readonly sourceCurrency: CurrencyCode }) {
   const popup = usePopupApplicationContext();
+  const palette = useTrendPalette(popup.locale);
   const setRateSelection = usePopupRateHistory((state) => state.setSelection);
   const navigate = useNavigate();
   const symbols = useMemo(
@@ -210,7 +211,7 @@ function TargetSparkline({
 
   return (
     <Sparkline
-      color={getTrendColor(direction, getTrendColorScheme(popup.locale)).line}
+      color={palette[direction].line}
       label={translate(popup.locale, "openRates", { currency: currencyCode })}
       onOpen={() => {
         setRateSelection(currencyCode);

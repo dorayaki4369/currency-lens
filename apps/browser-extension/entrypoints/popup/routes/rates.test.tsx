@@ -65,6 +65,18 @@ describe("popup rates route", () => {
     expect(screen.getByRole("link", { name: "Open Exchange Rates" })).toBeDefined();
   });
 
+  it("draws a rise in the user's color with readable tag text", async () => {
+    await openRates({ ...PREVIEW, chartColors: { up: "#e3b63f" } });
+    fireEvent.click(screen.getByRole("button", { name: "JPY" }));
+
+    const tag = document.querySelector<HTMLElement>('[data-slot="rate-chart-tag"]');
+    expect(tag?.style.backgroundColor).toBe("#e3b63f");
+    expect(tag?.style.color).toBe("#000000");
+    expect(
+      document.querySelector<SVGElement>('[data-slot="trend-arrow"]')?.style.color,
+    ).toBe("#e3b63f");
+  });
+
   it("marks a target without history in the period as having no data", async () => {
     await openRates();
     fireEvent.click(screen.getByRole("button", { name: "1D" }));
@@ -161,6 +173,9 @@ describe("popup rates route", () => {
       }
       if (type === "GET_RATES") {
         return Promise.resolve({ data: POPUP_PREVIEW.rates, success: true });
+      }
+      if (type === "GET_CHART_COLORS") {
+        return Promise.resolve({ data: {}, success: true });
       }
       historyAttempts += 1;
       // The converter's sparklines and the rates screen each try once before the retry.

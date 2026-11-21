@@ -2,12 +2,15 @@ import {
   convertCurrenciesRequestSchema,
   convertCurrenciesResponseSchema,
   getConfigResponseSchema,
+  getChartColorsResponseSchema,
   getRateHistoryRequestSchema,
   getRateHistoryResponseSchema,
   getRatesResponseSchema,
   messageSchema,
   parseMessageResponse,
   setConfigRequestSchema,
+  setChartColorsRequestSchema,
+  setChartColorsResponseSchema,
   setConfigResponseSchema,
   type ConvertCurrenciesRequest,
   type GetRateHistoryRequest,
@@ -23,8 +26,10 @@ import {
 import { createRateHistoryCache, fetchRateHistory } from "@/lib/rate-history";
 import { RATE_REFRESH_ALARM_NAME, ensureRateRefreshAlarm } from "@/lib/rate-refresh";
 import {
+  getChartColorSettings,
   getConfig,
   getExchangeRateCache,
+  setChartColorSettings,
   setConfig,
   setExchangeRateCache,
 } from "@/lib/storage";
@@ -97,10 +102,13 @@ type MessageHandlerByType = Record<
 const messageHandlerByType = {
   CONVERT_CURRENCIES: (message) =>
     handleConvertCurrencies(convertCurrenciesRequestSchema.parse(message)),
+  GET_CHART_COLORS: () => handleGetChartColors(),
   GET_CONFIG: () => handleGetConfig(),
   GET_RATES: () => handleGetRates(),
   GET_RATE_HISTORY: (message) =>
     handleGetRateHistory(getRateHistoryRequestSchema.parse(message)),
+  SET_CHART_COLORS: (message) =>
+    handleSetChartColors(setChartColorsRequestSchema.parse(message).payload),
   SET_CONFIG: (message) => handleSetConfig(setConfigRequestSchema.parse(message).payload),
 } satisfies MessageHandlerByType;
 
@@ -121,6 +129,20 @@ async function handleSetConfig(
 ): Promise<MessageResponse> {
   await setConfig(config);
   return setConfigResponseSchema.parse({ success: true, data: config });
+}
+
+/** Returns the chart color choices synchronized across devices. */
+async function handleGetChartColors(): Promise<MessageResponse> {
+  const settings = await getChartColorSettings();
+  return getChartColorsResponseSchema.parse({ success: true, data: settings });
+}
+
+/** Persists the chart color choices and echoes the stored value. */
+async function handleSetChartColors(
+  settings: Parameters<typeof setChartColorSettings>[0],
+): Promise<MessageResponse> {
+  await setChartColorSettings(settings);
+  return setChartColorsResponseSchema.parse({ success: true, data: settings });
 }
 
 /** Converts the requested batch against the retained last-good rates. */

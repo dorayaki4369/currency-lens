@@ -146,6 +146,24 @@ describe("background lifecycle", () => {
     });
   });
 
+  it("reads and stores chart colors under their own synchronized key", async () => {
+    const fetchRates = vi.fn(() => Promise.resolve(createRateResponse()));
+    const harness = installBrowserHarness(fetchRates);
+    const { handleMessage } = await import("@/entrypoints/background");
+
+    await expect(handleMessage({ type: "GET_CHART_COLORS" })).resolves.toEqual({
+      success: true,
+      data: {},
+    });
+    await expect(
+      handleMessage({ type: "SET_CHART_COLORS", payload: { up: "#E3B63F" } }),
+    ).resolves.toEqual({ success: true, data: { up: "#e3b63f" } });
+    expect(harness.syncSet).toHaveBeenCalledWith({ chartColors: { up: "#e3b63f" } });
+    await expect(
+      handleMessage({ type: "SET_CHART_COLORS", payload: { up: "yellow" } }),
+    ).resolves.toEqual({ success: false, error: "Invalid message format" });
+  });
+
   it("fetches validated rate history and reuses it for the same symbols", async () => {
     const history = {
       base: "USD",

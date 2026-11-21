@@ -2,10 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { currencyCodeSchema } from "@/lib/currency";
 import { createExchangeRateCache } from "@/lib/rates";
 import {
+  CHART_COLORS_KEY,
   clearExchangeRateCache,
+  getChartColorSettings,
   getConfig,
   getDefaultConfig,
   getExchangeRateCache,
+  parseStoredConfig,
+  setChartColorSettings,
   setConfig,
   setExchangeRateCache,
 } from "@/lib/storage";
@@ -199,6 +203,34 @@ describe("configuration storage", () => {
     };
 
     await expect(getConfig()).resolves.toEqual(getDefaultConfig());
+  });
+});
+
+describe("chart color storage", () => {
+  it("keeps chart colors outside the strict config that older versions parse", async () => {
+    // An older version would reject this config and fall back to every default.
+    expect(
+      parseStoredConfig({ ...getDefaultConfig(), chartColors: { up: "#e3b63f" } }),
+    ).toBeNull();
+
+    await setConfig(getDefaultConfig());
+    await setChartColorSettings({ up: "#E3B63F" });
+
+    expect(syncState).toEqual({
+      [CHART_COLORS_KEY]: { up: "#e3b63f" },
+      config: getDefaultConfig(),
+    });
+    await expect(getChartColorSettings()).resolves.toEqual({ up: "#e3b63f" });
+    await expect(getConfig()).resolves.toEqual(getDefaultConfig());
+  });
+
+  it("treats missing or corrupt colors as no choice and ignores newer fields", async () => {
+    await expect(getChartColorSettings()).resolves.toEqual({});
+    syncState = { [CHART_COLORS_KEY]: { up: "yellow" } };
+    await expect(getChartColorSettings()).resolves.toEqual({});
+    syncState = { [CHART_COLORS_KEY]: { down: "#3B82F6", flat: "#000000" } };
+    await expect(getChartColorSettings()).resolves.toEqual({ down: "#3b82f6" });
+    await expect(setChartColorSettings({ up: "red" })).rejects.toThrow();
   });
 });
 

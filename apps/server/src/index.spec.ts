@@ -1,10 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OxrLatestResponse } from "@cl/oxr/schema";
-import { createApp } from "./index";
-import { createBindings, createR2Object, createRatesSnapshot } from "../test/fixtures";
+import type { HistoryResponse } from "./history";
+import { app as workerApp, createApp } from "./index";
+import {
+  createBindings,
+  createHistoryResponse,
+  createMemoryBucket,
+  createR2Object,
+  createRatesSnapshot,
+  HISTORY_NOW_MS,
+} from "../test/fixtures";
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 /** Creates replaceable Worker dependencies with observable defaults. */
@@ -15,6 +24,9 @@ function createDependencies() {
     ),
     fetchLatestRates: vi.fn(async () => createRatesSnapshot()),
     putLatestRates: vi.fn(async () => createR2Object()),
+    readHistory: vi.fn(async (): Promise<HistoryResponse> => createHistoryResponse()),
+    getResponseCache: vi.fn((): Cache | undefined => undefined),
+    now: () => HISTORY_NOW_MS,
     logError: vi.fn(),
   };
 }
@@ -231,6 +243,159 @@ describe("latest rates API", () => {
     expect(dependencies.logError).toHaveBeenCalledWith(
       "Failed to seed the latest exchange rates",
       { name: "Error", message: "R2 write unavailable" },
+    );
+  });
+});
+
+/** Creates a Cache API stand-in whose stored responses can be inspected. */
+function createCache(cached?: Response) {
+  return {
+    match: vi.fn(async () => cached),
+    put: vi.fn(async () => undefined),
+  };
+}
+
+describe("rate history API", () => {
+  it("rejects malformed queries before reading R2", async () => {
+    const dependencies = createDependencies();
+    const app = createApp(dependencies);
+
+    const response = await app.request(
+      "/v1/history?resolution=daily&symbols=jpy",
+      {},
+      createBindings(),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid history query" });
+    expect(dependencies.readHistory).not.toHaveBeenCalled();
+  });
+
+  it("serves the requested series to extension origins and stores them in the edge cache", async () => {
+    const dependencies = createDependencies();
+    const cache = createCache();
+    dependencies.getResponseCache.mockReturnValue(cache as unknown as Cache);
+    const env = createBindings();
+    const app = createApp(dependencies);
+
+    const response = await app.request(
+      "/v1/history?resolution=hourly&symbols=JPY,EUR",
+      { headers: { Origin: "moz-extension://extension-id" } },
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe(
+      "moz-extension://extension-id",
+    );
+    await expect(response.json()).resolves.toEqual(createHistoryResponse());
+    expect(dependencies.readHistory).toHaveBeenCalledWith(
+      env.DATA_BUCKET,
+      { resolution: "hourly", symbols: ["JPY", "EUR"] },
+      HISTORY_NOW_MS,
+    );
+    const [, stored] = cache.put.mock.calls.at(0) as unknown as [Request, Response];
+    expect(stored.headers.get("Cache-Control")).toBe("public, max-age=300");
+  });
+
+  it("answers from the edge cache without reading R2", async () => {
+    const dependencies = createDependencies();
+    dependencies.getResponseCache.mockReturnValue(
+      createCache(new Response(JSON.stringify({ cached: true }))) as unknown as Cache,
+    );
+    const app = createApp(dependencies);
+
+    const response = await app.request(
+      "/v1/history?resolution=daily&symbols=JPY",
+      {},
+      createBindings(),
+    );
+
+    await expect(response.json()).resolves.toEqual({ cached: true });
+    expect(dependencies.readHistory).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 and logs safe metadata when the stored history cannot be read", async () => {
+    const dependencies = createDependencies();
+    dependencies.readHistory.mockRejectedValue(new Error("Corrupt history"));
+    const app = createApp(dependencies);
+
+    const response = await app.request(
+      "/v1/history?resolution=daily&symbols=JPY",
+      {},
+      createBindings(),
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "History not available" });
+    expect(dependencies.logError).toHaveBeenCalledWith(
+      "Failed to read the exchange rate history from R2",
+      { name: "Error", message: "Corrupt history" },
+    );
+  });
+
+  it("reads R2 through the default boundaries, with and without the Workers cache", async () => {
+    const bucket = createMemoryBucket();
+    const env = createBindings({ bucket });
+    const cache = createCache();
+
+    const uncached = await workerApp.request(
+      "/v1/history?resolution=hourly&symbols=JPY",
+      {},
+      env,
+    );
+    vi.stubGlobal("caches", { default: cache });
+    const cachedRun = await workerApp.request(
+      "/v1/history?resolution=daily&symbols=JPY",
+      {},
+      env,
+    );
+
+    expect(uncached.status).toBe(200);
+    await expect(uncached.json()).resolves.toMatchObject({
+      base: "USD",
+      resolution: "hourly",
+      rates: {},
+    });
+    expect(cachedRun.status).toBe(200);
+    expect(cache.put).toHaveBeenCalledOnce();
+  });
+
+  it("normalizes the cache key and keeps serving when the edge cache fails", async () => {
+    const dependencies = createDependencies();
+    const cache = {
+      match: vi.fn(async () => {
+        throw new Error("Cache read failed");
+      }),
+      put: vi.fn(async () => {
+        throw new Error("Cache write failed");
+      }),
+    };
+    dependencies.getResponseCache.mockReturnValue(cache as unknown as Cache);
+    const app = createApp(dependencies);
+
+    const response = await app.request(
+      "/v1/history?symbols=JPY,EUR&resolution=hourly&extra=1",
+      {},
+      createBindings(),
+    );
+
+    expect(response.status).toBe(200);
+    const [cacheKey] = cache.match.mock.calls.at(0) as unknown as [Request];
+    expect(new URL(cacheKey.url).search).toBe("?resolution=hourly&symbols=EUR%2CJPY");
+    expect(dependencies.logError).toHaveBeenCalledWith(
+      "Failed to read the history response cache",
+      {
+        name: "Error",
+        message: "Cache read failed",
+      },
+    );
+    expect(dependencies.logError).toHaveBeenCalledWith(
+      "Failed to store the history response cache",
+      {
+        name: "Error",
+        message: "Cache write failed",
+      },
     );
   });
 });

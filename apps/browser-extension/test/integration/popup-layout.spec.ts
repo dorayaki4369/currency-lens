@@ -77,7 +77,10 @@ describe("popup layout", () => {
     const card = requireElement('[data-slot="card"]');
     const cardBounds = card.getBoundingClientRect();
     const labelBounds = requireElement("label", card).getBoundingClientRect();
-    const selectBounds = requireElement("select", card).getBoundingClientRect();
+    const selectBounds = requireElement(
+      '[data-slot="segmented-control"]',
+      card,
+    ).getBoundingClientRect();
 
     expectEdge(settingsRowBounds.height, rem(2.75));
     expectEdge(cardBounds.height, rem(3));
@@ -85,6 +88,22 @@ describe("popup layout", () => {
     expectEdge(cardBounds.right - selectBounds.right, rem(0.75));
     expectEdge(selectBounds.top - cardBounds.top, rem(0.5));
     expectEdge(cardBounds.bottom - selectBounds.bottom, rem(0.5));
+
+    const thumb = requireElement('[data-slot="segmented-control-thumb"]', card);
+    await userEvent.click(page.getByRole("radio", { name: "ダーク" }));
+    const dark = page.getByRole("radio", { name: "ダーク" }).element();
+    // The thumb moves after React re-renders from the observer, so wait for it to settle on the item.
+    await expect
+      .poll(() => {
+        const thumbBounds = thumb.getBoundingClientRect();
+        const darkBounds = dark.getBoundingClientRect();
+        return (
+          thumb.getAnimations().length === 0 &&
+          Math.abs(thumbBounds.left - darkBounds.left) < 0.5 &&
+          Math.abs(thumbBounds.width - darkBounds.width) < 0.5
+        );
+      })
+      .toBe(true);
   });
 
   it("keeps the header in place while a long route body scrolls", async () => {

@@ -31,7 +31,7 @@ export function CurrencyIcon({ className, currencyCode }: CurrencyIconProps) {
       {presentation.kind === "fiat" ? (
         <img
           alt=""
-          className="h-auto w-full object-cover"
+          className="h-auto w-full object-cover outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
           draggable={false}
           src={getFlagIconUrl(presentation.regionCode)}
         />

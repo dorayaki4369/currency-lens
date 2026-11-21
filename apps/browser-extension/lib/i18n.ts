@@ -57,7 +57,7 @@ const messages = {
     aboutSourceCode: "Source code",
     aboutVersion: "Version {version}",
     addTarget: "Add a target",
-    ambiguousAutomatic: "Automatic (page language)",
+    ambiguousAutomatic: "Automatic",
     ambiguousDescription:
       "Choose how symbols with more than one meaning should be interpreted.",
     ambiguousHeading: "Currency conversion settings",
@@ -130,7 +130,7 @@ const messages = {
     aboutSourceCode: "ソースコード",
     aboutVersion: "バージョン {version}",
     addTarget: "換算通貨を追加",
-    ambiguousAutomatic: "自動判定（ページの言語）",
+    ambiguousAutomatic: "自動判定",
     ambiguousDescription: "複数の通貨を表す記号を、どの通貨として読むか設定します。",
     ambiguousHeading: "通貨変換設定",
     ambiguousMixed: "別表記ごとの設定が混在しています · 選び直してください",

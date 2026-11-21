@@ -26,7 +26,7 @@ interface FloatingIconProps {
 }
 
 const TRIGGER_CLASS_NAME =
-  "cursor-pointer rounded-md bg-slate-950 text-slate-50 shadow-lg ring-1 ring-white/10 hover:bg-slate-800 focus-visible:ring-sky-400";
+  "cursor-pointer rounded-md bg-card text-card-foreground shadow-lg hover:bg-accent focus-visible:ring-sky-400 dark:bg-card dark:hover:bg-accent";
 
 /** Shows the top conversion beside a detected selection, or the app logo until one is available. */
 export function FloatingIcon({
@@ -49,6 +49,7 @@ export function FloatingIcon({
       ref={setFloating}
       style={floatingStyles}
       type="button"
+      variant="outline"
     >
       {variant.children}
     </Button>
@@ -94,7 +95,7 @@ function getQuickConversionVariant(
         <ConvertedAmount amount={quickConversion.amount} busyLabel={busyLabel} rollIn />
         <ChevronRight
           aria-hidden="true"
-          className="text-slate-400 group-hover:text-slate-100 motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-out motion-safe:group-hover:translate-x-0.5"
+          className="text-muted-foreground group-hover:text-foreground motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-out motion-safe:group-hover:translate-x-0.5"
         />
       </>
     ),

@@ -29,7 +29,7 @@ const PREVIEW: PopupPreviewData = { ...POPUP_PREVIEW, history: POPUP_HISTORY };
 /** Opens the rates screen from the converter through the screen switcher. */
 async function openRates(preview: PopupPreviewData = PREVIEW): Promise<void> {
   await renderPopup(preview);
-  fireEvent.click(screen.getByRole("button", { name: "Rates" }));
+  fireEvent.click(screen.getByRole("radio", { name: "Rates" }));
   await screen.findByRole("heading", { name: "Base" });
 }
 
@@ -38,19 +38,19 @@ describe("popup rates route", () => {
     await openRates();
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Currency Lens");
-    expect(screen.getByRole("button", { name: "Rates" }).getAttribute("aria-pressed")).toBe(
+    expect(screen.getByRole("radio", { name: "Rates" }).getAttribute("aria-checked")).toBe(
       "true",
     );
     expect(screen.getByRole("combobox", { name: "Base" }).textContent).toContain("USD");
-    const currencies = screen.getByRole("group", { name: "Currency to show" });
+    const currencies = screen.getByRole("radiogroup", { name: "Currency to show" });
     expect(
       within(currencies)
-        .getAllByRole("button")
+        .getAllByRole("radio")
         .map((button) => button.textContent),
     ).toEqual(["ALL", "JPY", "EUR", "GBP"]);
     expect(
-      within(screen.getByRole("group", { name: "Period" }))
-        .getAllByRole("button")
+      within(screen.getByRole("radiogroup", { name: "Period" }))
+        .getAllByRole("radio")
         .map((button) => button.textContent),
     ).toEqual(["1D", "5D", "1M", "6M", "YTD", "1Y"]);
     expect(screen.getByText("Change against USD (past month)")).toBeDefined();
@@ -67,7 +67,7 @@ describe("popup rates route", () => {
 
   it("draws a rise in the user's color with readable tag text", async () => {
     await openRates({ ...PREVIEW, chartColors: { up: "#e3b63f" } });
-    fireEvent.click(screen.getByRole("button", { name: "JPY" }));
+    fireEvent.click(screen.getByRole("radio", { name: "JPY" }));
 
     const tag = document.querySelector<HTMLElement>('[data-slot="rate-chart-tag"]');
     expect(tag?.style.backgroundColor).toBe("#e3b63f");
@@ -79,7 +79,7 @@ describe("popup rates route", () => {
 
   it("marks a target without history in the period as having no data", async () => {
     await openRates();
-    fireEvent.click(screen.getByRole("button", { name: "1D" }));
+    fireEvent.click(screen.getByRole("radio", { name: "1D" }));
 
     await screen.findByRole("slider", { name: "Change against USD chart, past day" });
     expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
@@ -91,7 +91,7 @@ describe("popup rates route", () => {
 
   it("shows one cross rate with its change and switches to hourly history", async () => {
     await openRates();
-    fireEvent.click(screen.getByRole("button", { name: "JPY" }));
+    fireEvent.click(screen.getByRole("radio", { name: "JPY" }));
 
     const summary = document.querySelector('[data-slot="rate-summary"]');
     expect(summary?.textContent).toContain("1 USD = 149.75 JPY");
@@ -100,18 +100,18 @@ describe("popup rates route", () => {
       screen.getByRole("slider", { name: "USD to JPY chart, past month" }),
     ).toBeDefined();
 
-    fireEvent.click(screen.getByRole("button", { name: "1D" }));
+    fireEvent.click(screen.getByRole("radio", { name: "1D" }));
     expect(screen.getByRole("status", { name: "Loading rate history" })).toBeDefined();
     await screen.findByRole("slider", { name: "USD to JPY chart, past day" });
     expect(document.querySelector('[data-slot="rate-summary"]')?.textContent).toContain(
       "−2.40 (−1.61%) past day",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "GBP" }));
+    fireEvent.click(screen.getByRole("radio", { name: "GBP" }));
     expect(screen.getByText(/^Rate history isn’t available yet\./u)).toBeDefined();
     expect(document.querySelector('[data-slot="rate-summary"]')).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "1M" }));
+    fireEvent.click(screen.getByRole("radio", { name: "1M" }));
     expect(document.querySelector('[data-slot="rate-summary"]')?.textContent).toContain(
       "since 7/25",
     );
@@ -119,20 +119,20 @@ describe("popup rates route", () => {
 
   it("shares the base with the converter and drops it from the lines", async () => {
     await openRates();
-    fireEvent.click(screen.getByRole("button", { name: "EUR" }));
+    fireEvent.click(screen.getByRole("radio", { name: "EUR" }));
     await choosePopupCurrency("Base", "EUR", "Euro");
 
     expect(
-      within(screen.getByRole("group", { name: "Currency to show" }))
-        .getAllByRole("button")
+      within(screen.getByRole("radiogroup", { name: "Currency to show" }))
+        .getAllByRole("radio")
         .map((button) => button.textContent),
     ).toEqual(["ALL", "JPY", "GBP"]);
-    expect(screen.getByRole("button", { name: "ALL" }).getAttribute("aria-pressed")).toBe(
+    expect(screen.getByRole("radio", { name: "ALL" }).getAttribute("aria-checked")).toBe(
       "true",
     );
     expect(screen.getByText("Change against EUR (past month)")).toBeDefined();
 
-    fireEvent.click(screen.getByRole("button", { name: "Convert" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Convert" }));
     expect(
       (await screen.findByRole("combobox", { name: "Currency" })).textContent,
     ).toContain("EUR");
@@ -147,7 +147,7 @@ describe("popup rates route", () => {
     expect(
       screen.getByText("Add a conversion target other than USD to see its rates."),
     ).toBeDefined();
-    expect(screen.queryByRole("group", { name: "Period" })).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "Period" })).toBeNull();
   });
 
   it.each([
@@ -159,7 +159,7 @@ describe("popup rates route", () => {
       await openRates({ ...PREVIEW, history });
 
       expect(screen.getByText(text)).toBeDefined();
-      expect(screen.getByRole("group", { name: "Period" })).toBeDefined();
+      expect(screen.getByRole("radiogroup", { name: "Period" })).toBeDefined();
       expect(screen.queryByRole("slider")).toBeNull();
     },
   );
@@ -185,7 +185,7 @@ describe("popup rates route", () => {
     });
     stubPopupBrowser(sendMessage);
     await renderPopup();
-    fireEvent.click(await screen.findByRole("button", { name: "Rates" }));
+    fireEvent.click(await screen.findByRole("radio", { name: "Rates" }));
 
     fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(3));
@@ -231,7 +231,7 @@ describe("popup rates route", () => {
     });
     stubPopupBrowser(sendMessage);
     await renderPopup();
-    fireEvent.click(await screen.findByRole("button", { name: "Rates" }));
+    fireEvent.click(await screen.findByRole("radio", { name: "Rates" }));
 
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(3));
     expect(screen.queryByRole("link", { name: "Open Exchange Rates" })).toBeNull();

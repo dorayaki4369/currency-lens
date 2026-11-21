@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { createPopupRouterPluginOptions } from "../../entrypoints/popup/router-config";
+import { aboutMetadataPlugin } from "../../scripts/about-metadata";
 
 const browserExtensionRoot = fileURLToPath(new URL("../..", import.meta.url));
 const popupRoot = resolve(browserExtensionRoot, "entrypoints/popup");
@@ -24,4 +25,5 @@ export const integrationVitePlugins = [
     }),
   ),
   tailwindcss(),
+  aboutMetadataPlugin(browserExtensionRoot),
 ];

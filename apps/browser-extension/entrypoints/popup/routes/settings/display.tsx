@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import type { Config } from "@/lib/currency";
+import { type Config, configSchema } from "@/lib/currency";
+import { useId } from "react";
 import { translate, type UiLocale } from "@/lib/i18n";
 import { Stack } from "@/components/layout/Stack";
 import { TrendColorPicker } from "@/components/rates/TrendColorPicker";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { List, ListItem, ListItemRow } from "@/components/ui/list";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import {
   type PopupApplicationContextValue,
   PopupRouteFrame,
@@ -51,6 +52,7 @@ interface DisplaySettingsProps {
 
 /** Edits the persisted popup appearance preference. */
 function DisplaySettings({ config, locale, updateConfig }: DisplaySettingsProps) {
+  const themeLabelId = useId();
   return (
     <Stack as="section" aria-labelledby="display-settings-title" gap={3}>
       <p className="text-xs text-muted-foreground">
@@ -60,29 +62,27 @@ function DisplaySettings({ config, locale, updateConfig }: DisplaySettingsProps)
         <List>
           <ListItem>
             <ListItemRow className="justify-between gap-4">
-              <Label htmlFor="theme-select">{translate(locale, "displayTheme")}</Label>
-              <NativeSelect
-                className="h-8 px-2 py-1 pr-8"
-                id="theme-select"
-                onChange={(event) => {
-                  const value = event.target.value;
-                  if (value === "light" || value === "dark" || value === "system") {
-                    updateConfig((current) => ({ ...current, theme: value }));
-                  }
+              <Label id={themeLabelId}>{translate(locale, "displayTheme")}</Label>
+              <SegmentedControl
+                aria-labelledby={themeLabelId}
+                onValueChange={(value) => {
+                  updateConfig((current) => ({
+                    ...current,
+                    theme: configSchema.shape.theme.catch(current.theme).parse(value),
+                  }));
                 }}
                 value={config.theme}
-                wrapperClassName="w-32"
               >
-                <NativeSelectOption value="system">
+                <SegmentedControlItem value="system">
                   {translate(locale, "displayThemeSystem")}
-                </NativeSelectOption>
-                <NativeSelectOption value="light">
+                </SegmentedControlItem>
+                <SegmentedControlItem value="light">
                   {translate(locale, "displayThemeLight")}
-                </NativeSelectOption>
-                <NativeSelectOption value="dark">
+                </SegmentedControlItem>
+                <SegmentedControlItem value="dark">
                   {translate(locale, "displayThemeDark")}
-                </NativeSelectOption>
-              </NativeSelect>
+                </SegmentedControlItem>
+              </SegmentedControl>
             </ListItemRow>
           </ListItem>
           <ListItem>

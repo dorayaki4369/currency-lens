@@ -40,12 +40,12 @@ describe("popup application frame", () => {
 
   it("returns from settings to the rates screen it was opened from", async () => {
     await renderPopup(POPUP_PREVIEW);
-    fireEvent.click(screen.getByRole("button", { name: "Rates" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Rates" }));
     await screen.findByRole("heading", { name: "Base" });
 
     fireEvent.click(screen.getByRole("button", { name: "Open settings" }));
     await screen.findByRole("heading", { name: "Settings", level: 1 });
-    expect(screen.queryByRole("group", { name: "Screen" })).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "Screen" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
     await screen.findByRole("heading", { name: "Base" });

@@ -1,89 +1,177 @@
-import type { Ref } from "react";
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useState,
+  type ComponentProps,
+} from "react";
+import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { FOCUS_RING_CLASS_NAME } from "@/components/ui/focus-ring";
 
-export interface SegmentedControlOption<Value extends string> {
-  readonly label: string;
-  readonly value: Value;
+type SegmentedControlSize = "default" | "lg" | "sm";
+type SegmentedControlVariant = "pill" | "track";
+
+interface SegmentedControlAppearance {
+  readonly size: SegmentedControlSize;
+  readonly variant: SegmentedControlVariant;
 }
 
-interface SegmentedControlProps<Value extends string> {
-  readonly className?: string | undefined;
-  readonly label: string;
-  readonly onValueChange: (value: Value) => void;
-  readonly options: readonly SegmentedControlOption<Value>[];
-  readonly selectedButtonRef?: Ref<HTMLButtonElement> | undefined;
-  readonly value: Value;
-  readonly variant?: keyof typeof VARIANT_CLASS_NAMES | undefined;
-}
+// "track" sits the choices on a filled track; "pill" floats them, for a quieter choice
+// such as a period. Sizes set the height and type: "sm" inside cards, "lg" for screens.
+const ROOT_CLASS_NAMES = {
+  pill: "gap-1",
+  track: "gap-0.5 rounded-md bg-muted p-0.5 dark:bg-background",
+} as const satisfies Record<SegmentedControlVariant, string>;
+const THUMB_CLASS_NAMES = {
+  pill: "inset-y-0 rounded-full border border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-700",
+  track: "top-0.5 bottom-0.5 rounded-sm bg-card shadow-sm dark:bg-muted",
+} as const satisfies Record<SegmentedControlVariant, string>;
+const ITEM_CLASS_NAMES = {
+  pill: "rounded-full px-1 data-[state=checked]:font-semibold",
+  track: "rounded-sm",
+} as const satisfies Record<SegmentedControlVariant, string>;
+const HEIGHT_CLASS_NAMES = {
+  default: "h-8",
+  lg: "h-8",
+  sm: "h-7",
+} as const satisfies Record<SegmentedControlSize, string>;
+const ITEM_SIZE_CLASS_NAMES = {
+  default: "px-3 text-xs font-medium",
+  lg: "px-3 text-sm font-semibold",
+  sm: "min-w-0 px-1 text-xs font-semibold",
+} as const satisfies Record<SegmentedControlSize, string>;
 
-// "screen" switches whole screens, "compact" filters within a card, and "pill" picks a range.
-const VARIANT_CLASS_NAMES = {
-  compact: {
-    button: "h-6 rounded-md text-xs font-semibold",
-    group: "gap-0.5 rounded-lg bg-zinc-100 p-0.5 dark:bg-zinc-900",
-    selected: "bg-card text-foreground shadow-xs dark:bg-zinc-700",
-    unselected: "text-muted-foreground hover:text-foreground",
-  },
-  pill: {
-    button: "h-7 rounded-full border text-xs",
-    group: "gap-1",
-    selected:
-      "border-zinc-300 bg-zinc-100 font-semibold text-foreground dark:border-zinc-600 dark:bg-zinc-700",
-    unselected:
-      "border-transparent font-medium text-muted-foreground hover:text-foreground",
-  },
-  screen: {
-    button: "h-7 rounded-md text-sm font-semibold",
-    group: "gap-0.5 rounded-lg bg-zinc-200 p-0.5 dark:bg-zinc-800",
-    selected: "bg-card text-foreground shadow-sm dark:bg-zinc-600",
-    unselected: "text-muted-foreground hover:text-foreground",
-  },
-} as const;
+const SegmentedControlContext = createContext<SegmentedControlAppearance>({
+  size: "default",
+  variant: "track",
+});
 
-/** Offers mutually exclusive choices as pressed buttons in one labelled group. */
-export function SegmentedControl<Value extends string>({
+type SegmentedControlProps = Omit<
+  ComponentProps<typeof RadioGroupPrimitive.Root>,
+  "orientation" | "ref"
+> &
+  Partial<SegmentedControlAppearance>;
+
+/** Lays out a single-choice radio group as one track with a thumb that slides to the choice. */
+function SegmentedControl({
+  children,
   className,
-  label,
-  onValueChange,
-  options,
-  selectedButtonRef,
-  value,
-  variant = "screen",
-}: SegmentedControlProps<Value>) {
-  const classNames = VARIANT_CLASS_NAMES[variant];
+  size = "default",
+  variant = "track",
+  ...props
+}: SegmentedControlProps) {
+  // The thumb only slides horizontally and needs the root element, so neither is configurable.
+  const [root, setRoot] = useState<HTMLDivElement | null>(null);
+  const thumb = useCheckedItemBounds(root);
+
   return (
-    <div
-      aria-label={label}
-      className={cn("flex", classNames.group, className)}
+    <RadioGroupPrimitive.Root
+      data-size={size}
       data-slot="segmented-control"
       data-variant={variant}
-      role="group"
+      className={cn(
+        "relative inline-flex items-stretch text-muted-foreground",
+        HEIGHT_CLASS_NAMES[size],
+        ROOT_CLASS_NAMES[variant],
+        className,
+      )}
+      {...props}
+      orientation="horizontal"
+      ref={setRoot}
     >
-      {options.map((option) => {
-        const selected = option.value === value;
-        return (
-          <button
-            aria-pressed={selected}
-            className={cn(
-              "min-w-0 flex-1 truncate px-1 transition-colors",
-              FOCUS_RING_CLASS_NAME,
-              classNames.button,
-              selected ? classNames.selected : classNames.unselected,
-            )}
-            key={option.value}
-            onClick={() => {
-              if (!selected) {
-                onValueChange(option.value);
-              }
-            }}
-            ref={selected ? selectedButtonRef : undefined}
-            type="button"
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute left-0 motion-safe:transition-[translate,width] motion-safe:duration-200 motion-safe:ease-out",
+          THUMB_CLASS_NAMES[variant],
+        )}
+        data-slot="segmented-control-thumb"
+        hidden={thumb === null}
+        style={
+          thumb === null
+            ? undefined
+            : { translate: `${thumb.left}px 0`, width: thumb.width }
+        }
+      />
+      <SegmentedControlContext.Provider value={{ size, variant }}>
+        {children}
+      </SegmentedControlContext.Provider>
+    </RadioGroupPrimitive.Root>
   );
 }
+
+/** Renders one option above the sliding thumb. */
+function SegmentedControlItem({
+  className,
+  ...props
+}: ComponentProps<typeof RadioGroupPrimitive.Item>) {
+  const { size, variant } = useContext(SegmentedControlContext);
+  return (
+    <RadioGroupPrimitive.Item
+      data-slot="segmented-control-item"
+      className={cn(
+        "relative inline-flex flex-1 items-center justify-center whitespace-nowrap transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=checked]:text-foreground",
+        ITEM_SIZE_CLASS_NAMES[size],
+        ITEM_CLASS_NAMES[variant],
+        FOCUS_RING_CLASS_NAME,
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+interface ItemBounds {
+  readonly left: number;
+  readonly width: number;
+}
+
+/** Tracks where the checked item sits so the thumb can follow selection and resizes. */
+function useCheckedItemBounds(root: HTMLElement | null): ItemBounds | null {
+  const [bounds, setBounds] = useState<ItemBounds | null>(null);
+
+  useLayoutEffect(() => {
+    if (root === null) {
+      return undefined;
+    }
+    const measure = () => {
+      const checked = root.querySelector<HTMLElement>(
+        '[data-slot="segmented-control-item"][data-state="checked"]',
+      );
+      setBounds(
+        checked === null ? null : { left: checked.offsetLeft, width: checked.offsetWidth },
+      );
+    };
+    measure();
+    // Radix flips data-state on selection, which covers controlled and uncontrolled use alike.
+    const selection = new MutationObserver(measure);
+    selection.observe(root, { attributeFilter: ["data-state"], subtree: true });
+    const size = new ResizeObserver(measure);
+    size.observe(root);
+    return () => {
+      selection.disconnect();
+      size.disconnect();
+    };
+  }, [root]);
+
+  return bounds;
+}
+
+/**
+ * Narrows the radio group's string value back to one of the caller's typed options;
+ * values that are not among them are ignored.
+ */
+function selectSegmentedOption<Value extends string>(
+  options: readonly Value[],
+  onSelect: (value: Value) => void,
+): (value: string) => void {
+  return (value) => {
+    const option = options.find((candidate) => candidate === value);
+    if (option !== undefined) {
+      onSelect(option);
+    }
+  };
+}
+
+export { SegmentedControl, SegmentedControlItem, selectSegmentedOption };

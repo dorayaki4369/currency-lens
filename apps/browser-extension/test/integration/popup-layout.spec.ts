@@ -78,7 +78,10 @@ describe("popup layout", () => {
     const card = requireElement('[data-slot="card"] [data-slot="list-item"]');
     const cardBounds = card.getBoundingClientRect();
     const labelBounds = requireElement("label", card).getBoundingClientRect();
-    const selectBounds = requireElement("select", card).getBoundingClientRect();
+    const selectBounds = requireElement(
+      '[data-slot="segmented-control"]',
+      card,
+    ).getBoundingClientRect();
 
     expectEdge(settingsRowBounds.height, rem(2.75));
     expectEdge(cardBounds.height, rem(3));
@@ -86,6 +89,38 @@ describe("popup layout", () => {
     expectEdge(cardBounds.right - selectBounds.right, rem(0.75));
     expectEdge(selectBounds.top - cardBounds.top, rem(0.5));
     expectEdge(cardBounds.bottom - selectBounds.bottom, rem(0.5));
+
+    const thumb = requireElement('[data-slot="segmented-control-thumb"]', card);
+    await userEvent.click(page.getByRole("radio", { name: "ダーク" }));
+    const dark = page.getByRole("radio", { name: "ダーク" }).element();
+    // The thumb moves after React re-renders from the observer, so wait for it to settle on the item.
+    await expect
+      .poll(() => {
+        const thumbBounds = thumb.getBoundingClientRect();
+        const darkBounds = dark.getBoundingClientRect();
+        return (
+          thumb.getAnimations().length === 0 &&
+          Math.abs(thumbBounds.left - darkBounds.left) < 0.5 &&
+          Math.abs(thumbBounds.width - darkBounds.width) < 0.5
+        );
+      })
+      .toBe(true);
+  });
+
+  it("keeps the header in place while a long route body scrolls", async () => {
+    await openSettingsRoute("このアプリについて");
+    const popup = requireElement("main");
+    const body = requireElement('[data-slot="popup-route-body"]');
+    const header = requireElement("header");
+    const headerTop = header.getBoundingClientRect().top;
+
+    // Force the body to overflow regardless of copy length, then scroll it to the end.
+    body.style.maxHeight = `${rem(10)}px`;
+    body.scrollTop = body.scrollHeight;
+
+    expect(body.scrollTop).toBeGreaterThan(0);
+    expect(popup.scrollHeight).toBe(popup.clientHeight);
+    expectEdge(header.getBoundingClientRect().top, headerTop);
   });
 
   it("lets the symbol list consume the height left below its description", async () => {
@@ -164,14 +199,14 @@ describe("popup layout", () => {
       /* eslint-disable no-await-in-loop */
       await setViewport({ height: 600, width });
       await openPopupScreen();
-      await userEvent.click(page.getByRole("button", { name: "レート", exact: true }));
+      await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
       await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(3);
       /* eslint-enable no-await-in-loop */
       expectRateCardContained();
     }
     await saveReviewScreenshot("popup-rates-narrow");
 
-    await userEvent.click(page.getByRole("button", { name: "GBP", exact: true }));
+    await userEvent.click(page.getByRole("radio", { name: "GBP", exact: true }));
     await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(1);
     expectRateCardContained();
   });
@@ -183,12 +218,12 @@ describe("popup layout", () => {
       name: "USD に対する EUR のチャート（過去1か月）",
     });
     await expect.element(chart).toBeVisible();
-    const ratesToggle = page.getByRole("button", { name: "レート", exact: true });
-    await expect.element(ratesToggle).toHaveAttribute("aria-pressed", "true");
+    const ratesToggle = page.getByRole("radio", { name: "レート", exact: true });
+    await expect.element(ratesToggle).toHaveAttribute("aria-checked", "true");
     await expect.element(ratesToggle).toHaveFocus();
     await expect
-      .element(page.getByRole("button", { name: "EUR", exact: true }))
-      .toHaveAttribute("aria-pressed", "true");
+      .element(page.getByRole("radio", { name: "EUR", exact: true }))
+      .toHaveAttribute("aria-checked", "true");
 
     const plot = chart.element();
     const bounds = plot.getBoundingClientRect();
@@ -211,9 +246,9 @@ describe("popup layout", () => {
       .toHaveAttribute("aria-valuenow", String(Number(lastIndex) - 1));
     expect(queryAll('[data-slot="rate-chart-tooltip"]')).toHaveLength(1);
 
-    await userEvent.click(page.getByRole("button", { name: "換算", exact: true }));
+    await userEvent.click(page.getByRole("radio", { name: "換算", exact: true }));
     await expect
-      .element(page.getByRole("button", { name: "換算", exact: true }))
+      .element(page.getByRole("radio", { name: "換算", exact: true }))
       .toHaveFocus();
   });
 

@@ -14,6 +14,7 @@ const SETTINGS_ROUTES = [
   ["外観", "display"],
   ["通貨変換設定", "symbols"],
   ["対応通貨一覧", "currencies"],
+  ["このアプリについて", "about"],
 ] as const;
 
 it.each(["light", "dark"] as const)(
@@ -57,6 +58,17 @@ it.each(["light", "dark"] as const)(
       /* eslint-enable no-await-in-loop */
     }
 
+    await userEvent.click(page.getByRole("button", { name: "オープンソースライセンス" }));
+    await expect
+      .element(page.getByRole("heading", { name: "オープンソースライセンス" }))
+      .toBeVisible();
+    await userEvent.click(page.getByText("react-dom", { exact: true }));
+    await expect
+      .poll(() => document.querySelector("details[open] > div")?.textContent)
+      .toMatch(/Copyright \(c\) Meta Platforms/u);
+    await collectViolations(failures, "popup open source licenses", "#root");
+    await saveReviewScreenshot(`popup-${theme}-settings-licenses`);
+
     expect(failures.length, failures.join("\n\n")).toBe(0);
   },
 );
@@ -67,19 +79,19 @@ it.each(["light", "dark"] as const)(
     const failures: string[] = [];
 
     await openPopupScreen({ theme });
-    await userEvent.click(page.getByRole("button", { name: "レート", exact: true }));
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
     await expect
       .element(page.getByRole("slider", { name: "対 USD の変化率のチャート（過去1か月）" }))
       .toBeVisible();
     await collectViolations(failures, "popup rates for all targets", "#root");
     await saveReviewScreenshot(`popup-${theme}-rates-all`);
 
-    await userEvent.click(page.getByRole("button", { name: "JPY", exact: true }));
+    await userEvent.click(page.getByRole("radio", { name: "JPY", exact: true }));
     const chart = page.getByRole("slider", {
       name: "USD に対する JPY のチャート（過去1か月）",
     });
     await expect.element(chart).toBeVisible();
-    await userEvent.click(page.getByRole("button", { name: "1年", exact: true }));
+    await userEvent.click(page.getByRole("radio", { name: "1年", exact: true }));
     await expect
       .element(page.getByRole("slider", { name: "USD に対する JPY のチャート（過去1年）" }))
       .toBeVisible();
@@ -117,11 +129,11 @@ it.each(["light", "dark"] as const)(
     await saveReviewScreenshot(`popup-${theme}-chart-colors-custom`);
     await userEvent.click(page.getByRole("button", { name: "戻る" }));
     await userEvent.click(page.getByRole("button", { name: "戻る" }));
-    await userEvent.click(page.getByRole("button", { name: "レート", exact: true }));
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
     await expect.element(page.getByRole("heading", { name: "基準" })).toBeVisible();
     await collectViolations(failures, "popup rates with a custom rise color", "#root");
     await saveReviewScreenshot(`popup-${theme}-rates-custom-color`);
-    await userEvent.click(page.getByRole("button", { name: "EUR", exact: true }));
+    await userEvent.click(page.getByRole("radio", { name: "EUR", exact: true }));
     await expect.element(page.getByRole("slider")).toBeVisible();
     await collectViolations(failures, "popup rate with a custom rise color", "#root");
     await saveReviewScreenshot(`popup-${theme}-rate-custom-color`);
@@ -141,7 +153,7 @@ it.each(["loading", "empty", "error"] as const)(
     } as const;
 
     await openPopupScreen({ history });
-    await userEvent.click(page.getByRole("button", { name: "レート", exact: true }));
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
     await expect
       .element(
         history === "loading"

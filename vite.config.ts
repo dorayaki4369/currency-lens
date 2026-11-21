@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vite-plus";
 import { getHeadlessChromiumLaunchArguments } from "./apps/browser-extension/test/chromium-launch";
+import { aboutMetadataPlugin } from "./apps/browser-extension/scripts/about-metadata";
 import { browserIntegrationCommands } from "./apps/browser-extension/test/integration/browser-commands";
 import {
   integrationPublicDir,
@@ -22,6 +23,8 @@ const E2E_TESTS = "apps/browser-extension/test/e2e/**";
 export default defineConfig({
   // Repository commands never load local environment files. Runtime secrets belong to deployment boundaries.
   envDir: false,
+  // Unit tests import the same build-time metadata as the shipped popup.
+  plugins: [aboutMetadataPlugin(BROWSER_EXTENSION_ROOT)],
   resolve: {
     alias: {
       "@": BROWSER_EXTENSION_ROOT,

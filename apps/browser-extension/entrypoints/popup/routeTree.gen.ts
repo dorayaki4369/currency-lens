@@ -16,6 +16,8 @@ import { Route as SettingsIndexRouteImport } from "./routes/settings/index";
 import { Route as SettingsCurrenciesRouteImport } from "./routes/settings/currencies";
 import { Route as SettingsDisplayRouteImport } from "./routes/settings/display";
 import { Route as SettingsSymbolsRouteImport } from "./routes/settings/symbols";
+import { Route as SettingsAboutIndexRouteImport } from "./routes/settings/about/index";
+import { Route as SettingsAboutLicensesRouteImport } from "./routes/settings/about/licenses";
 
 const IndexRoute = IndexRouteImport.update({
   id: "/",
@@ -52,6 +54,16 @@ const SettingsSymbolsRoute = SettingsSymbolsRouteImport.update({
   path: "/symbols",
   getParentRoute: () => SettingsRouteRoute,
 } as any);
+const SettingsAboutIndexRoute = SettingsAboutIndexRouteImport.update({
+  id: "/about/",
+  path: "/about/",
+  getParentRoute: () => SettingsRouteRoute,
+} as any);
+const SettingsAboutLicensesRoute = SettingsAboutLicensesRouteImport.update({
+  id: "/about/licenses",
+  path: "/about/licenses",
+  getParentRoute: () => SettingsRouteRoute,
+} as any);
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
@@ -61,6 +73,8 @@ export interface FileRoutesByFullPath {
   "/settings/display": typeof SettingsDisplayRoute;
   "/settings/symbols": typeof SettingsSymbolsRoute;
   "/settings/": typeof SettingsIndexRoute;
+  "/settings/about/licenses": typeof SettingsAboutLicensesRoute;
+  "/settings/about/": typeof SettingsAboutIndexRoute;
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
@@ -69,6 +83,8 @@ export interface FileRoutesByTo {
   "/settings/display": typeof SettingsDisplayRoute;
   "/settings/symbols": typeof SettingsSymbolsRoute;
   "/settings": typeof SettingsIndexRoute;
+  "/settings/about/licenses": typeof SettingsAboutLicensesRoute;
+  "/settings/about": typeof SettingsAboutIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -79,6 +95,8 @@ export interface FileRoutesById {
   "/settings/display": typeof SettingsDisplayRoute;
   "/settings/symbols": typeof SettingsSymbolsRoute;
   "/settings/": typeof SettingsIndexRoute;
+  "/settings/about/licenses": typeof SettingsAboutLicensesRoute;
+  "/settings/about/": typeof SettingsAboutIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -89,7 +107,9 @@ export interface FileRouteTypes {
     | "/settings/currencies"
     | "/settings/display"
     | "/settings/symbols"
-    | "/settings/";
+    | "/settings/"
+    | "/settings/about/licenses"
+    | "/settings/about/";
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
@@ -97,7 +117,9 @@ export interface FileRouteTypes {
     | "/settings/currencies"
     | "/settings/display"
     | "/settings/symbols"
-    | "/settings";
+    | "/settings"
+    | "/settings/about/licenses"
+    | "/settings/about";
   id:
     | "__root__"
     | "/"
@@ -106,7 +128,9 @@ export interface FileRouteTypes {
     | "/settings/currencies"
     | "/settings/display"
     | "/settings/symbols"
-    | "/settings/";
+    | "/settings/"
+    | "/settings/about/licenses"
+    | "/settings/about/";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -166,6 +190,20 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof SettingsSymbolsRouteImport;
       parentRoute: typeof SettingsRouteRoute;
     };
+    "/settings/about/": {
+      id: "/settings/about/";
+      path: "/about";
+      fullPath: "/settings/about/";
+      preLoaderRoute: typeof SettingsAboutIndexRouteImport;
+      parentRoute: typeof SettingsRouteRoute;
+    };
+    "/settings/about/licenses": {
+      id: "/settings/about/licenses";
+      path: "/about/licenses";
+      fullPath: "/settings/about/licenses";
+      preLoaderRoute: typeof SettingsAboutLicensesRouteImport;
+      parentRoute: typeof SettingsRouteRoute;
+    };
   }
 }
 
@@ -174,6 +212,8 @@ interface SettingsRouteRouteChildren {
   SettingsDisplayRoute: typeof SettingsDisplayRoute;
   SettingsSymbolsRoute: typeof SettingsSymbolsRoute;
   SettingsIndexRoute: typeof SettingsIndexRoute;
+  SettingsAboutLicensesRoute: typeof SettingsAboutLicensesRoute;
+  SettingsAboutIndexRoute: typeof SettingsAboutIndexRoute;
 }
 
 const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
@@ -181,6 +221,8 @@ const SettingsRouteRouteChildren: SettingsRouteRouteChildren = {
   SettingsDisplayRoute: SettingsDisplayRoute,
   SettingsSymbolsRoute: SettingsSymbolsRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  SettingsAboutLicensesRoute: SettingsAboutLicensesRoute,
+  SettingsAboutIndexRoute: SettingsAboutIndexRoute,
 };
 
 const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(

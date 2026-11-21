@@ -11,6 +11,7 @@ import {
   type WxtViteConfig,
 } from "wxt";
 import { createPopupRouterPluginOptions } from "./entrypoints/popup/router-config";
+import { aboutMetadataPlugin } from "./scripts/about-metadata";
 import { currencyFlagRegions } from "./lib/currency-flags";
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
@@ -146,7 +147,7 @@ export function createViteConfig(
 
   return {
     envDir: false,
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss(), aboutMetadataPlugin(browserExtensionRoot)],
     resolve: {
       alias: {
         "@": browserExtensionRoot,

@@ -1,59 +1,137 @@
 // @vitest-environment happy-dom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { createRef } from "react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+  selectSegmentedOption,
+} from "@/components/ui/segmented-control";
 
 afterEach(cleanup);
 
-const OPTIONS = [
-  { label: "Convert", value: "converter" },
-  { label: "Rates", value: "rates" },
-] as const;
-
 describe("SegmentedControl", () => {
-  it("marks the selected option as pressed and reports other choices", () => {
+  it("exposes its options as radios and reports the chosen value", () => {
     const onValueChange = vi.fn<(value: string) => void>();
-    const selectedButtonRef = createRef<HTMLButtonElement>();
     render(
       <SegmentedControl
-        label="Screen"
+        aria-label="Theme"
+        defaultValue="system"
         onValueChange={onValueChange}
-        options={OPTIONS}
-        selectedButtonRef={selectedButtonRef}
-        value="converter"
-      />,
+      >
+        <SegmentedControlItem value="system">System</SegmentedControlItem>
+        <SegmentedControlItem value="dark">Dark</SegmentedControlItem>
+      </SegmentedControl>,
     );
 
-    const group = screen.getByRole("group", { name: "Screen" });
-    expect(group.dataset["variant"]).toBe("screen");
-    const convert = screen.getByRole("button", { name: "Convert" });
-    expect(convert.getAttribute("aria-pressed")).toBe("true");
-    expect(selectedButtonRef.current).toBe(convert);
-    expect(screen.getByRole("button", { name: "Rates" }).getAttribute("aria-pressed")).toBe(
-      "false",
-    );
+    expect(screen.getByRole("radiogroup", { name: "Theme" })).toBeDefined();
+    const system = screen.getByRole("radio", { name: "System" });
+    const dark = screen.getByRole("radio", { name: "Dark" });
+    expect(system.getAttribute("aria-checked")).toBe("true");
+    expect(dark.getAttribute("aria-checked")).toBe("false");
 
-    fireEvent.click(convert);
-    expect(onValueChange).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Rates" }));
-    expect(onValueChange).toHaveBeenCalledWith("rates");
+    fireEvent.click(dark);
+    expect(onValueChange).toHaveBeenCalledWith("dark");
+    expect(dark.getAttribute("aria-checked")).toBe("true");
   });
 
-  it.each(["compact", "pill"] as const)("renders the %s variant", (variant) => {
+  it("moves focus and selection between options with horizontal arrow keys", async () => {
+    const onValueChange = vi.fn<(value: string) => void>();
     render(
       <SegmentedControl
-        className="mr-1"
-        label="Period"
-        onValueChange={() => undefined}
-        options={OPTIONS}
-        value="rates"
-        variant={variant}
-      />,
+        aria-label="Theme"
+        defaultValue="system"
+        onValueChange={onValueChange}
+      >
+        <SegmentedControlItem value="system">System</SegmentedControlItem>
+        <SegmentedControlItem value="light">Light</SegmentedControlItem>
+        <SegmentedControlItem value="dark">Dark</SegmentedControlItem>
+      </SegmentedControl>,
     );
-    const group = screen.getByRole("group", { name: "Period" });
-    expect(group.dataset["variant"]).toBe(variant);
-    expect(group.className).toContain("mr-1");
+    const system = screen.getByRole("radio", { name: "System" });
+    const light = screen.getByRole("radio", { name: "Light" });
+
+    // Tab stops on the group, which hands focus to the current choice.
+    const group = screen.getByRole("radiogroup", { name: "Theme" });
+    expect(group.tabIndex).toBe(0);
+    group.focus();
+    await waitFor(() => expect(document.activeElement).toBe(system));
+
+    fireEvent.keyDown(system, { key: "ArrowRight" });
+    await waitFor(() => expect(document.activeElement).toBe(light));
+    expect(light.getAttribute("aria-checked")).toBe("true");
+    expect(onValueChange).toHaveBeenLastCalledWith("light");
+
+    fireEvent.keyDown(light, { key: "ArrowLeft" });
+    await waitFor(() => expect(document.activeElement).toBe(system));
+    expect(system.getAttribute("aria-checked")).toBe("true");
+    expect(onValueChange).toHaveBeenLastCalledWith("system");
+  });
+
+  it("slides the thumb to the checked option and hides it without a choice", async () => {
+    const { container, unmount } = render(
+      <SegmentedControl aria-label="Theme">
+        <SegmentedControlItem value="system">System</SegmentedControlItem>
+        <SegmentedControlItem value="dark">Dark</SegmentedControlItem>
+      </SegmentedControl>,
+    );
+    const thumb = container.querySelector<HTMLElement>(
+      '[data-slot="segmented-control-thumb"]',
+    );
+    expect(thumb?.hidden).toBe(true);
+
+    const dark = screen.getByRole("radio", { name: "Dark" });
+    Object.defineProperty(dark, "offsetLeft", { configurable: true, value: 48 });
+    Object.defineProperty(dark, "offsetWidth", { configurable: true, value: 40 });
+    fireEvent.click(dark);
+
+    await waitFor(() => expect(thumb?.hidden).toBe(false));
+    expect(thumb?.style.translate).toBe("48px 0");
+    expect(thumb?.style.width).toBe("40px");
+    unmount();
+  });
+
+  it("keeps the theme toggle's look by default and offers smaller and pill-shaped styles", () => {
+    const { rerender } = render(
+      <SegmentedControl aria-label="Screen" defaultValue="a">
+        <SegmentedControlItem value="a">A</SegmentedControlItem>
+      </SegmentedControl>,
+    );
+    const group = screen.getByRole("radiogroup", { name: "Screen" });
+    const item = screen.getByRole("radio", { name: "A" });
+    const thumb = group.querySelector('[data-slot="segmented-control-thumb"]');
+    expect([group.dataset["size"], group.dataset["variant"]]).toEqual(["default", "track"]);
+    expect(group.className).toContain("h-8");
+    expect(group.className).toContain("bg-muted");
+    expect(item.className).toContain("font-medium");
+    expect(thumb?.className).toContain("shadow-sm");
+
+    rerender(
+      <SegmentedControl aria-label="Screen" defaultValue="a" size="sm">
+        <SegmentedControlItem value="a">A</SegmentedControlItem>
+      </SegmentedControl>,
+    );
+    expect(group.className).toContain("h-7");
+    expect(item.className).toContain("font-semibold");
+
+    rerender(
+      <SegmentedControl aria-label="Screen" defaultValue="a" size="lg" variant="pill">
+        <SegmentedControlItem value="a">A</SegmentedControlItem>
+      </SegmentedControl>,
+    );
+    expect(group.dataset["variant"]).toBe("pill");
+    expect(group.className).not.toContain("bg-muted");
+    expect(item.className).toContain("rounded-full");
+    expect(item.className).toContain("text-sm");
+    expect(thumb?.className).toContain("rounded-full");
+    expect(thumb?.className).toContain("motion-safe:transition-[translate,width]");
+  });
+
+  it("passes on only values that belong to the typed options", () => {
+    const onSelect = vi.fn<(value: "a" | "b") => void>();
+    const select = selectSegmentedOption(["a", "b"] as const, onSelect);
+    select("b");
+    select("c");
+    expect(onSelect.mock.calls).toEqual([["b"]]);
   });
 });

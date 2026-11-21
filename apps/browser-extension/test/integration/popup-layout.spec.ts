@@ -92,11 +92,18 @@ describe("popup layout", () => {
     const thumb = requireElement('[data-slot="segmented-control-thumb"]', card);
     await userEvent.click(page.getByRole("radio", { name: "ダーク" }));
     const dark = page.getByRole("radio", { name: "ダーク" }).element();
-    await expect.poll(() => thumb.getAnimations().length).toBe(0);
-    const thumbBounds = thumb.getBoundingClientRect();
-    const darkBounds = dark.getBoundingClientRect();
-    expectEdge(thumbBounds.left, darkBounds.left);
-    expectEdge(thumbBounds.width, darkBounds.width);
+    // The thumb moves after React re-renders from the observer, so wait for it to settle on the item.
+    await expect
+      .poll(() => {
+        const thumbBounds = thumb.getBoundingClientRect();
+        const darkBounds = dark.getBoundingClientRect();
+        return (
+          thumb.getAnimations().length === 0 &&
+          Math.abs(thumbBounds.left - darkBounds.left) < 0.5 &&
+          Math.abs(thumbBounds.width - darkBounds.width) < 0.5
+        );
+      })
+      .toBe(true);
   });
 
   it("lets the symbol list consume the height left below its description", async () => {

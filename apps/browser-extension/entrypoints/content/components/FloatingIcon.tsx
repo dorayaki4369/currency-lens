@@ -26,7 +26,7 @@ interface FloatingIconProps {
 }
 
 const TRIGGER_CLASS_NAME =
-  "cursor-pointer rounded-md bg-card text-card-foreground shadow-lg hover:bg-accent dark:bg-card dark:hover:bg-accent";
+  "cursor-pointer rounded-md bg-card text-card-foreground shadow-lg hover:bg-accent focus-visible:ring-sky-400 dark:bg-card dark:hover:bg-accent";
 
 /** Shows the top conversion beside a detected selection, or the app logo until one is available. */
 export function FloatingIcon({

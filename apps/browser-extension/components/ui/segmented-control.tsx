@@ -8,7 +8,8 @@ function SegmentedControl({
   children,
   className,
   ...props
-}: ComponentProps<typeof RadioGroupPrimitive.Root>) {
+}: Omit<ComponentProps<typeof RadioGroupPrimitive.Root>, "orientation" | "ref">) {
+  // The thumb only slides horizontally and needs the root element, so neither is configurable.
   const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const thumb = useCheckedItemBounds(root);
 
@@ -19,13 +20,13 @@ function SegmentedControl({
         "relative inline-flex h-8 items-stretch gap-0.5 rounded-md bg-muted p-0.5 text-muted-foreground dark:bg-background",
         className,
       )}
+      {...props}
       orientation="horizontal"
       ref={setRoot}
-      {...props}
     >
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute top-0.5 bottom-0.5 left-0 rounded-sm bg-card shadow-sm transition-[translate,width] duration-200 ease-out dark:bg-muted"
+        className="pointer-events-none absolute top-0.5 bottom-0.5 left-0 rounded-sm bg-card shadow-sm dark:bg-muted motion-safe:transition-[translate,width] motion-safe:duration-200 motion-safe:ease-out"
         data-slot="segmented-control-thumb"
         hidden={thumb === null}
         style={
@@ -71,7 +72,9 @@ function useCheckedItemBounds(root: HTMLElement | null): ItemBounds | null {
       return undefined;
     }
     const measure = () => {
-      const checked = root.querySelector<HTMLElement>('[data-state="checked"]');
+      const checked = root.querySelector<HTMLElement>(
+        '[data-slot="segmented-control-item"][data-state="checked"]',
+      );
       setBounds(
         checked === null ? null : { left: checked.offsetLeft, width: checked.offsetWidth },
       );

@@ -34,6 +34,24 @@ describe("CurrencyValueRow", () => {
     expect(readValueColumnOrder()).toEqual(["currency-identity", "currency-amount"]);
   });
 
+  it("adds a trend column between the identity and the amount when given", () => {
+    render(
+      <CurrencyValueRow
+        amount={<span>150.00</span>}
+        identity={<span>JPY</span>}
+        currencyCode="JPY"
+        mode="display"
+        trend={<button type="button">Trend</button>}
+      />,
+    );
+
+    expect(readValueColumnOrder()).toEqual([
+      "currency-identity",
+      "currency-trend",
+      "currency-amount",
+    ]);
+  });
+
   it("places leading and trailing actions around the value content", () => {
     render(
       <CurrencyValueRow

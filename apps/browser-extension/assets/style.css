@@ -324,6 +324,32 @@
   --border: light-dark(var(--color-zinc-200), var(--color-zinc-700));
   --input: light-dark(var(--color-zinc-200), var(--color-zinc-700));
   --ring: light-dark(var(--color-zinc-400), var(--color-zinc-500));
+  /* Rate charts: text shades keep 4.5:1 on the card, tag shades keep 4.5:1 under white text. */
+  --trend-red-line: light-dark(var(--color-red-500), var(--color-red-400));
+  --trend-red-text: light-dark(var(--color-red-600), var(--color-red-400));
+  --trend-red-tag: var(--color-red-600);
+  --trend-blue-line: light-dark(var(--color-blue-500), var(--color-blue-400));
+  --trend-blue-text: light-dark(var(--color-blue-600), var(--color-blue-400));
+  --trend-blue-tag: var(--color-blue-600);
+  --trend-green-line: light-dark(var(--color-green-500), var(--color-green-400));
+  --trend-green-text: light-dark(var(--color-green-700), var(--color-green-400));
+  --trend-green-tag: var(--color-green-700);
+  --trend-flat-line: light-dark(var(--color-zinc-400), var(--color-zinc-500));
+  --trend-flat-text: var(--muted-foreground);
+  --trend-flat-tag: var(--color-zinc-600);
+  --rate-series-1-line: light-dark(var(--color-indigo-500), var(--color-indigo-400));
+  --rate-series-1-tag: var(--color-indigo-600);
+  --rate-series-2-line: light-dark(var(--color-amber-500), var(--color-amber-400));
+  --rate-series-2-tag: var(--color-amber-700);
+  --rate-series-3-line: light-dark(var(--color-teal-500), var(--color-teal-400));
+  --rate-series-3-tag: var(--color-teal-700);
+  --rate-series-4-line: light-dark(var(--color-pink-500), var(--color-pink-400));
+  --rate-series-4-tag: var(--color-pink-700);
+  --rate-series-5-line: light-dark(var(--color-slate-500), var(--color-slate-400));
+  --rate-series-5-tag: var(--color-slate-600);
+  --chart-grid: light-dark(var(--color-zinc-200), var(--color-zinc-700));
+  --chart-baseline: light-dark(var(--color-zinc-300), var(--color-zinc-600));
+  --chart-zero: light-dark(var(--color-zinc-400), var(--color-zinc-500));
   /* Hairlines stay one CSS pixel; text, spacing, and radii use relative units. */
   --focus-ring-width: 1px;
   color-scheme: light;

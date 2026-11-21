@@ -1,21 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { RefObject } from "react";
-import {
-  ChevronRight,
-  DollarSign,
-  Palette,
-  RefreshCw,
-  type LucideIcon,
-} from "lucide-react";
+import { DollarSign, Info, Palette, RefreshCw } from "lucide-react";
 import { translate, type UiLocale } from "@/lib/i18n";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { List, ListItem } from "@/components/ui/list";
+import { List } from "@/components/ui/list";
 import {
   PopupRouteFrame,
   usePopupApplicationContext,
 } from "@/entrypoints/popup/PopupApplication";
 import { navigatePopupRoute } from "@/entrypoints/popup/popup-route-transition";
+import { SettingsMenuItem } from "@/entrypoints/popup/SettingsMenuItem";
 
 export const Route = createFileRoute("/settings/")({
   component: SettingsIndexRoute,
@@ -29,9 +22,20 @@ function SettingsIndexRoute() {
   return (
     <PopupRouteFrame screen="settings">
       <SettingsMenu
+        aboutTriggerReference={popup.aboutTriggerReference}
         currenciesTriggerReference={popup.currenciesTriggerReference}
         displayTriggerReference={popup.displaySettingsTriggerReference}
         locale={popup.locale}
+        onOpenAbout={() =>
+          void navigatePopupRoute(
+            () =>
+              navigate({
+                to: "/settings/about",
+                viewTransition: true,
+              }),
+            "forward",
+          )
+        }
         onOpenCurrencies={() =>
           void navigatePopupRoute(
             () =>
@@ -69,9 +73,11 @@ function SettingsIndexRoute() {
 }
 
 interface SettingsMenuProps {
+  readonly aboutTriggerReference: RefObject<HTMLButtonElement | null>;
   readonly currenciesTriggerReference: RefObject<HTMLButtonElement | null>;
   readonly displayTriggerReference: RefObject<HTMLButtonElement | null>;
   readonly locale: UiLocale;
+  readonly onOpenAbout: () => void;
   readonly onOpenCurrencies: () => void;
   readonly onOpenDisplay: () => void;
   readonly onOpenSymbols: () => void;
@@ -80,9 +86,11 @@ interface SettingsMenuProps {
 
 /** Renders settings as a list whose rows open focused detail routes. */
 function SettingsMenu({
+  aboutTriggerReference,
   currenciesTriggerReference,
   displayTriggerReference,
   locale,
+  onOpenAbout,
   onOpenCurrencies,
   onOpenDisplay,
   onOpenSymbols,
@@ -109,40 +117,13 @@ function SettingsMenu({
           label={translate(locale, "supportedCurrenciesHeading")}
           onClick={onOpenCurrencies}
         />
+        <SettingsMenuItem
+          buttonReference={aboutTriggerReference}
+          icon={Info}
+          label={translate(locale, "aboutHeading")}
+          onClick={onOpenAbout}
+        />
       </List>
     </nav>
-  );
-}
-
-interface SettingsMenuItemProps {
-  readonly buttonReference: RefObject<HTMLButtonElement | null>;
-  readonly icon: LucideIcon;
-  readonly label: string;
-  readonly onClick: () => void;
-}
-
-/** Renders one keyboard-operable destination in the popup settings index. */
-function SettingsMenuItem({
-  buttonReference,
-  icon: Icon,
-  label,
-  onClick,
-}: SettingsMenuItemProps) {
-  return (
-    <ListItem as="li" dividerVisibility="hidden">
-      <Card spacing="none">
-        <Button
-          className="h-11 w-full justify-between bg-transparent px-3 font-normal focus-visible:ring-inset"
-          onClick={onClick}
-          ref={buttonReference}
-          type="button"
-          variant="secondary"
-        >
-          <Icon aria-hidden="true" />
-          <span className="flex-1 text-left">{label}</span>
-          <ChevronRight aria-hidden="true" />
-        </Button>
-      </Card>
-    </ListItem>
   );
 }

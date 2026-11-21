@@ -134,9 +134,14 @@ describe("createRateHistoryCache", () => {
     await cache.get({ resolution: "daily", symbols: ["EUR", "JPY"] }, load);
     expect(load).toHaveBeenCalledTimes(1);
 
+    await cache.get({ resolution: "hourly", symbols: ["JPY"] }, load);
+    expect(cache.size()).toBe(2);
+
     now = 1_000;
     await cache.get(query, load);
-    expect(load).toHaveBeenCalledTimes(2);
+    expect(load).toHaveBeenCalledTimes(3);
+    // The expired hourly response was dropped while the daily one was replaced.
+    expect(cache.size()).toBe(1);
   });
 
   it("forgets failed loads so the next request retries", async () => {

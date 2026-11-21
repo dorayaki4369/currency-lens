@@ -53,6 +53,8 @@ export interface RateHistoryRequest {
 }
 
 export interface RateHistoryCache {
+  /** Number of retained responses, for diagnostics and tests. */
+  readonly size: () => number;
   readonly get: (
     query: RateHistoryRequest,
     load: () => Promise<RateHistory>,
@@ -114,9 +116,15 @@ export function createRateHistoryCache(
 
   return {
     get: (query, load) => {
+      // Expired responses are dropped so the service worker never accumulates them.
+      for (const [entryKey, entry] of entries) {
+        if (entry.expiresAt <= now()) {
+          entries.delete(entryKey);
+        }
+      }
       const key = getRateHistoryKey(query);
       const cached = entries.get(key);
-      if (cached !== undefined && cached.expiresAt > now()) {
+      if (cached !== undefined) {
         return cached.history;
       }
 
@@ -129,6 +137,7 @@ export function createRateHistoryCache(
       });
       return history;
     },
+    size: () => entries.size,
   };
 }
 

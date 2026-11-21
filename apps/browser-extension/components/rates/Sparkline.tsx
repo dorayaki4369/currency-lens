@@ -33,7 +33,7 @@ export function Sparkline({ color, label, onOpen, values }: SparklineProps) {
     <button
       aria-label={label}
       className={cn(
-        "flex h-11 w-20 shrink-0 items-center rounded-md hover:bg-accent/60",
+        "flex h-9 w-20 shrink-0 items-center rounded-md hover:bg-accent/60",
         FOCUS_RING_CLASS_NAME,
       )}
       data-slot="sparkline"

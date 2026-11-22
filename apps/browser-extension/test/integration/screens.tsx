@@ -12,6 +12,7 @@ import {
   FIXTURE_CONFIG,
   FIXTURE_CONVERSION_DATA,
   FIXTURE_DETECTION,
+  FIXTURE_HISTORY,
   FIXTURE_RATES,
 } from "@/test/integration/fixture-data";
 import { ComponentFixture } from "@/test/integration/component-fixtures/ComponentFixture";
@@ -24,9 +25,13 @@ export interface ConversionScreenOptions {
   readonly motion: "default" | "reduce";
   readonly root: "document" | "shadow";
   readonly state: ConversionCardState;
+  readonly theme: "dark" | "light";
 }
 
+export type PopupHistoryState = "data" | "empty" | "error" | "loading";
+
 export interface PopupScreenOptions {
+  readonly history: PopupHistoryState;
   readonly locale: UiLocale;
   readonly theme: PopupPreviewData["config"]["theme"];
 }
@@ -63,6 +68,7 @@ export function mountPopupScreen(container: Element, options: PopupScreenOptions
   const root = createRoot(container);
   const preview: PopupPreviewData = {
     config: { ...FIXTURE_CONFIG, theme: options.theme },
+    history: options.history === "data" ? FIXTURE_HISTORY : { kind: options.history },
     locale: options.locale,
     rates: FIXTURE_RATES,
   };
@@ -87,7 +93,9 @@ export function mountConversionScreen(
     <StrictMode>
       <main
         className={cn(
-          "theme-light min-h-screen bg-muted/40 p-8 text-foreground",
+          `theme-${options.theme}`,
+          options.theme === "dark" && "dark",
+          "min-h-screen bg-muted/40 p-8 text-foreground",
           motionClassName,
         )}
         data-motion={options.motion}
@@ -120,6 +128,7 @@ export function mountConversionScreen(
             <ConversionPopup
               {...conversionStateProps[options.state]}
               floatingStyles={{ position: "relative" }}
+              historyPreview={FIXTURE_HISTORY}
               locale={options.locale}
               onClose={() => undefined}
               onReorderTarget={() => undefined}

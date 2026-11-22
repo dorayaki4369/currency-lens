@@ -40,6 +40,37 @@ describe("ConversionEditor", () => {
     expect(document.activeElement).toBe(currency);
   });
 
+  it("adds a trend to each target and sizes every name column to the widest name", () => {
+    render(
+      <ConversionEditor
+        amountText="1"
+        currencyCode="USD"
+        locale="en"
+        onAmountTextChange={() => undefined}
+        onCurrencyChange={() => undefined}
+        renderTargetTrend={(currencyCode) => (
+          <button type="button">{`${currencyCode} trend`}</button>
+        )}
+        targetAmounts={new Map()}
+        targetCurrencies={["JPY", "EUR"]}
+        targetTitle="Converted"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "JPY trend" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "EUR trend" })).toBeDefined();
+    const rows = [
+      ...screen.getByRole("list").querySelectorAll('[data-slot="currency-value-row"]'),
+    ];
+    expect(
+      rows.map((row) =>
+        [...row.querySelectorAll('[data-slot="currency-identity-sizer"]')].map(
+          (sizer) => `${sizer.getAttribute("aria-hidden")}:${sizer.textContent}`,
+        ),
+      ),
+    ).toEqual([["true:EUREuro"], ["true:JPYJapanese Yen"]]);
+  });
+
   it("announces all initially loading target amounts with one status", () => {
     render(
       <ConversionEditor

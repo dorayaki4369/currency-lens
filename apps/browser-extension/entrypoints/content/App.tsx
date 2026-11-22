@@ -1,11 +1,12 @@
 import type { CurrencyCode } from "@cl/currency";
-import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react-dom";
+import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui/react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { Config } from "@/lib/currency";
 import type { DetectedCurrency } from "@/lib/currency-detection";
 import { getUiLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
+  CONVERSION_CARD_MAX_HEIGHT_PROPERTY,
   ConversionPopup,
   type ConversionDismissReason,
 } from "@/entrypoints/content/components/ConversionPopup";
@@ -73,6 +74,17 @@ function ContentApplication() {
       offset(10),
       flip({ padding: FLOATING_PADDING }),
       shift({ padding: FLOATING_PADDING }),
+      // Runs after flip, so the cap follows the side the card ended up on; a taller screen
+      // then scrolls inside the card instead of leaving the viewport.
+      size({
+        apply: ({ availableHeight, elements }) => {
+          elements.floating.style.setProperty(
+            CONVERSION_CARD_MAX_HEIGHT_PROPERTY,
+            `${String(Math.max(0, availableHeight))}px`,
+          );
+        },
+        padding: FLOATING_PADDING,
+      }),
     ],
     [],
   );

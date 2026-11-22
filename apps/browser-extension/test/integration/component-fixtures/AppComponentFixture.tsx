@@ -26,6 +26,7 @@ import {
   FIXTURE_CONFIG,
   FIXTURE_CONVERSION_DATA,
   FIXTURE_DETECTION,
+  FIXTURE_HISTORY,
 } from "@/test/integration/fixture-data";
 import type { ComponentFixtureId } from "@/test/integration/component-fixtures/fixtures";
 import type { UiFixtureId } from "@/test/integration/component-fixtures/UiComponentFixture";
@@ -245,7 +246,7 @@ function CurrencyComboboxFixture({ open }: { readonly open: boolean }) {
 
 function CurrencyListFixture() {
   return (
-    <Card className="overflow-hidden" spacing="none">
+    <Card className="overflow-hidden" spacing="flush">
       <ReorderableCurrencyList
         ariaLabel="換算後の通貨"
         getCurrencyCode={(currencyCode) => currencyCode}
@@ -317,6 +318,7 @@ function ConversionPopupFixture({
         position: "fixed",
         top: "3rem",
       }}
+      historyPreview={FIXTURE_HISTORY}
       locale="ja"
       onClose={() => undefined}
       onReorderTarget={() => undefined}

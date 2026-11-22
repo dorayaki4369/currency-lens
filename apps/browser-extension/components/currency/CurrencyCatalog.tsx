@@ -47,7 +47,7 @@ export function CurrencyCatalog({
           value={query}
         />
       </div>
-      <Card className={cn("overflow-hidden", listClassName)} spacing="none">
+      <Card className={cn("overflow-hidden", listClassName)} spacing="flush">
         <List
           aria-labelledby={headingId}
           as="ul"

@@ -36,6 +36,9 @@ vi.mock("@floating-ui/react-dom", () => ({
   flip: vi.fn<() => { readonly name: string }>(() => ({ name: "flip" })),
   offset: vi.fn<() => { readonly name: string }>(() => ({ name: "offset" })),
   shift: vi.fn<() => { readonly name: string }>(() => ({ name: "shift" })),
+  size: vi.fn<(options: unknown) => { readonly name: string; readonly options: unknown }>(
+    (options) => ({ name: "size", options }),
+  ),
   useFloating: vi.fn<() => unknown>(() => ({
     floatingStyles: { position: "fixed" },
     refs: mocks.floating,
@@ -65,6 +68,7 @@ vi.mock("@/entrypoints/content/hooks/useConversion", () => ({
 }));
 
 import App from "@/entrypoints/content/App";
+import { size } from "@floating-ui/react-dom";
 
 const DETECTION: DetectedCurrency = {
   amount: 10,
@@ -99,6 +103,30 @@ afterEach(() => {
 });
 
 describe("content App", () => {
+  it("caps the card to the height the page leaves below or above the selection", async () => {
+    installBrowser(() => Promise.resolve(successfulConfig(CONFIG)));
+    render(<App />);
+    await act(async () => {});
+    const options = vi.mocked(size).mock.calls.at(-1)?.[0] as
+      | {
+          readonly apply: (state: {
+            readonly availableHeight: number;
+            readonly elements: { readonly floating: HTMLElement };
+          }) => void;
+          readonly padding: number;
+        }
+      | undefined;
+    expect(options?.padding).toBe(12);
+    const floating = document.createElement("dialog");
+    const apply = (availableHeight: number) =>
+      options?.apply({ availableHeight, elements: { floating } });
+
+    apply(320.5);
+    expect(floating.style.getPropertyValue("--conversion-card-max-height")).toBe("320.5px");
+    apply(-8);
+    expect(floating.style.getPropertyValue("--conversion-card-max-height")).toBe("0px");
+  });
+
   it("shows the top conversion on the trigger and opens the card from it", async () => {
     installBrowser(() => Promise.resolve(successfulConfig(CONFIG)));
     mocks.selection = { rect: new DOMRect(5, 6, 7, 8), text: "$10" };
@@ -167,7 +195,8 @@ describe("content App", () => {
       );
     });
     expect(mocks.conversion.reset).toHaveBeenCalled();
-    expect(browserMock.storage.onChanged.addListener).toHaveBeenCalledOnce();
+    // The configuration subscribes once for the page; the card adds one for its chart colors.
+    expect(browserMock.storage.onChanged.addListener).toHaveBeenCalledTimes(2);
   });
 
   it("keeps focus on an outside target when that pointer dismisses the card", async () => {
@@ -408,9 +437,8 @@ function successfulConfig(config: Config): unknown {
 }
 
 function installBrowser(sendMessage: () => Promise<unknown>) {
-  let storageListener:
-    | ((changes: Record<string, unknown>, areaName: string) => void)
-    | undefined;
+  type StorageListener = (changes: Record<string, unknown>, areaName: string) => void;
+  const storageListeners = new Set<StorageListener>();
   const browserMock = {
     i18n: { getUILanguage: vi.fn<() => string>(() => "en-US") },
     runtime: { sendMessage: vi.fn<() => Promise<unknown>>(sendMessage) },
@@ -418,20 +446,24 @@ function installBrowser(sendMessage: () => Promise<unknown>) {
       onChanged: {
         addListener: vi.fn<
           (listener: (changes: Record<string, unknown>, areaName: string) => void) => void
-        >((listener: (changes: Record<string, unknown>, areaName: string) => void) => {
-          storageListener = listener;
+        >((listener: StorageListener) => {
+          storageListeners.add(listener);
         }),
-        removeListener:
-          vi.fn<
-            (listener: (changes: Record<string, unknown>, areaName: string) => void) => void
-          >(),
+        removeListener: vi.fn<(listener: StorageListener) => void>((listener) => {
+          storageListeners.delete(listener);
+        }),
       },
     },
-    getStorageListener: () => {
-      if (storageListener === undefined) {
+    // Delivers a change to every subscriber, as the browser does.
+    getStorageListener: (): StorageListener => {
+      if (storageListeners.size === 0) {
         throw new Error("Storage listener was not registered");
       }
-      return storageListener;
+      return (changes, areaName) => {
+        for (const listener of storageListeners) {
+          listener(changes, areaName);
+        }
+      };
     },
   };
   vi.stubGlobal("browser", browserMock);

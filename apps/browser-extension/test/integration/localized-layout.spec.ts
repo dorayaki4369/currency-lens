@@ -17,6 +17,11 @@ const SETTINGS_ROUTES = [
   ["aboutHeading", "about"],
 ] as const;
 
+const HISTORY_MESSAGE_KEYS = {
+  empty: "rateHistoryEmpty",
+  error: "rateHistoryError",
+} as const;
+
 beforeEach(async () => {
   await setViewport({ height: 600, width: 420 });
   await emulateMedia({ reducedMotion: "reduce" });
@@ -99,6 +104,55 @@ it.each(SUPPORTED_UI_LOCALES)(
   },
 );
 
+it.each(SUPPORTED_UI_LOCALES)(
+  "keeps every %s rates screen inside the popup at both popup widths",
+  async (locale) => {
+    const failures: string[] = [];
+    for (const width of [420, 320]) {
+      for (const history of ["data", "empty", "error"] as const) {
+        // Each width and history state mounts a fresh popup, so the checks must run in order.
+        /* eslint-disable no-await-in-loop */
+        await setViewport({ height: 600, width });
+        await openPopupScreen({ history, locale });
+        await openRates(locale);
+        const name = `rates ${history} ${width}px`;
+        if (history === "data") {
+          await expect.poll(() => countChartTags()).toBe(3);
+          collectOverflow(failures, locale, `${name} all`);
+          await selectRatesCurrency("JPY");
+          collectOverflow(failures, locale, `${name} single`);
+        } else {
+          await expect
+            .element(page.getByText(translate(locale, HISTORY_MESSAGE_KEYS[history])))
+            .toBeVisible();
+          collectOverflow(failures, locale, name);
+        }
+        /* eslint-enable no-await-in-loop */
+      }
+    }
+
+    expect(failures, failures.join("\n")).toEqual([]);
+  },
+);
+
+it.each(SUPPORTED_UI_LOCALES)(
+  "keeps every %s rates screen inside the conversion card",
+  async (locale) => {
+    const failures: string[] = [];
+    await setViewport();
+    await openConversionScreen({ locale, state: "success" });
+    await openRates(locale);
+    await expect.poll(() => countChartTags()).toBe(3);
+    collectOverflow(failures, locale, "conversion rates all", "dialog");
+    await saveReviewScreenshot(`locale-${locale}-conversion-rates-all`);
+    await selectRatesCurrency("JPY");
+    collectOverflow(failures, locale, "conversion rates single", "dialog");
+    await saveReviewScreenshot(`locale-${locale}-conversion-rates-single`);
+
+    expect(failures, failures.join("\n")).toEqual([]);
+  },
+);
+
 // The picker opens below the editor at the browser-mode default viewport, and the store images
 // crop this screenshot at the size the original Japanese source screenshot was taken at.
 it.each(SUPPORTED_UI_LOCALES)(
@@ -128,6 +182,29 @@ it.each(SUPPORTED_UI_LOCALES)(
     expect(failures, failures.join("\n")).toEqual([]);
   },
 );
+
+/** Switches the mounted popup or card to its rates screen. */
+async function openRates(locale: UiLocale): Promise<void> {
+  await userEvent.click(
+    page.getByRole("radio", { exact: true, name: translate(locale, "screenRates") }),
+  );
+  await expect
+    .element(
+      page.getByRole("heading", { exact: true, name: translate(locale, "ratesHeading") }),
+    )
+    .toBeVisible();
+}
+
+/** Shows one currency so the summary with its value and change replaces the legend. */
+async function selectRatesCurrency(currency: string): Promise<void> {
+  await userEvent.click(page.getByRole("radio", { exact: true, name: currency }));
+  await expect.poll(() => countChartTags()).toBe(1);
+}
+
+/** Counts the latest-value tags, one per drawn currency, wherever the chart is rendered. */
+function countChartTags(): number {
+  return document.querySelectorAll('[data-slot="rate-chart-tag"]').length;
+}
 
 /** Opens the settings index from a fresh popup and waits for its route heading. */
 async function openSettings(locale: UiLocale): Promise<void> {

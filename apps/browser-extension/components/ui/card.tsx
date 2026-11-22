@@ -1,26 +1,41 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
+// Every card keeps its content 8px (p-2) from all four edges. A "flush" card holds
+// full-width rows that pad themselves by the same 8px (see ROW_INSET_CLASS_NAME), so hover
+// fills and dividers can reach the card's edges. A "field" card is the surface of one text field,
+// which fills it; the field matches the height of the row beside it and centers its text.
 const CARD_SPACING = {
-  default: "[--card-padding-x:--spacing(6)] [--card-padding-y:--spacing(6)]",
-  compact: "[--card-padding-x:--spacing(4)] [--card-padding-y:--spacing(4)]",
-  row: "[--card-padding-x:--spacing(3)] [--card-padding-y:--spacing(2)]",
-  none: "[--card-padding-x:0rem] [--card-padding-y:0rem]",
+  default: "gap-2 p-2",
+  field: "",
+  flush: "",
+} as const;
+// A "raised" card sits on the page. An "overlay" card is itself the page of a panel that floats
+// over a web page, such as the conversion card: it takes the page fill, so raised cards inside
+// it read the same as in the popup, and a deeper shadow to lift it off the host page.
+const CARD_LAYER = {
+  overlay: "bg-background shadow-lg",
+  raised: "bg-card shadow-sm",
 } as const;
 
-/** Provides the shared card surface and spacing. */
+/** Provides the shared card surface and its inset. */
 function Card({
   className,
+  layer = "raised",
   spacing = "default",
   ...props
 }: ComponentProps<"div"> & {
+  readonly layer?: keyof typeof CARD_LAYER | undefined;
   readonly spacing?: keyof typeof CARD_SPACING | undefined;
 }) {
   return (
     <div
+      data-layer={layer}
       data-slot="card"
+      data-spacing={spacing}
       className={cn(
-        "flex min-h-0 flex-col gap-(--card-padding-y) rounded-xl bg-card py-(--card-padding-y) text-card-foreground shadow-sm",
+        "flex min-h-0 flex-col rounded-xl text-card-foreground",
+        CARD_LAYER[layer],
         CARD_SPACING[spacing],
         className,
       )}
@@ -29,15 +44,4 @@ function Card({
   );
 }
 
-/** Aligns content within the shared card surface. */
-function CardContent({ className, ...props }: ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="card-content"
-      className={cn("flex min-h-0 flex-1 flex-col px-(--card-padding-x)", className)}
-      {...props}
-    />
-  );
-}
-
-export { Card, CardContent };
+export { Card };

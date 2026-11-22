@@ -3,11 +3,15 @@ import { cors } from "hono/cors";
 import { fetchLatestRate } from "@cl/oxr";
 import { scheduledHandler } from "./scheduler";
 import { getLatestOxrResponse, putOxrLatestResponse } from "./bucket";
+import { historyQuerySchema, readHistory } from "./history";
 
 type LatestRatesDependencies = {
   getLatestRates: typeof getLatestOxrResponse;
   fetchLatestRates: typeof fetchLatestRate;
   putLatestRates: typeof putOxrLatestResponse;
+  readHistory: typeof readHistory;
+  getResponseCache: () => Cache | undefined;
+  now: () => number;
   logError: (message: string, metadata: Record<string, unknown>) => void;
 };
 type LatestRates = NonNullable<Awaited<ReturnType<typeof getLatestOxrResponse>>>;
@@ -16,8 +20,14 @@ const defaultDependencies: LatestRatesDependencies = {
   getLatestRates: getLatestOxrResponse,
   fetchLatestRates: fetchLatestRate,
   putLatestRates: putOxrLatestResponse,
+  readHistory,
+  getResponseCache: () => (typeof caches === "undefined" ? undefined : caches.default),
+  now: () => Date.now(),
   logError: (message, metadata) => console.error(message, metadata),
 };
+
+/** History responses change at most hourly, so edge copies may be reused briefly. */
+const HISTORY_CACHE_CONTROL = "public, max-age=300";
 
 /** Returns whether a browser origin is allowed to read the public rates API. */
 function allowExtensionOrigin(origin: string): string {
@@ -111,6 +121,68 @@ export function createApp(dependencies: LatestRatesDependencies = defaultDepende
 
   app.get("/v1/latest", serveLatestRates);
   app.get("/latest", serveLatestRates);
+
+  /** Serves aligned USD-based rate series for up to six currencies. */
+  app.get("/v1/history", async (c) => {
+    const query = historyQuerySchema.safeParse({
+      resolution: c.req.query("resolution"),
+      symbols: c.req.query("symbols"),
+    });
+    if (!query.success) {
+      return c.json({ error: "Invalid history query" }, 400);
+    }
+
+    // The edge cache only saves work; its failures must not change the response.
+    const cache = dependencies.getResponseCache();
+    const cacheUrl = new URL(c.req.url);
+    cacheUrl.search = new URLSearchParams({
+      resolution: query.data.resolution,
+      symbols: query.data.symbols.toSorted().join(","),
+    }).toString();
+    const cacheKey = new Request(cacheUrl);
+    try {
+      const cached = await cache?.match(cacheKey);
+      if (cached) {
+        return c.body(await cached.text(), 200, { "Content-Type": "application/json" });
+      }
+    } catch (error) {
+      dependencies.logError(
+        "Failed to read the history response cache",
+        toErrorMetadata(error),
+      );
+    }
+
+    let body: string;
+    try {
+      body = JSON.stringify(
+        await dependencies.readHistory(c.env.DATA_BUCKET, query.data, dependencies.now()),
+      );
+    } catch (error) {
+      dependencies.logError(
+        "Failed to read the exchange rate history from R2",
+        toErrorMetadata(error),
+      );
+      return c.json({ error: "History not available" }, 503);
+    }
+
+    try {
+      await cache?.put(
+        cacheKey,
+        new Response(body, {
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": HISTORY_CACHE_CONTROL,
+          },
+        }),
+      );
+    } catch (error) {
+      dependencies.logError(
+        "Failed to store the history response cache",
+        toErrorMetadata(error),
+      );
+    }
+    return c.body(body, 200, { "Content-Type": "application/json" });
+  });
 
   return app;
 }

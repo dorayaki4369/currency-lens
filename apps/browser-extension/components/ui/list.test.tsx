@@ -2,7 +2,7 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { List, ListItem } from "@/components/ui/list";
+import { List, ListItem, ListItemRow } from "@/components/ui/list";
 
 afterEach(cleanup);
 
@@ -28,5 +28,17 @@ describe("List", () => {
       "JPY",
       "EUR",
     ]);
+  });
+
+  it("sets a row's content side by side or stacks it below a heading", () => {
+    render(
+      <>
+        <ListItemRow>Theme</ListItemRow>
+        <ListItemRow layout="stacked">Chart colors</ListItemRow>
+      </>,
+    );
+
+    expect(screen.getByText("Theme").className).toContain("items-center");
+    expect(screen.getByText("Chart colors").className).toContain("flex-col");
   });
 });

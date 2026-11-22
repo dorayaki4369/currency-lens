@@ -62,6 +62,7 @@ export async function openPopupScreen(
   mountScreen((container) =>
     mountPopupScreen(container, {
       locale: options.locale ?? "ja",
+      history: options.history ?? "data",
       theme: options.theme ?? "light",
     }),
   );
@@ -78,6 +79,7 @@ export async function openConversionScreen(
       motion: options.motion ?? "default",
       root: options.root ?? "document",
       state: options.state ?? "success",
+      theme: options.theme ?? "light",
     }),
   );
   const renderRoot = container.shadowRoot ?? document;

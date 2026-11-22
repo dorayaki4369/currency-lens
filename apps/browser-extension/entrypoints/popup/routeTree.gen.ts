@@ -9,9 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root";
-import { Route as IndexRouteImport } from "./routes/index";
-import { Route as RatesRouteImport } from "./routes/rates";
+import { Route as PeerRouteRouteImport } from "./routes/_peer/route";
 import { Route as SettingsRouteRouteImport } from "./routes/settings/route";
+import { Route as PeerIndexRouteImport } from "./routes/_peer/index";
+import { Route as PeerRatesRouteImport } from "./routes/_peer/rates";
 import { Route as SettingsIndexRouteImport } from "./routes/settings/index";
 import { Route as SettingsCurrenciesRouteImport } from "./routes/settings/currencies";
 import { Route as SettingsDisplayRouteImport } from "./routes/settings/display";
@@ -19,20 +20,24 @@ import { Route as SettingsSymbolsRouteImport } from "./routes/settings/symbols";
 import { Route as SettingsAboutIndexRouteImport } from "./routes/settings/about/index";
 import { Route as SettingsAboutLicensesRouteImport } from "./routes/settings/about/licenses";
 
-const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
-  getParentRoute: () => rootRouteImport,
-} as any);
-const RatesRoute = RatesRouteImport.update({
-  id: "/rates",
-  path: "/rates",
+const PeerRouteRoute = PeerRouteRouteImport.update({
+  id: "/_peer",
   getParentRoute: () => rootRouteImport,
 } as any);
 const SettingsRouteRoute = SettingsRouteRouteImport.update({
   id: "/settings",
   path: "/settings",
   getParentRoute: () => rootRouteImport,
+} as any);
+const PeerIndexRoute = PeerIndexRouteImport.update({
+  id: "/",
+  path: "/",
+  getParentRoute: () => PeerRouteRoute,
+} as any);
+const PeerRatesRoute = PeerRatesRouteImport.update({
+  id: "/rates",
+  path: "/rates",
+  getParentRoute: () => PeerRouteRoute,
 } as any);
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: "/",
@@ -66,9 +71,9 @@ const SettingsAboutLicensesRoute = SettingsAboutLicensesRouteImport.update({
 } as any);
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute;
+  "/": typeof PeerIndexRoute;
   "/settings": typeof SettingsRouteRouteWithChildren;
-  "/rates": typeof RatesRoute;
+  "/rates": typeof PeerRatesRoute;
   "/settings/currencies": typeof SettingsCurrenciesRoute;
   "/settings/display": typeof SettingsDisplayRoute;
   "/settings/symbols": typeof SettingsSymbolsRoute;
@@ -77,23 +82,24 @@ export interface FileRoutesByFullPath {
   "/settings/about/": typeof SettingsAboutIndexRoute;
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute;
-  "/rates": typeof RatesRoute;
+  "/rates": typeof PeerRatesRoute;
   "/settings/currencies": typeof SettingsCurrenciesRoute;
   "/settings/display": typeof SettingsDisplayRoute;
   "/settings/symbols": typeof SettingsSymbolsRoute;
+  "/": typeof PeerIndexRoute;
   "/settings": typeof SettingsIndexRoute;
   "/settings/about/licenses": typeof SettingsAboutLicensesRoute;
   "/settings/about": typeof SettingsAboutIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
-  "/": typeof IndexRoute;
+  "/_peer": typeof PeerRouteRouteWithChildren;
   "/settings": typeof SettingsRouteRouteWithChildren;
-  "/rates": typeof RatesRoute;
+  "/_peer/rates": typeof PeerRatesRoute;
   "/settings/currencies": typeof SettingsCurrenciesRoute;
   "/settings/display": typeof SettingsDisplayRoute;
   "/settings/symbols": typeof SettingsSymbolsRoute;
+  "/_peer/": typeof PeerIndexRoute;
   "/settings/": typeof SettingsIndexRoute;
   "/settings/about/licenses": typeof SettingsAboutLicensesRoute;
   "/settings/about/": typeof SettingsAboutIndexRoute;
@@ -112,47 +118,40 @@ export interface FileRouteTypes {
     | "/settings/about/";
   fileRoutesByTo: FileRoutesByTo;
   to:
-    | "/"
     | "/rates"
     | "/settings/currencies"
     | "/settings/display"
     | "/settings/symbols"
+    | "/"
     | "/settings"
     | "/settings/about/licenses"
     | "/settings/about";
   id:
     | "__root__"
-    | "/"
+    | "/_peer"
     | "/settings"
-    | "/rates"
+    | "/_peer/rates"
     | "/settings/currencies"
     | "/settings/display"
     | "/settings/symbols"
+    | "/_peer/"
     | "/settings/"
     | "/settings/about/licenses"
     | "/settings/about/";
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
+  PeerRouteRoute: typeof PeerRouteRouteWithChildren;
   SettingsRouteRoute: typeof SettingsRouteRouteWithChildren;
-  RatesRoute: typeof RatesRoute;
 }
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    "/": {
-      id: "/";
-      path: "/";
+    "/_peer": {
+      id: "/_peer";
+      path: "";
       fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/rates": {
-      id: "/rates";
-      path: "/rates";
-      fullPath: "/rates";
-      preLoaderRoute: typeof RatesRouteImport;
+      preLoaderRoute: typeof PeerRouteRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/settings": {
@@ -161,6 +160,20 @@ declare module "@tanstack/react-router" {
       fullPath: "/settings";
       preLoaderRoute: typeof SettingsRouteRouteImport;
       parentRoute: typeof rootRouteImport;
+    };
+    "/_peer/": {
+      id: "/_peer/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof PeerIndexRouteImport;
+      parentRoute: typeof PeerRouteRoute;
+    };
+    "/_peer/rates": {
+      id: "/_peer/rates";
+      path: "/rates";
+      fullPath: "/rates";
+      preLoaderRoute: typeof PeerRatesRouteImport;
+      parentRoute: typeof PeerRouteRoute;
     };
     "/settings/": {
       id: "/settings/";
@@ -207,6 +220,20 @@ declare module "@tanstack/react-router" {
   }
 }
 
+interface PeerRouteRouteChildren {
+  PeerRatesRoute: typeof PeerRatesRoute;
+  PeerIndexRoute: typeof PeerIndexRoute;
+}
+
+const PeerRouteRouteChildren: PeerRouteRouteChildren = {
+  PeerRatesRoute: PeerRatesRoute,
+  PeerIndexRoute: PeerIndexRoute,
+};
+
+const PeerRouteRouteWithChildren = PeerRouteRoute._addFileChildren(
+  PeerRouteRouteChildren,
+);
+
 interface SettingsRouteRouteChildren {
   SettingsCurrenciesRoute: typeof SettingsCurrenciesRoute;
   SettingsDisplayRoute: typeof SettingsDisplayRoute;
@@ -230,9 +257,8 @@ const SettingsRouteRouteWithChildren = SettingsRouteRoute._addFileChildren(
 );
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  PeerRouteRoute: PeerRouteRouteWithChildren,
   SettingsRouteRoute: SettingsRouteRouteWithChildren,
-  RatesRoute: RatesRoute,
 };
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

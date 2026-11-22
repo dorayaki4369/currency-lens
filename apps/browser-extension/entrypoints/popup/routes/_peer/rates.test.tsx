@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPopupRouter, type PopupPreviewData } from "@/entrypoints/popup/App";
 import {
   choosePopupCurrency,
+  getSegmentedThumb,
   POPUP_HISTORY,
+  POPUP_LEK_PREVIEW,
   POPUP_PREVIEW,
   readPopupMessageType,
   renderPopup,
@@ -105,6 +107,38 @@ describe("popup rates route", () => {
     );
   });
 
+  it("keeps one period choice while a new resolution of history loads", async () => {
+    await openRates();
+    const thumb = getSegmentedThumb("Period");
+    expect(thumb).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("radio", { name: "5D" }));
+    expect(screen.getByRole("status", { name: "Loading rate history" })).toBeDefined();
+    expect(getSegmentedThumb("Period")).toBe(thumb);
+    await screen.findByRole("slider", { name: "Change against USD chart, past 5 days" });
+    expect(getSegmentedThumb("Period")).toBe(thumb);
+  });
+
+  it("tells the Albanian lek apart from every target at once", async () => {
+    await openRates(POPUP_LEK_PREVIEW);
+    const everyTarget = screen.getByRole("radio", { name: "All currencies" });
+    const lek = screen.getByRole("radio", { name: "ALL" });
+    expect(everyTarget.textContent).toBe("ALL");
+    expect(everyTarget.getAttribute("aria-checked")).toBe("true");
+
+    fireEvent.click(lek);
+    expect(lek.getAttribute("aria-checked")).toBe("true");
+    expect(everyTarget.getAttribute("aria-checked")).toBe("false");
+    expect(
+      screen.getByRole("slider", { name: "USD to ALL chart, past month" }),
+    ).toBeDefined();
+
+    fireEvent.click(everyTarget);
+    expect(
+      screen.getByRole("slider", { name: "Change against USD chart, past month" }),
+    ).toBeDefined();
+  });
+
   it("shares the base with the converter and drops it from the lines", async () => {
     await openRates();
     fireEvent.click(screen.getByRole("radio", { name: "EUR" }));
@@ -115,9 +149,9 @@ describe("popup rates route", () => {
         .getAllByRole("radio")
         .map((button) => button.textContent),
     ).toEqual(["ALL", "JPY", "GBP"]);
-    expect(screen.getByRole("radio", { name: "ALL" }).getAttribute("aria-checked")).toBe(
-      "true",
-    );
+    expect(
+      screen.getByRole("radio", { name: "All currencies" }).getAttribute("aria-checked"),
+    ).toBe("true");
     expect(screen.getByText("Change against EUR (past month)")).toBeDefined();
 
     fireEvent.click(screen.getByRole("radio", { name: "Convert" }));
@@ -172,8 +206,11 @@ describe("popup rates route", () => {
     await renderPopup();
     fireEvent.click(await screen.findByRole("radio", { name: "Rates" }));
 
-    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    const retry = await screen.findByRole("button", { name: "Retry" });
+    const thumb = getSegmentedThumb("Period");
+    fireEvent.click(retry);
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(3));
+    expect(getSegmentedThumb("Period")).toBe(thumb);
     expect(screen.queryByText("Couldn’t load the rate history.")).toBeNull();
     expect(historyAttempts).toBe(3);
   });

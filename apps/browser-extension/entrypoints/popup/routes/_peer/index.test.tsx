@@ -6,6 +6,7 @@ import * as i18n from "@/lib/i18n";
 import {
   choosePopupCurrency as chooseCurrency,
   POPUP_HISTORY,
+  POPUP_LEK_PREVIEW,
   POPUP_PREVIEW as PREVIEW,
   readPopupMessagePayload as readMessagePayload,
   readPopupMessageType as readMessageType,
@@ -110,10 +111,26 @@ describe("popup converter route", () => {
     await waitFor(() => expect(document.activeElement).toBe(convertToggle));
     fireEvent.click(screen.getByRole("radio", { name: "Rates" }));
     await waitFor(() =>
-      expect(screen.getByRole("radio", { name: "ALL" }).getAttribute("aria-checked")).toBe(
-        "true",
-      ),
+      expect(
+        screen.getByRole("radio", { name: "All currencies" }).getAttribute("aria-checked"),
+      ).toBe("true"),
     );
+  });
+
+  it("opens the Albanian lek's own chart from its sparkline", async () => {
+    await renderPopup(POPUP_LEK_PREVIEW);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open ALL rates" }));
+    await screen.findByRole("heading", { name: "Base" });
+    expect(screen.getByRole("radio", { name: "ALL" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    expect(
+      screen.getByRole("radio", { name: "All currencies" }).getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(
+      screen.getByRole("slider", { name: "USD to ALL chart, past month" }),
+    ).toBeDefined();
   });
 
   it("leaves an aligned empty cell instead of a sparkline for the source currency", async () => {

@@ -24,6 +24,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { navigatePopupRoute } from "@/entrypoints/popup/popup-route-transition";
 import {
+  ALL_CURRENCIES_SELECTION,
   PopupRateHistoryProvider,
   type RateHistoryPreview,
   usePopupRateHistory,
@@ -174,69 +175,21 @@ interface PopupRouteFrameProps {
   readonly screen: PopupScreen;
 }
 
-/** Supplies common header, loading, and error behavior to every popup route. */
+/**
+ * Supplies common header, loading, and error behavior to every popup route. The converter and
+ * rates share one frame that changes its screen in place; other routes mount their own.
+ */
 export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
   const popup = usePopupApplicationContext();
   const navigate = useNavigate();
   const setRateSelection = usePopupRateHistory((state) => state.setSelection);
-  const {
-    aboutTriggerReference,
-    backButtonReference,
-    currenciesTriggerReference,
-    displaySettingsTriggerReference,
-    licensesTriggerReference,
-    previousScreenReference,
-    screenSwitcherReference,
-    settingsReturnScreenReference,
-    settingsTriggerReference,
-    symbolSettingsTriggerReference,
-  } = popup;
-  const enteredFromScreen = useRef(previousScreenReference.current).current;
+  const { settingsReturnScreenReference } = popup;
   const alert =
     popup.error === null ? null : (
       <Alert variant="destructive">
         <AlertDescription>{translate(popup.locale, "autoSaveError")}</AlertDescription>
       </Alert>
     );
-  useEffect(() => {
-    previousScreenReference.current = screen;
-    const returnTrigger = findReturnFocusTrigger(
-      {
-        aboutTriggerReference,
-        currenciesTriggerReference,
-        displaySettingsTriggerReference,
-        licensesTriggerReference,
-        settingsTriggerReference,
-        symbolSettingsTriggerReference,
-      },
-      screen,
-      enteredFromScreen,
-    );
-    if (returnTrigger !== undefined) {
-      returnTrigger.current?.focus({ preventScroll: true });
-      return;
-    }
-    if (isPeerScreen(screen)) {
-      // The switcher was replaced with the screen, so keep focus on its new item.
-      if (isPeerScreen(enteredFromScreen)) {
-        screenSwitcherReference.current?.focus({ preventScroll: true });
-      }
-      return;
-    }
-    backButtonReference.current?.focus({ preventScroll: true });
-  }, [
-    aboutTriggerReference,
-    backButtonReference,
-    currenciesTriggerReference,
-    displaySettingsTriggerReference,
-    enteredFromScreen,
-    licensesTriggerReference,
-    previousScreenReference,
-    screen,
-    screenSwitcherReference,
-    settingsTriggerReference,
-    symbolSettingsTriggerReference,
-  ]);
 
   const handleBack = () => {
     void navigatePopupRoute(
@@ -279,7 +232,7 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
             className="flex w-full bg-zinc-200 dark:bg-zinc-800"
             onValueChange={selectSegmentedOption(PEER_SCREENS, (peer) => {
               if (peer === "rates") {
-                setRateSelection("ALL");
+                setRateSelection(ALL_CURRENCIES_SELECTION);
               }
               // Peer screens swap in place, without the nested-screen slide.
               void navigate({ to: PEER_SCREEN_PATHS[peer] });
@@ -290,7 +243,7 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
             {PEER_SCREENS.map((peer) => (
               <SegmentedControlItem
                 key={peer}
-                ref={peer === screen ? screenSwitcherReference : undefined}
+                ref={peer === screen ? popup.screenSwitcherReference : undefined}
                 value={peer}
               >
                 {translate(popup.locale, PEER_SCREEN_LABEL_KEYS[peer])}
@@ -320,8 +273,84 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
           children
         )}
       </Stack>
+      {/* Remounts per screen, so a shared frame moves focus like a newly opened route. */}
+      <ScreenEntryFocus key={screen} screen={screen} />
     </div>
   );
+}
+
+/**
+ * Moves focus when a screen opens: back to the control that opened the screen the user
+ * returned from, to the back button on nested screens, or to the screen switch when a peer
+ * screen replaced the control that opened it. It sits after the route body, so its effect
+ * runs after the body's own, including Strict Mode's repeated mount effects.
+ */
+function ScreenEntryFocus({ screen }: { readonly screen: PopupScreen }) {
+  const {
+    aboutTriggerReference,
+    backButtonReference,
+    currenciesTriggerReference,
+    displaySettingsTriggerReference,
+    licensesTriggerReference,
+    previousScreenReference,
+    screenSwitcherReference,
+    settingsTriggerReference,
+    symbolSettingsTriggerReference,
+  } = usePopupApplicationContext();
+  const enteredFromScreen = useRef(previousScreenReference.current).current;
+  useEffect(() => {
+    previousScreenReference.current = screen;
+    const returnTrigger = findReturnFocusTrigger(
+      {
+        aboutTriggerReference,
+        currenciesTriggerReference,
+        displaySettingsTriggerReference,
+        licensesTriggerReference,
+        settingsTriggerReference,
+        symbolSettingsTriggerReference,
+      },
+      screen,
+      enteredFromScreen,
+    );
+    if (returnTrigger !== undefined) {
+      returnTrigger.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (isPeerScreen(screen)) {
+      // A sparkline opens the rates in place of itself, so focus moves to the switch's new item.
+      if (isPeerScreen(enteredFromScreen)) {
+        screenSwitcherReference.current?.focus({ preventScroll: true });
+      }
+      return;
+    }
+    backButtonReference.current?.focus({ preventScroll: true });
+  }, [
+    aboutTriggerReference,
+    backButtonReference,
+    currenciesTriggerReference,
+    displaySettingsTriggerReference,
+    enteredFromScreen,
+    licensesTriggerReference,
+    previousScreenReference,
+    screen,
+    screenSwitcherReference,
+    settingsTriggerReference,
+    symbolSettingsTriggerReference,
+  ]);
+  return null;
+}
+
+/**
+ * Narrows the configuration for screens inside a shared frame, which renders them only once
+ * the configuration has loaded.
+ */
+export function requireLoadedConfig({
+  config,
+}: Pick<PopupApplicationContextValue, "config">): Config {
+  if (config === null) {
+    throw new Error("Popup screen rendered before its configuration loaded");
+  }
+  return config;
 }
 
 /** Reads popup state only from descendants of the root route provider. */

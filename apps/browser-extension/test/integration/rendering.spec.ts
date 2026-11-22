@@ -58,6 +58,38 @@ describe("popup route motion", () => {
     await userEvent.click(page.getByRole("button", { name: "外観" }));
     await expectPopupRouteTransition("forward", false);
   });
+
+  it("slides each segmented thumb to the new choice, even as the screen or history changes", async () => {
+    await openPopupScreen();
+    const screenThumb = requireSegmentedThumb("表示する画面");
+    const screenTransitions = recordTransitionProperties(screenThumb);
+
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect.element(page.getByRole("heading", { name: "基準" })).toBeVisible();
+    expect(requireSegmentedThumb("表示する画面")).toBe(screenThumb);
+    await expect.poll(() => screenTransitions).toContain("translate");
+
+    const currencyThumb = requireSegmentedThumb("表示する通貨");
+    const currencyTransitions = recordTransitionProperties(currencyThumb);
+    await userEvent.click(page.getByRole("radio", { name: "EUR", exact: true }));
+    await expect.poll(() => currencyTransitions).toContain("translate");
+
+    const periodThumb = requireSegmentedThumb("期間");
+    const periodTransitions = recordTransitionProperties(periodThumb);
+    // Five days switches to hourly history, which loads before the chart returns.
+    await userEvent.click(page.getByRole("radio", { name: "5日", exact: true }));
+    await expect.element(page.getByRole("slider")).toHaveAccessibleName(/過去5日/u);
+    expect(requireSegmentedThumb("期間")).toBe(periodThumb);
+    await expect.poll(() => periodTransitions).toContain("translate");
+
+    await emulateMedia({ reducedMotion: "reduce" });
+    screenTransitions.length = 0;
+    await userEvent.click(page.getByRole("radio", { name: "換算", exact: true }));
+    await expect.element(page.getByRole("heading", { name: "換算元" })).toBeVisible();
+    expect(requireSegmentedThumb("表示する画面")).toBe(screenThumb);
+    await nextFrames(2);
+    expect(screenTransitions).toEqual([]);
+  });
 });
 
 describe("conversion layout", () => {
@@ -961,4 +993,23 @@ function expectDescending(samples: Samples): void {
 /** Compares two rendered coordinates with one pixel of rounding tolerance. */
 function expectWithinPixel(actual: number, expected: number): void {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1);
+}
+
+/** Finds the sliding thumb of the segmented control with the given accessible name. */
+function requireSegmentedThumb(groupName: string): Element {
+  return requireElement(
+    '[data-slot="segmented-control-thumb"]',
+    page.getByRole("radiogroup", { name: groupName }).element(),
+  );
+}
+
+/** Collects the properties whose transitions start on an element from now on. */
+function recordTransitionProperties(element: Element): string[] {
+  const properties: string[] = [];
+  element.addEventListener("transitionrun", (event) => {
+    if (event instanceof TransitionEvent) {
+      properties.push(event.propertyName);
+    }
+  });
+  return properties;
 }

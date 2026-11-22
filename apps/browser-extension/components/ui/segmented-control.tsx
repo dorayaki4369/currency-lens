@@ -20,11 +20,11 @@ interface SegmentedControlAppearance {
 // "track" sits the choices on a filled track; "pill" floats them, for a quieter choice
 // such as a period. Sizes set the height and type: "sm" inside cards, "lg" for screens.
 const ROOT_CLASS_NAMES = {
-  pill: "gap-1",
+  pill: "gap-1 py-0.5",
   track: "gap-0.5 rounded-md bg-muted p-0.5 dark:bg-background",
 } as const satisfies Record<SegmentedControlVariant, string>;
 const THUMB_CLASS_NAMES = {
-  pill: "inset-y-0 rounded-full border border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-700",
+  pill: "top-0.5 bottom-0.5 rounded-full border border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-700",
   track: "top-0.5 bottom-0.5 rounded-sm bg-card shadow-sm dark:bg-muted",
 } as const satisfies Record<SegmentedControlVariant, string>;
 const ITEM_CLASS_NAMES = {

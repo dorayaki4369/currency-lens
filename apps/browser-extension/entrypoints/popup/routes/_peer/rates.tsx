@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  PopupRouteFrame,
+  requireLoadedConfig,
   usePopupApplicationContext,
 } from "@/entrypoints/popup/PopupApplication";
 import {
@@ -49,13 +49,14 @@ import {
   usePopupConversion,
 } from "@/entrypoints/popup/stores/conversion";
 import {
+  ALL_CURRENCIES_SELECTION as ALL_SELECTION,
   type RateChartSelection,
   type RateHistoryEntry,
   usePopupRateHistory,
   useRateHistory,
 } from "@/entrypoints/popup/stores/rate-history";
 
-export const Route = createFileRoute("/rates")({
+export const Route = createFileRoute("/_peer/rates")({
   component: RatesRoute,
 });
 
@@ -75,7 +76,6 @@ const PERIOD_SUFFIX_KEYS = {
   YTD: "periodPastYTD",
   "1Y": "periodPast1Y",
 } as const satisfies Record<RatePeriod, TranslationKey>;
-const ALL_SELECTION = "ALL";
 
 /** Renders the rate history screen beside the converter. */
 function RatesRoute() {
@@ -89,21 +89,17 @@ function RatesRoute() {
   const setSelection = usePopupRateHistory((state) => state.setSelection);
 
   return (
-    <PopupRouteFrame screen="rates">
-      {popup.config === null ? null : (
-        <RatesScreen
-          baseCurrency={sourceCurrency}
-          config={popup.config}
-          locale={popup.locale}
-          onBaseCurrencyChange={setSourceCurrency}
-          onPeriodChange={setPeriod}
-          onSelectionChange={setSelection}
-          period={period}
-          rates={rates.data}
-          selection={selection}
-        />
-      )}
-    </PopupRouteFrame>
+    <RatesScreen
+      baseCurrency={sourceCurrency}
+      config={requireLoadedConfig(popup)}
+      locale={popup.locale}
+      onBaseCurrencyChange={setSourceCurrency}
+      onPeriodChange={setPeriod}
+      onSelectionChange={setSelection}
+      period={period}
+      rates={rates.data}
+      selection={selection}
+    />
   );
 }
 
@@ -171,12 +167,14 @@ function RatesScreen({
       </Stack>
 
       <Stack aria-labelledby={ratesHeadingId} as="section">
-        <SectionHeader id={ratesHeadingId} title={translate(locale, "ratesHeading")} />
-        <Card
-          className="gap-3 rounded-2xl py-3 pr-1.5 pl-3"
-          data-slot="rate-card"
-          spacing="none"
-        >
+        <SectionHeader
+          id={ratesHeadingId}
+          // The converter's targets header carries an edit button; match its row so the
+          // heading and card stay put when switching screens.
+          reserveActionHeight
+          title={translate(locale, "ratesHeading")}
+        />
+        <Card className="gap-3 py-3 pr-1.5 pl-3" data-slot="rate-card" spacing="none">
           {lineCurrencies.length === 0 ? (
             <p className="pr-1.5 text-sm text-muted-foreground">
               {translate(locale, "rateHistoryNoTargets", { base: baseCurrency })}
@@ -193,7 +191,11 @@ function RatesScreen({
                 size="sm"
                 value={activeSelection}
               >
-                <SegmentedControlItem value={ALL_SELECTION}>
+                <SegmentedControlItem
+                  // The visible ALL is also the Albanian lek's code, so the name tells them apart.
+                  aria-label={translate(locale, "ratesAllName")}
+                  value={ALL_SELECTION}
+                >
                   {translate(locale, "ratesAll")}
                 </SegmentedControlItem>
                 {lineCurrencies.map((currencyCode) => (
@@ -257,7 +259,8 @@ function RatePanel({
   const periodSelector = (
     <SegmentedControl
       aria-label={translate(locale, "ratesPeriodGroup")}
-      className="mr-1.5 flex"
+      // As tall as the currency choice above it, while keeping the period labels' type.
+      className="mr-1.5 flex h-7"
       onValueChange={selectSegmentedOption(RATE_PERIODS, onPeriodChange)}
       value={period}
       variant="pill"
@@ -270,28 +273,37 @@ function RatePanel({
     </SegmentedControl>
   );
   if (history.status === "loading") {
-    return <RatePanelSkeleton locale={locale} periodSelector={periodSelector} />;
+    return (
+      <RatePanelLayout
+        body={<RateChartSkeleton locale={locale} />}
+        periodSelector={periodSelector}
+        summary={<RateSummarySkeleton />}
+      />
+    );
   }
   if (history.status === "error") {
     return (
-      <>
-        {periodSelector}
-        <Alert className="mr-1.5" variant="destructive">
-          <AlertDescription>
-            <p>{translate(locale, "rateHistoryError")}</p>
-            <Button
-              className="text-foreground"
-              onClick={onRetry}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <RotateCw aria-hidden="true" />
-              {translate(locale, "rateHistoryRetry")}
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </>
+      <RatePanelLayout
+        body={
+          <Alert className="mr-1.5" variant="destructive">
+            <AlertDescription>
+              <p>{translate(locale, "rateHistoryError")}</p>
+              <Button
+                className="text-foreground"
+                onClick={onRetry}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <RotateCw aria-hidden="true" />
+                {translate(locale, "rateHistoryRetry")}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        }
+        periodSelector={periodSelector}
+        summary={null}
+      />
     );
   }
 
@@ -306,23 +318,45 @@ function RatePanel({
     selection,
   });
   return (
+    <RatePanelLayout
+      body={
+        view === null ? (
+          <RateHistoryEmpty locale={locale} />
+        ) : (
+          <RateChart
+            area={view.mode === "rate"}
+            // A new selection starts without the previous cursor.
+            key={`${baseCurrency}:${selection}:${period}`}
+            label={view.label}
+            locale={locale}
+            mode={view.mode}
+            period={period}
+            series={view.series}
+          />
+        )
+      }
+      periodSelector={periodSelector}
+      summary={view === null ? null : view.summary}
+    />
+  );
+}
+
+interface RatePanelLayoutProps {
+  readonly body: ReactNode;
+  readonly periodSelector: ReactNode;
+  readonly summary: ReactNode;
+}
+
+/**
+ * Places the period choice at the same position in every history state, so React keeps
+ * one instance and its thumb slides while a new resolution loads.
+ */
+function RatePanelLayout({ body, periodSelector, summary }: RatePanelLayoutProps) {
+  return (
     <>
-      {view === null ? null : view.summary}
+      {summary}
       {periodSelector}
-      {view === null ? (
-        <RateHistoryEmpty locale={locale} />
-      ) : (
-        <RateChart
-          area={view.mode === "rate"}
-          // A new selection starts without the previous cursor.
-          key={`${baseCurrency}:${selection}:${period}`}
-          label={view.label}
-          locale={locale}
-          mode={view.mode}
-          period={period}
-          series={view.series}
-        />
-      )}
+      {body}
     </>
   );
 }
@@ -451,28 +485,25 @@ function RateHistoryEmpty({ locale }: { readonly locale: UiLocale }) {
   );
 }
 
-/** Keeps the chart's footprint while history loads. */
-function RatePanelSkeleton({
-  locale,
-  periodSelector,
-}: {
-  readonly locale: UiLocale;
-  readonly periodSelector: ReactNode;
-}) {
+/** Keeps the summary's footprint while history loads. */
+function RateSummarySkeleton() {
   return (
-    <>
-      <Stack aria-hidden="true" className="mr-1.5" gap={1.5}>
-        <Skeleton className="h-7 w-40" />
-        <Skeleton className="h-4 w-48" />
-      </Stack>
-      {periodSelector}
-      <div
-        aria-label={translate(locale, "rateHistoryLoading")}
-        className="mr-1.5"
-        role="status"
-      >
-        <Skeleton className="h-31 w-full" />
-      </div>
-    </>
+    <Stack aria-hidden="true" className="mr-1.5" gap={1.5}>
+      <Skeleton className="h-7 w-40" />
+      <Skeleton className="h-4 w-48" />
+    </Stack>
+  );
+}
+
+/** Keeps the chart's footprint while history loads. */
+function RateChartSkeleton({ locale }: { readonly locale: UiLocale }) {
+  return (
+    <div
+      aria-label={translate(locale, "rateHistoryLoading")}
+      className="mr-1.5"
+      role="status"
+    >
+      <Skeleton className="h-31 w-full" />
+    </div>
   );
 }

@@ -1,6 +1,28 @@
 import type { Locator, Page } from "@playwright/test";
 import { SUPPORTED_UI_LOCALES, translate, type UiLocale } from "@/lib/i18n";
-import { expect, HOST_PAGE_URL, saveReviewScreenshot, test } from "@/test/e2e/fixtures";
+import {
+  expect,
+  HOST_PAGE_URL,
+  saveReviewScreenshot,
+  saveScaledReviewScreenshot,
+  test,
+} from "@/test/e2e/fixtures";
+
+/**
+ * The currency each locale's store images convert into first. English keeps the euro, because
+ * the US dollar is already the source currency of the example price.
+ */
+const LOCAL_CURRENCIES: Readonly<Record<UiLocale, string>> = {
+  de: "EUR",
+  en: "EUR",
+  es: "EUR",
+  fr: "EUR",
+  ja: "JPY",
+  ko: "KRW",
+  "pt-BR": "BRL",
+  "zh-CN": "CNY",
+  "zh-TW": "TWD",
+};
 
 /** A browser language that each shipped UI locale is chosen for. */
 const BROWSER_LANGUAGES: Readonly<Record<UiLocale, string>> = {
@@ -30,11 +52,22 @@ for (const locale of SUPPORTED_UI_LOCALES) {
       ).toBeFocused();
 
       await popup.getByRole("button", { exact: true, name: t("editTargets") }).click();
-      for (const currencyCode of ["JPY", "EUR", "GBP"]) {
+      const targets = [
+        LOCAL_CURRENCIES[locale],
+        ...["EUR", "JPY", "GBP"].filter((code) => code !== LOCAL_CURRENCIES[locale]),
+      ].slice(0, 3);
+      for (const currencyCode of targets) {
         // The editor adds one target at a time, so the additions stay sequential.
         // eslint-disable-next-line no-await-in-loop
         await addConversionTarget(popup, locale, currencyCode);
       }
+      // The default USD target repeats the source currency, so the store images leave it out.
+      await popup
+        .getByRole("button", {
+          exact: true,
+          name: translate(locale, "removeCurrency", { currency: "USD" }),
+        })
+        .click();
       await popup
         .getByRole("button", { exact: true, name: t("finishTargetEditing") })
         .click();
@@ -49,7 +82,14 @@ for (const locale of SUPPORTED_UI_LOCALES) {
       await page.goto(HOST_PAGE_URL, { waitUntil: "domcontentloaded" });
       await page.locator("#price").selectText();
       // The trigger reads out the first conversion in the UI language before it is opened.
-      await page.getByRole("button", { name: quickConversionName(locale) }).click();
+      const trigger = page.getByRole("button", { name: quickConversionName(locale) });
+      await expect(trigger).toBeVisible();
+      // The store image shows the small trigger large, with room for its shadow.
+      await saveScaledReviewScreenshot(page, trigger, `e2e-${locale}-quick-conversion`, {
+        margin: 16,
+        scale: 3,
+      });
+      await trigger.click();
       const dialog = page.getByRole("dialog", { exact: true, name: t("conversionResult") });
       await expect(dialog).toHaveAttribute("lang", locale);
       await expect(

@@ -1,9 +1,10 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   chromium,
   test as base,
   type BrowserContext,
+  type Locator,
   type Page,
   type Route,
 } from "@playwright/test";
@@ -79,6 +80,50 @@ export const test = base.extend<ExtensionFixtures>({
 export async function saveReviewScreenshot(page: Page, name: string): Promise<void> {
   await page.evaluate(settleFiniteAnimations);
   await page.screenshot({ path: `${reviewScreenshotDirectory}${name}.png` });
+}
+
+/**
+ * Saves one element rendered at a higher pixel density, for store images that show it larger
+ * than its on-page size without upscaling blur.
+ */
+export async function saveScaledReviewScreenshot(
+  page: Page,
+  element: Locator,
+  name: string,
+  { margin, scale }: { readonly margin: number; readonly scale: number },
+): Promise<void> {
+  await page.evaluate(settleFiniteAnimations);
+  const box = await element.boundingBox();
+  if (box === null) throw new Error(`${name}: the element is not visible.`);
+  const devtools = await page.context().newCDPSession(page);
+  try {
+    // A transparent page background lets the store image place the element on its own backdrop.
+    await devtools.send("Emulation.setDefaultBackgroundColorOverride", {
+      color: { a: 0, b: 0, g: 0, r: 0 },
+    });
+    await page.evaluate(() => {
+      document.documentElement.style.background = "transparent";
+      document.body.style.background = "transparent";
+    });
+    const { data } = await devtools.send("Page.captureScreenshot", {
+      clip: {
+        height: box.height + margin * 2,
+        scale,
+        width: box.width + margin * 2,
+        x: box.x - margin,
+        y: box.y - margin,
+      },
+      format: "png",
+    });
+    await writeFile(`${reviewScreenshotDirectory}${name}.png`, Buffer.from(data, "base64"));
+    await devtools.send("Emulation.setDefaultBackgroundColorOverride", {});
+    await page.evaluate(() => {
+      document.documentElement.style.background = "";
+      document.body.style.background = "";
+    });
+  } finally {
+    await devtools.detach();
+  }
 }
 
 /** Reads the API origin from the built manifest, so tests follow the endpoint the build embedded. */

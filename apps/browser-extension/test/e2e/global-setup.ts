@@ -12,9 +12,13 @@ const serverDirectory = fileURLToPath(new URL("../../../server/", import.meta.ur
 
 /** The rates the fake Open Exchange Rates API returns to the local Worker. */
 const UPSTREAM_RATES = {
+  BRL: 5.42,
+  CNY: 7.12,
   EUR: 0.8621,
   GBP: 0.7428,
   JPY: 149.45,
+  KRW: 1385.2,
+  TWD: 32.14,
   USD: 1,
 } as const;
 

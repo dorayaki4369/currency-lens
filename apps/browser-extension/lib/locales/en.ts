@@ -1,0 +1,103 @@
+// English is the reference locale: every other locale must translate exactly these keys.
+export const en = {
+  currencyNames: {
+    BTC: "Bitcoin",
+    BTS: "BitShares",
+    CNH: "Chinese Yuan (offshore)",
+    DASH: "Dash",
+    DOGE: "Dogecoin",
+    ETH: "Ethereum",
+    LD: "Linden Dollar",
+    LTC: "Litecoin",
+    NXT: "Nxt",
+    STR: "Stellar",
+    XAG: "Silver",
+    XAU: "Gold",
+    XDR: "Special Drawing Rights",
+    XMR: "Monero",
+    XPD: "Palladium",
+    XPT: "Platinum",
+    XRP: "XRP",
+  },
+  messages: {
+    aboutHeading: "About",
+    aboutLicense: "License",
+    aboutPrivacyPolicy: "Privacy policy",
+    aboutRateSource: "Exchange rates",
+    aboutReview: "Write a review on {store}",
+    aboutSourceCode: "Source code",
+    aboutVersion: "Version {version}",
+    addTarget: "Add a target",
+    ambiguousAutomatic: "Automatic",
+    ambiguousDescription:
+      "Choose how symbols with more than one meaning should be interpreted.",
+    ambiguousHeading: "Currency conversion settings",
+    ambiguousMixed: "Mixed alias settings · choose a value",
+    ambiguousOpen: "Manage all symbol mappings",
+    appName: "Currency Lens",
+    autoSaveError: "Couldn’t save your settings.",
+    closeApp: "Close",
+    conversionEmpty: "No supported monetary amount was found.",
+    conversionError: "Couldn’t fetch the rates",
+    conversionResult: "Conversion result",
+    conversionRetry: "Try selecting the price again after rates are available.",
+    conversionUnavailable: "Rate unavailable",
+    convertedHeading: "Converted",
+    convertSelection: "Convert selected price",
+    currencyNoResults: "No matching currency found.",
+    currencySearchLabel: "Search currencies",
+    currencySearchPlaceholder: "Code, name, or region",
+    displayDescription: "Choose the display theme for Currency Lens.",
+    displayHeading: "Appearance",
+    displayTheme: "Theme",
+    displayThemeDark: "Dark",
+    displayThemeLight: "Light",
+    displayThemeSystem: "System",
+    editTargets: "Edit conversion targets",
+    extensionDescription:
+      "Currency converter: select any price on a web page and convert it into up to 5 currencies with live exchange rates.",
+    finishTargetEditing: "Finish editing conversion targets",
+    interfaceEyebrow: "Interface",
+    licensesCount: "{count} packages",
+    licensesDescription: "Currency Lens includes the following open source software.",
+    licensesHeading: "Open source licenses",
+    licensesNoText:
+      "This package does not ship a license file. Its declared license is {license}.",
+    loadingApp: "Loading Currency Lens",
+    loadingConversion: "Converting currency",
+    openApp: "Open Currency Lens",
+    openInNewTab: "(opens in a new tab)",
+    openSettings: "Open settings",
+    popupBack: "Back",
+    quickConversion: "{amount} ({currency}). Show all conversions",
+    ratesStale: "Using the last available rates. They are at least 24 hours old.",
+    removeCurrency: "Remove {currency}",
+    reorderCurrency: "Reorder {currency}, position {position} of {total}",
+    reorderInstructions:
+      "Drag a reorder handle, or use the up and down arrow keys, to reorder converted currencies.",
+    reorderMoved: "{currency} moved to position {position} of {total}.",
+    settingsHeading: "Settings",
+    sourceAmount: "Amount",
+    sourceAmountInvalid: "Enter an amount greater than 0.",
+    sourceCurrency: "Currency",
+    sourceHeading: "Original",
+    storeChrome: "Chrome Web Store",
+    storeFirefox: "Firefox Add-ons",
+    supportedCurrenciesCount: "{count} currencies",
+    supportedCurrenciesDescription:
+      "Every currency in the bundled currency data is listed here.",
+    supportedCurrenciesHeading: "Supported currencies",
+    targetChoose: "Choose currency…",
+    targetDescription:
+      "The selected price is converted into each currency below, in this order.",
+    targetsHeading: "Conversion targets",
+  },
+} as const;
+
+export type TranslationKey = keyof typeof en.messages;
+
+/** The strings one UI locale ships: every message and every currency-name override. */
+export interface LocaleDictionary {
+  readonly currencyNames: Readonly<Record<keyof typeof en.currencyNames, string>>;
+  readonly messages: Readonly<Record<TranslationKey, string>>;
+}

@@ -24,6 +24,7 @@ describe("FloatingIcon", () => {
     });
 
     expect(trigger.style.transform).toBe("translate(120px, 48px)");
+    expect(trigger.lang).toBe("en");
     expect(trigger.querySelector("img")?.alt).toBe("");
     fireEvent.mouseEnter(trigger);
     expect(screen.queryByRole("tooltip")).toBeNull();

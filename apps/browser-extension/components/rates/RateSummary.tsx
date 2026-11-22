@@ -23,7 +23,7 @@ interface RateSummaryProps {
 const TREND_ARROWS = { down: ArrowDown, flat: ArrowRight, up: ArrowUp } as const;
 
 /**
- * States the latest cross rate and how far it moved over the period. The numbers roll as the
+ * States the latest cross rate and how far it moved over the period. The change rolls as the
  * period, selection, or base changes, like converted amounts do.
  */
 export function RateSummary({
@@ -39,11 +39,10 @@ export function RateSummary({
     <div className="flex flex-col gap-0.5 tabular-nums" data-slot="rate-summary">
       <p className="leading-tight">
         <span className="text-sm text-muted-foreground">1 {baseCurrency} =</span>{" "}
-        <AnimatedNumber
-          className="text-[1.75rem] font-bold tracking-tight"
-          text={formatRate(change.last.value, locale, digits)}
-          value={change.last.value}
-        />{" "}
+        {/* The rate's digit count changes between currencies, so it switches without a roll. */}
+        <span className="text-[1.75rem] font-bold tracking-tight">
+          {formatRate(change.last.value, locale, digits)}
+        </span>{" "}
         <span className="text-sm font-semibold text-muted-foreground">{currencyCode}</span>
       </p>
       <p className="text-xs text-muted-foreground">

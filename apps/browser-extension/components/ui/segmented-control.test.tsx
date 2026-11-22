@@ -124,6 +124,7 @@ describe("SegmentedControl", () => {
     expect(item.className).toContain("rounded-full");
     expect(item.className).toContain("text-sm");
     expect(thumb?.className).toContain("rounded-full");
+    expect(thumb?.className).toContain("top-0.5");
     expect(thumb?.className).toContain("motion-safe:transition-[translate,width]");
   });
 

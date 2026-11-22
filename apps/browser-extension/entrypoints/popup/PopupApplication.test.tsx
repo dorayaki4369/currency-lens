@@ -5,9 +5,13 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPopupRouter } from "@/entrypoints/popup/App";
-import { usePopupApplicationContext } from "@/entrypoints/popup/PopupApplication";
+import {
+  requireLoadedConfig,
+  usePopupApplicationContext,
+} from "@/entrypoints/popup/PopupApplication";
 import {
   choosePopupCurrency,
+  getSegmentedThumb,
   POPUP_PREVIEW,
   readPopupMessageType,
   renderPopup,
@@ -36,6 +40,20 @@ describe("popup application frame", () => {
     expect(screen.getByRole("button", { name: "Open settings" })).toBe(
       document.activeElement,
     );
+  });
+
+  it("keeps one screen switch while the converter and rates swap below it", async () => {
+    await renderPopup(POPUP_PREVIEW);
+    const thumb = getSegmentedThumb("Screen");
+    expect(thumb).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Rates" }));
+    await screen.findByRole("heading", { name: "Base" });
+    expect(getSegmentedThumb("Screen")).toBe(thumb);
+
+    fireEvent.click(screen.getByRole("radio", { name: "Convert" }));
+    await screen.findByRole("heading", { name: "Original" });
+    expect(getSegmentedThumb("Screen")).toBe(thumb);
   });
 
   it("returns from settings to the rates screen it was opened from", async () => {
@@ -138,6 +156,15 @@ describe("popup application frame", () => {
       }),
     ).toBeDefined();
     expect(screen.getAllByText("Couldn’t save your settings.")).toHaveLength(2);
+  });
+
+  it("rejects a shared-frame screen rendered before its configuration loaded", () => {
+    expect(requireLoadedConfig({ config: POPUP_PREVIEW.config })).toBe(
+      POPUP_PREVIEW.config,
+    );
+    expect(() => requireLoadedConfig({ config: null })).toThrow(
+      "Popup screen rendered before its configuration loaded",
+    );
   });
 
   it("rejects a route rendered outside its application provider", () => {

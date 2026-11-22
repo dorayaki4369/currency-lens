@@ -15,7 +15,13 @@ export type RateHistoryEntry =
   | { readonly data: null; readonly status: "loading" }
   | { readonly data: RateHistory; readonly status: "ready" };
 
-export type RateChartSelection = CurrencyCode | "ALL";
+/**
+ * Chooses every target at once. Currency codes never contain "*", so the choice can never
+ * collide with one, such as the Albanian lek's code ALL.
+ */
+export const ALL_CURRENCIES_SELECTION = "*";
+
+export type RateChartSelection = CurrencyCode | typeof ALL_CURRENCIES_SELECTION;
 
 /** Fixed history for previews and tests; a preview never touches the network. */
 export type RateHistoryPreview =
@@ -110,7 +116,7 @@ function createPopupRateHistoryStore(
     return {
       entries: {},
       period: "1M",
-      selection: "ALL",
+      selection: ALL_CURRENCIES_SELECTION,
       loadHistory: (resolution, symbols) => {
         const key = getRateHistoryKey({ resolution, symbols });
         // Loaded windows stay for the popup's lifetime; only failures are retried.

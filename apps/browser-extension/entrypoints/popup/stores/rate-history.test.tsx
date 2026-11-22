@@ -158,7 +158,7 @@ describe("popup rate history store", () => {
 
   it("remembers the chart period and selection for the popup", () => {
     const { result } = renderHistory("daily", NOTHING, { kind: "empty" });
-    expect([result.current.period, result.current.selection]).toEqual(["1M", "ALL"]);
+    expect([result.current.period, result.current.selection]).toEqual(["1M", "*"]);
 
     act(() => {
       result.current.setPeriod("1Y");

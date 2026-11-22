@@ -49,6 +49,33 @@ export const POPUP_HISTORY = {
   kind: "data",
 } as const satisfies NonNullable<PopupPreviewData["history"]>;
 
+/** Albanian lek, whose code ALL matches the visible label of the every-target choice. */
+export const POPUP_LEK_PREVIEW: PopupPreviewData = {
+  ...POPUP_PREVIEW,
+  config: { ...POPUP_PREVIEW.config, favorites: ["JPY", "ALL"] },
+  history: {
+    ...POPUP_HISTORY,
+    daily: {
+      ...POPUP_HISTORY.daily,
+      rates: {
+        ...POPUP_HISTORY.daily.rates,
+        ALL: Array.from({ length: DAILY_SLOTS }, (_, index) => 92 + index * 0.05),
+      },
+    },
+  },
+  rates: {
+    ...POPUP_PREVIEW.rates,
+    rates: { ...POPUP_PREVIEW.rates.rates, ALL: "93.95" },
+  },
+};
+
+/** Finds the sliding thumb of the segmented control with the given accessible name. */
+export function getSegmentedThumb(groupName: string): Element | null {
+  return screen
+    .getByRole("radiogroup", { name: groupName })
+    .querySelector('[data-slot="segmented-control-thumb"]');
+}
+
 export type PopupMessageSender = ReturnType<
   typeof vi.fn<(message: unknown) => Promise<unknown>>
 >;

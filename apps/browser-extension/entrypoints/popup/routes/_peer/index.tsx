@@ -18,7 +18,7 @@ import {
 import { createConversionTargetAmounts } from "@/components/conversion/conversion-target-amounts";
 import { RateTimestamp } from "@/components/conversion/RateTimestamp";
 import {
-  PopupRouteFrame,
+  requireLoadedConfig,
   usePopupApplicationContext,
 } from "@/entrypoints/popup/PopupApplication";
 import {
@@ -32,7 +32,7 @@ import {
 } from "@/entrypoints/popup/stores/rate-history";
 import { useConfigStore } from "@/stores/config";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_peer/")({
   component: ConverterRoute,
 });
 
@@ -49,24 +49,20 @@ function ConverterRoute() {
   const reorderFavorite = useConfigStore((state) => state.reorderFavorite);
 
   return (
-    <PopupRouteFrame screen="converter">
-      {popup.config === null ? null : (
-        <Converter
-          config={popup.config}
-          locale={popup.locale}
-          onAddFavorite={addFavorite}
-          onRemoveFavorite={removeFavorite}
-          onReorderFavorite={reorderFavorite}
-          onSourceAmountChange={setSourceAmount}
-          onSourceCurrencyChange={setSourceCurrency}
-          rates={rates.data}
-          ratesLoading={rates.status === "loading"}
-          sortedCurrencyCodes={CURRENCY_CODES_BY_ISO_CODE}
-          sourceAmount={sourceAmount}
-          sourceCurrency={sourceCurrency}
-        />
-      )}
-    </PopupRouteFrame>
+    <Converter
+      config={requireLoadedConfig(popup)}
+      locale={popup.locale}
+      onAddFavorite={addFavorite}
+      onRemoveFavorite={removeFavorite}
+      onReorderFavorite={reorderFavorite}
+      onSourceAmountChange={setSourceAmount}
+      onSourceCurrencyChange={setSourceCurrency}
+      rates={rates.data}
+      ratesLoading={rates.status === "loading"}
+      sortedCurrencyCodes={CURRENCY_CODES_BY_ISO_CODE}
+      sourceAmount={sourceAmount}
+      sourceCurrency={sourceCurrency}
+    />
   );
 }
 

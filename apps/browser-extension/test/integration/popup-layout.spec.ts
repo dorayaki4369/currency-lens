@@ -193,6 +193,23 @@ describe("popup layout", () => {
     await saveReviewScreenshot("popup-narrow-long-target-name");
   });
 
+  it("keeps the rates heading where the converter's is and sizes both rate choices alike", async () => {
+    await openPopupScreen();
+    const targetsRow = requireHeadingRow("換算後");
+
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(3);
+    const ratesRow = requireHeadingRow("レート");
+    expectEdge(ratesRow.height, targetsRow.height);
+    expectEdge(ratesRow.top, targetsRow.top);
+
+    const currencyChoice = requireSegmentedBounds("表示する通貨");
+    const periodChoice = requireSegmentedBounds("期間");
+    expectEdge(periodChoice.group.height, currencyChoice.group.height);
+    expectEdge(periodChoice.thumb.height, currencyChoice.thumb.height);
+    expectEdge(periodChoice.thumb.top - periodChoice.group.top, 2);
+  });
+
   it("keeps the rate chart, its axis tags, and the legend inside the card", async () => {
     for (const width of [420, 320]) {
       // Each width mounts a fresh popup, so the checks must run in order.
@@ -457,4 +474,25 @@ function expectFontSize(element: Element, expectedRem: number): void {
     rem(expectedRem),
     1,
   );
+}
+
+/** Measures the row that holds a section heading and its optional action. */
+function requireHeadingRow(name: string): DOMRect {
+  const row = page.getByRole("heading", { name, exact: true }).element().parentElement;
+  if (row === null) {
+    throw new Error(`Heading row was not rendered: ${name}`);
+  }
+  return row.getBoundingClientRect();
+}
+
+/** Measures a segmented control and its sliding thumb. */
+function requireSegmentedBounds(groupName: string): { group: DOMRect; thumb: DOMRect } {
+  const group = page.getByRole("radiogroup", { name: groupName }).element();
+  return {
+    group: group.getBoundingClientRect(),
+    thumb: requireElement(
+      '[data-slot="segmented-control-thumb"]',
+      group,
+    ).getBoundingClientRect(),
+  };
 }

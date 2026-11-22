@@ -1,7 +1,14 @@
 import type { Locator, Page } from "@playwright/test";
 import packageManifest from "@/package.json" with { type: "json" };
 import { expectNoAutomatedAccessibilityViolations } from "@/test/accessibility";
-import { expect, HOST_PAGE_URL, saveReviewScreenshot, test } from "@/test/e2e/fixtures";
+import {
+  expect,
+  expectRateChartDrawn,
+  expectTrendLinesDrawn,
+  HOST_PAGE_URL,
+  saveReviewScreenshot,
+  test,
+} from "@/test/e2e/fixtures";
 
 const localized = {
   addTarget: /^(?:Add a target|換算通貨を追加)$/u,
@@ -10,10 +17,13 @@ const localized = {
   rateHistoryEmpty:
     /^(?:Rate history isn’t available yet\.|レートの履歴はまだありません。)/u,
   rates: /^(?:Rates|レート)$/u,
+  openChfRates: /^(?:Open CHF rates|CHF のレートを開く)$/u,
   openJpyRates: /^(?:Open JPY rates|JPY のレートを開く)$/u,
   base: /^(?:Base|基準)$/u,
   quickConversion:
     /^(?:¥37,213 \(Japanese Yen\)\. Show all conversions|￥37,213（日本円）。すべての換算先を表示)$/u,
+  quickChfConversion:
+    /^(?:.+ \(Swiss Franc\)\. Show all conversions|.+（スイス フラン）。すべての換算先を表示)$/u,
   converted: /^(?:Converted|換算後)$/u,
   currencySearch: /^(?:Code, name, or region|コード・通貨名・地域)$/u,
   editTargets: /^(?:Edit conversion targets|換算後を編集)$/u,
@@ -100,18 +110,19 @@ test("the built extension exposes an accessible popup and content flow", async (
   await addConversionTarget(popup, "GBP");
   await finishTargetEditing(popup);
   await expect(popup.getByText("149.00", { exact: true })).toBeVisible();
+  // The local Worker starts with a seeded history, so every target draws its trend.
+  await expectTrendLinesDrawn(popup.locator("body"), 3);
   await saveReviewScreenshot(popup, "e2e-popup");
 
   await expectNoAutomatedAccessibilityViolations(popup, testInfo, {
     attachmentName: "axe-results-built-popup",
   });
 
-  // The local Worker starts with no history, so the rates screen explains the empty state.
   await popup.getByRole("radio", { name: localized.rates }).click();
   await expect(popup.getByRole("heading", { name: localized.base })).toBeVisible();
-  await expect(popup.getByText(localized.rateHistoryEmpty)).toBeVisible();
+  await expectRateChartDrawn(popup.locator("body"));
   expect(apiRequests).toContain("/v1/history");
-  await saveReviewScreenshot(popup, "e2e-popup-rates-empty");
+  await saveReviewScreenshot(popup, "e2e-popup-rates");
   await expectNoAutomatedAccessibilityViolations(popup, testInfo, {
     attachmentName: "axe-results-built-popup-rates",
   });
@@ -132,6 +143,7 @@ test("the built extension exposes an accessible popup and content flow", async (
   await expect(dialog.getByRole("spinbutton", { name: localized.amount })).toBeFocused();
   await expect(dialog.getByRole("heading", { name: localized.converted })).toBeVisible();
   await expect(dialog.getByText("37,213.00", { exact: true })).toBeVisible();
+  await expectTrendLinesDrawn(dialog, 3);
   await saveReviewScreenshot(page, "e2e-conversion-card");
 
   await expectNoAutomatedAccessibilityViolations(page, testInfo, {
@@ -148,10 +160,48 @@ test("the built extension exposes an accessible popup and content flow", async (
   await expect(ratesChoice).toBeFocused();
   await expect(dialog.getByRole("heading", { name: localized.base })).toBeVisible();
   await expect(dialog.getByRole("radio", { name: "JPY", exact: true })).toBeChecked();
-  await expect(dialog.getByText(localized.rateHistoryEmpty)).toBeVisible();
+  await expectRateChartDrawn(dialog);
   await saveReviewScreenshot(page, "e2e-conversion-card-rates");
   await expectNoAutomatedAccessibilityViolations(page, testInfo, {
     attachmentName: "axe-results-built-content-script-rates",
+    include: {
+      fromShadowDom: ["currency-lens-overlay", "[data-theme]"],
+    },
+  });
+});
+
+test("the rates screens explain a target that has no rate history", async ({
+  context,
+  extensionId,
+  page,
+}, testInfo) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole("button", { name: localized.editTargets }).click();
+  // The local Worker has a rate for CHF but no history of it.
+  await addConversionTarget(popup, "CHF");
+  await finishTargetEditing(popup);
+  await expect(popup.getByText("0.79", { exact: true })).toBeVisible();
+  await expect(popup.locator('[data-slot="sparkline-placeholder"]')).toHaveCount(1);
+
+  await popup.getByRole("radio", { name: localized.rates }).click();
+  await expect(popup.getByRole("heading", { name: localized.base })).toBeVisible();
+  await expect(popup.getByText(localized.rateHistoryEmpty)).toBeVisible();
+  await saveReviewScreenshot(popup, "e2e-popup-rates-empty");
+  await expectNoAutomatedAccessibilityViolations(popup, testInfo, {
+    attachmentName: "axe-results-built-popup-rates-empty",
+  });
+
+  await page.goto(HOST_PAGE_URL, { waitUntil: "domcontentloaded" });
+  await page.locator("#price").selectText();
+  await page.getByRole("button", { name: localized.quickChfConversion }).click();
+  const dialog = page.getByRole("dialog", { name: localized.conversionResult });
+  await dialog.getByRole("button", { name: localized.openChfRates }).click();
+  await expect(dialog.getByRole("radio", { name: localized.rates })).toBeChecked();
+  await expect(dialog.getByText(localized.rateHistoryEmpty)).toBeVisible();
+  await saveReviewScreenshot(page, "e2e-conversion-card-rates-empty");
+  await expectNoAutomatedAccessibilityViolations(page, testInfo, {
+    attachmentName: "axe-results-built-content-script-rates-empty",
     include: {
       fromShadowDom: ["currency-lens-overlay", "[data-theme]"],
     },

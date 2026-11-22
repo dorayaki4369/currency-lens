@@ -574,12 +574,20 @@ async function writeSeriesFile(
   header: unknown,
   rates: Record<string, RateSeries>,
 ): Promise<void> {
+  await bucket.put(key, formatSeriesFile(header, rates), {
+    httpMetadata: { contentType: "text/plain; charset=utf-8" },
+  });
+}
+
+/** Formats a JSON header line and one `CODE<TAB>[values]` line per currency. */
+export function formatSeriesFile(
+  header: unknown,
+  rates: Record<string, RateSeries>,
+): string {
   const lines = Object.entries(rates).map(
     ([code, series]) => `${code}\t${JSON.stringify(series)}`,
   );
-  await bucket.put(key, [JSON.stringify(header), ...lines].join("\n"), {
-    httpMetadata: { contentType: "text/plain; charset=utf-8" },
-  });
+  return [JSON.stringify(header), ...lines].join("\n");
 }
 
 /** Reads and validates an aggregate file, returning null when it has not been created yet. */
@@ -616,7 +624,7 @@ async function writeJson(bucket: R2Bucket, key: string, value: unknown): Promise
 }
 
 /** Returns the R2 key of one month of daily closes. */
-function monthlyHistoryKey(month: string): string {
+export function monthlyHistoryKey(month: string): string {
   return `history/daily/${month}.tsv`;
 }
 

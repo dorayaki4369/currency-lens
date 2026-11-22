@@ -2,15 +2,21 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   chromium,
+  expect,
   test as base,
   type BrowserContext,
+  type Locator,
   type Page,
   type Route,
 } from "@playwright/test";
 import { z } from "zod";
 import { settleFiniteAnimations } from "@/test/animation-settle";
 import { getHeadlessChromiumLaunchArguments } from "@/test/chromium-launch";
-import { E2E_WORKER_URL } from "@/test/e2e/global-setup";
+import {
+  E2E_WORKER_URL,
+  HISTORY_SEED_DATE_VARIABLE,
+  toUtcDate,
+} from "@/test/e2e/global-setup";
 
 const extensionPath = fileURLToPath(new URL("../../.output/chrome-mv3", import.meta.url));
 const manifestPath = fileURLToPath(
@@ -85,6 +91,30 @@ export async function saveReviewScreenshot(page: Page, name: string): Promise<vo
   await page.screenshot({ path: `${reviewScreenshotDirectory}${name}.png` });
 }
 
+/** Waits until each target's trend draws a line from the history, not the empty dashed line. */
+export async function expectTrendLinesDrawn(scope: Locator, count: number): Promise<void> {
+  await expect(scope.locator('[data-slot="sparkline"] path')).toHaveCount(count * 2);
+  await expect(scope.locator('[data-slot="sparkline-placeholder"]')).toHaveCount(0);
+}
+
+/**
+ * Waits until the rate chart draws the seeded history without any span marked as missing data.
+ * The Worker takes the newest daily point from an hourly slot of the current UTC date, so after
+ * UTC midnight passes during a run, the chart may end in one empty span, as it would in
+ * production until the next hourly aggregation.
+ */
+export async function expectRateChartDrawn(scope: Locator): Promise<void> {
+  await expect(scope.locator('[data-slot="rate-chart"]')).toBeVisible();
+  const gaps = scope.locator('[data-slot="rate-chart-gap"]');
+  const seedDate = process.env[HISTORY_SEED_DATE_VARIABLE];
+  expect(seedDate, "global setup records when it seeded the history").toBeDefined();
+  if (seedDate === toUtcDate(Date.now())) {
+    await expect(gaps).toHaveCount(0);
+  } else {
+    expect(await gaps.count()).toBeLessThanOrEqual(1);
+  }
+}
+
 /** Reads the API origin from the built manifest, so tests follow the endpoint the build embedded. */
 async function readBuiltApiOrigin(): Promise<string> {
   const manifest = builtManifestSchema.parse(
@@ -103,4 +133,4 @@ async function forwardToWorker(route: Route, apiRequests: string[]): Promise<voi
   await route.fulfill({ response });
 }
 
-export { expect } from "@playwright/test";
+export { expect };

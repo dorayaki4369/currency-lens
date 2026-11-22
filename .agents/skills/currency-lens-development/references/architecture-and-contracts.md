@@ -40,6 +40,8 @@ Background Script は検証済みのベース URL に `/v1/latest` と `/v1/hist
 モックは `apps/server/scripts/mock-rates.ts` の固定レートを、提供時刻を現在時刻にして返すため、拡張機能は fresh と判定します。
 モックを使う間も Worker と拡張機能は本番と同じコードで動き、Cron の代わりの `__scheduled` もモックから取得します。
 E2E はこの起動スクリプトを使わず、`apps/browser-extension/test/e2e/global-setup.ts` が独自のモックと Worker を起動します。
+その前に、`apps/server/test/history-seed.ts` が作る決まった形の履歴を、Wrangler の `getPlatformProxy` でローカル R2 へ書き込みます。
+履歴の集約ファイルの形式を変えるときは、この seed も同じ形式で作られることを `history-seed.spec.ts` で確かめます。
 
 ## 正本
 

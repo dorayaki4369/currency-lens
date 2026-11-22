@@ -1,6 +1,12 @@
 import type { Locator, Page } from "@playwright/test";
 import { SUPPORTED_UI_LOCALES, translate, type UiLocale } from "@/lib/i18n";
-import { expect, HOST_PAGE_URL, saveReviewScreenshot, test } from "@/test/e2e/fixtures";
+import {
+  expect,
+  expectTrendLinesDrawn,
+  HOST_PAGE_URL,
+  saveReviewScreenshot,
+  test,
+} from "@/test/e2e/fixtures";
 
 /** A browser language that each shipped UI locale is chosen for. */
 const BROWSER_LANGUAGES: Readonly<Record<UiLocale, string>> = {
@@ -43,6 +49,8 @@ for (const locale of SUPPORTED_UI_LOCALES) {
       ).toBeVisible();
       await popup.mouse.move(0, 0);
       await expect(popup.getByRole("tooltip")).toHaveCount(0);
+      // The store images show each target's trend drawn from the seeded history.
+      await expectTrendLinesDrawn(popup.locator("body"), 3);
       await waitForSettledAmounts(popup.locator("body"));
       await saveReviewScreenshot(popup, `e2e-${locale}-popup`);
 
@@ -55,6 +63,7 @@ for (const locale of SUPPORTED_UI_LOCALES) {
       await expect(
         dialog.getByRole("heading", { exact: true, name: t("convertedHeading") }),
       ).toBeVisible();
+      await expectTrendLinesDrawn(dialog, 3);
       await waitForSettledAmounts(dialog);
       await saveReviewScreenshot(page, `e2e-${locale}-conversion-card`);
     });

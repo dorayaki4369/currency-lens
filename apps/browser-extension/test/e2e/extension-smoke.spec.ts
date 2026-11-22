@@ -10,6 +10,7 @@ const localized = {
   rateHistoryEmpty:
     /^(?:Rate history isn’t available yet\.|レートの履歴はまだありません。)/u,
   rates: /^(?:Rates|レート)$/u,
+  openJpyRates: /^(?:Open JPY rates|JPY のレートを開く)$/u,
   base: /^(?:Base|基準)$/u,
   quickConversion:
     /^(?:¥37,213 \(Japanese Yen\)\. Show all conversions|￥37,213（日本円）。すべての換算先を表示)$/u,
@@ -135,6 +136,22 @@ test("the built extension exposes an accessible popup and content flow", async (
 
   await expectNoAutomatedAccessibilityViolations(page, testInfo, {
     attachmentName: "axe-results-built-content-script",
+    include: {
+      fromShadowDom: ["currency-lens-overlay", "[data-theme]"],
+    },
+  });
+
+  // A target's trend opens the same rates screen as the popup, with that currency chosen.
+  await dialog.getByRole("button", { name: localized.openJpyRates }).click();
+  const ratesChoice = dialog.getByRole("radio", { name: localized.rates });
+  await expect(ratesChoice).toBeChecked();
+  await expect(ratesChoice).toBeFocused();
+  await expect(dialog.getByRole("heading", { name: localized.base })).toBeVisible();
+  await expect(dialog.getByRole("radio", { name: "JPY", exact: true })).toBeChecked();
+  await expect(dialog.getByText(localized.rateHistoryEmpty)).toBeVisible();
+  await saveReviewScreenshot(page, "e2e-conversion-card-rates");
+  await expectNoAutomatedAccessibilityViolations(page, testInfo, {
+    attachmentName: "axe-results-built-content-script-rates",
     include: {
       fromShadowDom: ["currency-lens-overlay", "[data-theme]"],
     },

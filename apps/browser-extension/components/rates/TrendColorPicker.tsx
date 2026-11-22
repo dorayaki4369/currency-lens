@@ -1,12 +1,6 @@
-import { Pipette } from "lucide-react";
 import { useId, useRef, useState } from "react";
-import { z } from "zod/v4";
 import { translate, type UiLocale } from "@/lib/i18n";
-import {
-  CHART_COLOR_PALETTE,
-  hexColorSchema,
-  type ChangeDirection,
-} from "@/lib/trend-colors";
+import { CHART_COLOR_PALETTE, type ChangeDirection } from "@/lib/trend-colors";
 import { cn } from "@/lib/utils";
 import { FOCUS_RING_CLASS_NAME } from "@/components/ui/focus-ring";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 interface TrendColorPickerProps {
   /** The color now in use, which may be a theme token. */
   readonly color: string;
-  /** The locale default as a theme token, shown on the default button. */
+  /** The default as a theme token, shown on the default button. */
   readonly defaultColor: string;
   /** The default's light-theme hex, so the matching swatch reads as selected. */
   readonly defaultHex: string;
@@ -24,17 +18,6 @@ interface TrendColorPickerProps {
   /** The user's choice, or null while the default applies. */
   readonly selectedHex: string | null;
 }
-
-interface EyeDropperResult {
-  readonly sRGBHex: string;
-}
-
-type EyeDropperConstructor = new () => { open: () => Promise<EyeDropperResult> };
-
-// Feature detection as documented for the API; the constructor's shape is the platform's.
-const eyeDropperSchema = z.custom<EyeDropperConstructor>(
-  (value) => typeof value === "function",
-);
 
 // Sample curves from the design, drawn in a 140×28 box.
 const SAMPLE_LINES = {
@@ -60,7 +43,6 @@ export function TrendColorPicker({
   const gradientId = `trend-sample-${useId().replaceAll(/[^\w-]/gu, "")}`;
   const directionName = translate(locale, DIRECTION_KEYS[direction].name);
   const cardReference = useRef<HTMLButtonElement>(null);
-  const EyeDropper = getEyeDropper();
   const choose = (hex: string | null) => {
     onColorChange(hex === defaultHex ? null : hex);
     setOpen(false);
@@ -126,21 +108,6 @@ export function TrendColorPicker({
           sideOffset={6}
         >
           <div className="grid grid-cols-[repeat(6,1.5rem)] justify-between gap-y-2.5">
-            {EyeDropper === null ? null : (
-              <button
-                aria-label={translate(locale, "chartColorEyeDropper")}
-                className={cn(
-                  "flex size-6 items-center justify-center rounded-full border-[1.5px] border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400",
-                  FOCUS_RING_CLASS_NAME,
-                )}
-                onClick={() => {
-                  void pickFromScreen(EyeDropper, choose);
-                }}
-                type="button"
-              >
-                <Pipette aria-hidden="true" className="size-3.5" />
-              </button>
-            )}
             {CHART_COLOR_PALETTE.map((swatch) => {
               // While the default applies, only the default button reads as selected.
               const pressed = swatch.hex === selectedHex;
@@ -187,26 +154,4 @@ export function TrendColorPicker({
       ) : null}
     </Popover>
   );
-}
-
-/** Returns the EyeDropper API where the browser provides it (not Firefox or Safari). */
-function getEyeDropper(): EyeDropperConstructor | null {
-  const candidate = eyeDropperSchema.safeParse(Reflect.get(globalThis, "EyeDropper"));
-  return candidate.success ? candidate.data : null;
-}
-
-/** Lets the user sample a screen color; cancelling or an unusable value changes nothing. */
-async function pickFromScreen(
-  EyeDropper: EyeDropperConstructor,
-  choose: (hex: string) => void,
-): Promise<void> {
-  try {
-    const result = await new EyeDropper().open();
-    const hex = hexColorSchema.safeParse(result.sRGBHex);
-    if (hex.success) {
-      choose(hex.data);
-    }
-  } catch {
-    // The user pressed Escape or the browser refused to open the eyedropper.
-  }
 }

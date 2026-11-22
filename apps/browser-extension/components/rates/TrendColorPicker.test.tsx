@@ -40,7 +40,7 @@ async function openPicker(name = "Change the Rise color"): Promise<HTMLElement> 
 }
 
 describe("TrendColorPicker", () => {
-  it("shows the default as selected and offers every swatch without an eyedropper", async () => {
+  it("shows the default as selected and offers every swatch", async () => {
     renderPicker();
     const card = screen.getByRole("button", { name: "Change the Rise color" });
     expect(card.textContent).toBe("↑ Rise");
@@ -55,9 +55,6 @@ describe("TrendColorPicker", () => {
       within(dialog).getByRole("button", { name: "Default" }),
     ]);
     expect(within(dialog).getByRole("button", { name: "Red" }).style.boxShadow).toBe("");
-    expect(
-      within(dialog).queryByRole("button", { name: "Pick a color with the eyedropper" }),
-    ).toBeNull();
     const defaultButton = within(dialog).getByRole("button", { name: "Default" });
     expect(defaultButton.getAttribute("aria-pressed")).toBe("true");
     expect(
@@ -105,42 +102,6 @@ describe("TrendColorPicker", () => {
     fireEvent.keyDown(dialog, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(onColorChange).not.toHaveBeenCalled();
-  });
-
-  it("samples a screen color where the browser has an eyedropper", async () => {
-    const results = [
-      () => Promise.resolve({ sRGBHex: "#12AB34" }),
-      () => Promise.resolve({ sRGBHex: "rgb(1, 2, 3)" }),
-      () => Promise.reject(new DOMException("Cancelled", "AbortError")),
-    ];
-    vi.stubGlobal(
-      "EyeDropper",
-      class {
-        open() {
-          return results.shift()!();
-        }
-      },
-    );
-    const onColorChange = renderPicker();
-
-    let dialog = await openPicker();
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: "Pick a color with the eyedropper" }),
-    );
-    await waitFor(() => expect(onColorChange).toHaveBeenCalledWith("#12ab34"));
-
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    dialog = await openPicker();
-    const eyedropper = within(dialog).getByRole("button", {
-      name: "Pick a color with the eyedropper",
-    });
-    // An unusable value and a cancelled pick both leave the picker open and unchanged.
-    fireEvent.click(eyedropper);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    fireEvent.click(eyedropper);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(screen.getByRole("dialog")).toBe(dialog);
-    expect(onColorChange).toHaveBeenCalledTimes(1);
   });
 
   it("anchors the fall picker to the card's end", async () => {

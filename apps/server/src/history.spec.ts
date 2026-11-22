@@ -403,6 +403,38 @@ describe("updateHistory", () => {
     expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-13" });
   });
 
+  it("restarts the backfill when it finds a month invalid that it had already partly filled", async () => {
+    const bucket = createMemoryBucket();
+    bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2026-10-19" });
+    bucket.seed("history/daily/2026-10.tsv", "{");
+    bucket.seed(
+      "2026-10-25T23:00:00.000Z.json",
+      createSnapshotBody(Date.UTC(2026, 9, 25, 23), { JPY: 147 }),
+    );
+
+    const first = await updateHistory(
+      bucket,
+      { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
+      HISTORY_NOW_MS,
+    );
+
+    expect(first.rebuiltKeys).toEqual(["history/daily/2026-10.tsv"]);
+    expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-17" });
+
+    for (let run = 0; run < 6; run += 1) {
+      // Scheduled runs are sequential; each run reads what the previous one wrote.
+      // eslint-disable-next-line no-await-in-loop
+      await updateHistory(
+        bucket,
+        { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
+        HISTORY_NOW_MS,
+      );
+    }
+
+    const october = bucket.read("history/daily/2026-10.tsv") as MonthlyHistory;
+    expect(october.rates["JPY"]?.[24]).toBe(147);
+  });
+
   it("replaces an invalid month with a valid file even when no close can be recovered", async () => {
     const bucket = createMemoryBucket();
     bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2026-11-13" });

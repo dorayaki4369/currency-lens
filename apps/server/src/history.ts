@@ -163,18 +163,21 @@ export async function updateHistory(
   const state = await readOrRebuild(BACKFILL_STATE_KEY, () =>
     readJson(bucket, BACKFILL_STATE_KEY, backfillStateSchema),
   );
-  const restart = rebuiltKeys.some((key) => key.startsWith("history/daily/"));
+  const lostMonth = () => rebuiltKeys.some((key) => key.startsWith("history/daily/"));
+  const restartDate = addDays(today, -(RECENT_DAYS_TO_CHECK + 1));
+  const restarted = state === null || lostMonth();
   const oldestDate = addDays(today, -(DAILY_SLOT_COUNT - 1));
   const backfillDates: string[] = [];
-  let nextDate =
-    state === null || restart
-      ? addDays(today, -(RECENT_DAYS_TO_CHECK + 1))
-      : state.nextDate;
+  let nextDate = restarted ? restartDate : state.nextDate;
   while (backfillDates.length < MAX_BACKFILL_DAYS_PER_RUN && nextDate >= oldestDate) {
     backfillDates.push(nextDate);
     nextDate = addDays(nextDate, -1);
   }
   await Promise.all(backfillDates.map((date) => fillDay(months, bucket, date)));
+  // A month found invalid by this batch also lost the closes newer than the cursor.
+  if (!restarted && lostMonth()) {
+    nextDate = restartDate;
+  }
   await months.flush((month, history) =>
     writeSeriesFile(bucket, monthlyHistoryKey(month), { version: 1, month }, history.rates),
   );

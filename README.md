@@ -124,19 +124,20 @@ pnpm -C apps/server dev                     # Worker
 
 ルートで実行します。
 
-| コマンド                        | 用途                                                                                                                           |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm dev`                      | 拡張機能とWorkerの開発サーバーを起動する                                                                                       |
-| `pnpm check`                    | 整形、lint、型検査をまとめて確認する。`--fix`を付けると自動修正する                                                            |
-| `pnpm test`                     | unitテストを実行する（`pnpm test:unit`と同じ）                                                                                 |
-| `pnpm test:integration`         | 実ブラウザで結合テストを実行する                                                                                               |
-| `pnpm test:integration:firefox` | 配置の結合テストをFirefoxで実行する。Playwrightが管理するFirefoxが必要                                                         |
-| `pnpm test:coverage`            | unitテストのカバレッジ4指標が全ファイルで100%であることを検証する                                                              |
-| `pnpm test:e2e`                 | 拡張機能をビルドし、Chromiumへ読み込んで主要な操作を検証する。Firefox審査用のsources ZIPの中身も検証する。`API_ENDPOINT`が必要 |
-| `pnpm build`                    | 拡張機能とWorkerをビルドする。`API_ENDPOINT`が必要                                                                             |
-| `pnpm validate`                 | check、coverage、integration、buildを順に実行する。`API_ENDPOINT`が必要                                                        |
-| `pnpm store:dev`                | ストア掲載用の宣伝画像を`http://127.0.0.1:4310/`でプレビューする。元になるレビュー用画像が必要                                 |
-| `pnpm store:images`             | ストア掲載用の宣伝画像を`apps/browser-extension/.output/store-images/`へ書き出す。元になるレビュー用画像が必要                 |
+| コマンド                        | 用途                                                                                                                                                           |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                      | 拡張機能とWorkerの開発サーバーを起動する                                                                                                                       |
+| `pnpm check`                    | 整形、lint、型検査をまとめて確認する。`--fix`を付けると自動修正する                                                                                            |
+| `pnpm test`                     | unitテストを実行する（`pnpm test:unit`と同じ）                                                                                                                 |
+| `pnpm test:integration`         | 実ブラウザで結合テストを実行する                                                                                                                               |
+| `pnpm test:integration:firefox` | 配置の結合テストをFirefoxで実行する。Playwrightが管理するFirefoxが必要                                                                                         |
+| `pnpm test:coverage`            | unitテストのカバレッジ4指標が全ファイルで100%であることを検証する                                                                                              |
+| `pnpm test:e2e`                 | 拡張機能をビルドし、Chromiumへ読み込んで主要な操作を検証する。Firefox審査用のsources ZIPの中身も検証する。`API_ENDPOINT`が必要                                 |
+| `pnpm build`                    | 拡張機能とWorkerをビルドする。`API_ENDPOINT`が必要                                                                                                             |
+| `pnpm validate`                 | check、coverage、integration、buildを順に実行する。`API_ENDPOINT`が必要                                                                                        |
+| `pnpm store:dev`                | ストア掲載用の宣伝画像を`http://127.0.0.1:4310/`でプレビューする。元になるレビュー用画像が必要                                                                 |
+| `pnpm store:images`             | ストア掲載用の宣伝画像を`apps/browser-extension/.output/store-images/`へ書き出す。元になるレビュー用画像が必要                                                 |
+| `pnpm store:video`              | ストア掲載用の説明動画を撮り直す。Chrome系ブラウザ、libx264付きのffmpeg、`cdn.jsdelivr.net`への接続が必要（[手順](docs/deployment.md#ストア掲載用の宣伝画像)） |
 
 拡張機能のビルドとストア提出用ZIPの作成は、[ブラウザ拡張機能のREADME](apps/browser-extension/README.md#ビルド)を参照してください。
 

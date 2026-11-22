@@ -12,6 +12,7 @@ Funciones
 - Resuelve símbolos compartidos como «$»: cuando varias divisas usan el mismo símbolo, Currency Lens elige una según tus ajustes, el idioma de la página y el idioma del navegador. Puedes cambiar a qué divisa corresponde cada símbolo.
 - Edita y vuelve a convertir: cambia el importe o la divisa de origen directamente en la tarjeta.
 - Ventana de la barra de herramientas: escribe cualquier importe y divisa para convertirlo directamente, y añade, quita o reordena tus divisas.
+- Gráficos del historial de tipos de cambio: en la ventana de la barra de herramientas y en la tarjeta, mira cómo han variado los tipos de cambio de tus divisas en periodos de 1 día a 1 año, o compara la variación de todas en un mismo gráfico.
 - Tipos de cambio recientes de Open Exchange Rates, con un aviso si están desactualizados.
 - Interfaz en español, inglés, japonés, chino simplificado, chino tradicional, coreano, francés, alemán y portugués de Brasil, según el idioma del navegador.
 

@@ -15,6 +15,7 @@ vi.mock("@floating-ui/react-dom", () => ({
   flip: vi.fn<() => { readonly name: string }>(() => ({ name: "flip" })),
   offset: vi.fn<() => { readonly name: string }>(() => ({ name: "offset" })),
   shift: vi.fn<() => { readonly name: string }>(() => ({ name: "shift" })),
+  size: vi.fn<() => { readonly name: string }>(() => ({ name: "size" })),
   useFloating: vi.fn<() => unknown>(() => ({
     floatingStyles: { position: "fixed" },
     refs: floating,

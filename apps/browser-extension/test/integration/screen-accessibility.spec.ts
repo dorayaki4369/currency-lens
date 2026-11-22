@@ -73,6 +73,101 @@ it.each(["light", "dark"] as const)(
   },
 );
 
+it.each(["light", "dark"] as const)(
+  "keeps the %s rates screen free of automatically detectable violations",
+  async (theme) => {
+    const failures: string[] = [];
+
+    await openPopupScreen({ theme });
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect
+      .element(page.getByRole("slider", { name: "対 USD の変化率のチャート（過去1か月）" }))
+      .toBeVisible();
+    await collectViolations(failures, "popup rates for all targets", "#root");
+    await saveReviewScreenshot(`popup-${theme}-rates-all`);
+
+    await userEvent.click(page.getByRole("radio", { name: "JPY", exact: true }));
+    const chart = page.getByRole("slider", {
+      name: "USD に対する JPY のチャート（過去1か月）",
+    });
+    await expect.element(chart).toBeVisible();
+    await userEvent.click(page.getByRole("radio", { name: "1年", exact: true }));
+    await expect
+      .element(page.getByRole("slider", { name: "USD に対する JPY のチャート（過去1年）" }))
+      .toBeVisible();
+    await collectViolations(failures, "popup rates for one target", "#root");
+    await saveReviewScreenshot(`popup-${theme}-rates-single`);
+
+    expect(failures.length, failures.join("\n\n")).toBe(0);
+  },
+);
+
+it.each(["light", "dark"] as const)(
+  "keeps the %s chart color picker and a light custom color free of violations",
+  async (theme) => {
+    const failures: string[] = [];
+
+    await openPopupSettings(theme);
+    await userEvent.click(page.getByRole("button", { name: "外観" }));
+    await userEvent.click(page.getByRole("button", { name: "上昇の色を変える" }));
+    const picker = page.getByRole("dialog", { name: "上昇の色" });
+    await expect.element(picker).toBeVisible();
+    await collectViolations(failures, "popup chart color picker", "#root");
+    await collectViolations(
+      failures,
+      "chart color picker",
+      '[data-slot="trend-color-picker"]',
+    );
+    await saveReviewScreenshot(`popup-${theme}-chart-color-picker`);
+
+    // Yellow is the lightest swatch, so it checks that no text depends on the chosen color.
+    await userEvent.click(picker.getByRole("button", { name: "黄", exact: true }));
+    await expect.element(picker).not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "上昇の色を変える" }))
+      .toHaveFocus();
+    await saveReviewScreenshot(`popup-${theme}-chart-colors-custom`);
+    await userEvent.click(page.getByRole("button", { name: "戻る" }));
+    await userEvent.click(page.getByRole("button", { name: "戻る" }));
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect.element(page.getByRole("heading", { name: "基準" })).toBeVisible();
+    await collectViolations(failures, "popup rates with a custom rise color", "#root");
+    await saveReviewScreenshot(`popup-${theme}-rates-custom-color`);
+    await userEvent.click(page.getByRole("radio", { name: "EUR", exact: true }));
+    await expect.element(page.getByRole("slider")).toBeVisible();
+    await collectViolations(failures, "popup rate with a custom rise color", "#root");
+    await saveReviewScreenshot(`popup-${theme}-rate-custom-color`);
+
+    expect(failures.length, failures.join("\n\n")).toBe(0);
+  },
+);
+
+it.each(["loading", "empty", "error"] as const)(
+  "explains the %s rate history state without automatically detectable violations",
+  async (history) => {
+    const failures: string[] = [];
+    const messages = {
+      empty: "レートの履歴はまだありません。",
+      error: "レートの履歴を取得できませんでした。",
+      loading: "レートの履歴を読み込み中",
+    } as const;
+
+    await openPopupScreen({ history });
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect
+      .element(
+        history === "loading"
+          ? page.getByRole("status", { name: messages.loading })
+          : page.getByText(new RegExp(`^${messages[history]}`, "u")),
+      )
+      .toBeVisible();
+    await collectViolations(failures, `popup rates ${history}`, "#root");
+    await saveReviewScreenshot(`popup-rates-${history}`);
+
+    expect(failures.length, failures.join("\n\n")).toBe(0);
+  },
+);
+
 it.each(["success", "loading", "empty", "error"] as const)(
   "keeps the %s conversion card free of automatically detectable violations",
   async (state) => {
@@ -103,6 +198,38 @@ it("keeps the conversion card in Shadow DOM free of automatically detectable vio
 
   expect(failures.length, failures.join("\n\n")).toBe(0);
 });
+
+it.each(["light", "dark"] as const)(
+  "keeps the %s conversion card's rates in Shadow DOM free of automatically detectable violations",
+  async (theme) => {
+    const failures: string[] = [];
+    const include: LabelledShadowDomSelector = {
+      fromShadowDom: ["#root", '[data-slot="conversion-host"]'],
+    };
+    await openConversionScreen({ root: "shadow", theme });
+    await expect.element(page.getByRole("dialog", { name: "換算結果" })).toBeVisible();
+    await collectViolations(failures, `conversion card ${theme} converter`, include);
+    await saveReviewScreenshot(`conversion-${theme}-converter`);
+
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect
+      .element(page.getByRole("slider", { name: "対 USD の変化率のチャート（過去1か月）" }))
+      .toBeVisible();
+    await collectViolations(failures, `conversion card ${theme} rates for all`, include);
+    await saveReviewScreenshot(`conversion-${theme}-rates-all`);
+
+    await userEvent.click(page.getByRole("radio", { name: "JPY", exact: true }));
+    await expect
+      .element(
+        page.getByRole("slider", { name: "USD に対する JPY のチャート（過去1か月）" }),
+      )
+      .toBeVisible();
+    await collectViolations(failures, `conversion card ${theme} rates for one`, include);
+    await saveReviewScreenshot(`conversion-${theme}-rates-single`);
+
+    expect(failures.length, failures.join("\n\n")).toBe(0);
+  },
+);
 
 /** Runs and labels one state check so all failures in a test are reported together. */
 async function collectViolations(

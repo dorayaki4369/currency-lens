@@ -56,6 +56,13 @@ interface ConversionEditorProps {
       ) => void)
     | undefined;
   readonly portalled?: boolean | undefined;
+  /**
+   * Adds a trend cell to each target row. Rows then share the widest name's width so the
+   * trend cells line up. Keep the callback stable to avoid rerendering the target list.
+   */
+  readonly renderTargetTrend?: ((currencyCode: CurrencyCode) => ReactNode) | undefined;
+  /** Sits at the end of the source heading's row, such as the conversion card's close button. */
+  readonly sourceAction?: ReactNode | undefined;
   readonly sourceHeadingLevel?: 2 | 3 | undefined;
   readonly targetAmounts: ReadonlyMap<CurrencyCode, ConversionTargetAmount>;
   readonly targetCurrencies: readonly CurrencyCode[];
@@ -91,6 +98,8 @@ export function ConversionEditor({
   onCurrencyChange,
   onReorderTarget,
   portalled = true,
+  renderTargetTrend,
+  sourceAction,
   sourceHeadingLevel = 2,
   targetAmounts,
   targetCurrencies,
@@ -147,6 +156,7 @@ export function ConversionEditor({
     <Stack gap={3} data-slot="conversion-editor">
       <Stack as="section" aria-labelledby={sourceHeadingId}>
         <SectionHeader
+          action={sourceAction}
           headingLevel={sourceHeadingLevel}
           id={sourceHeadingId}
           title={translate(locale, "sourceHeading")}
@@ -157,12 +167,12 @@ export function ConversionEditor({
               <Label className="sr-only" htmlFor={sourceAmountId}>
                 {translate(locale, "sourceAmount")}
               </Label>
-              <Card className="overflow-hidden" spacing="none">
+              <Card className="overflow-hidden" spacing="field">
                 <Input
                   aria-describedby={sourceAmountIsInvalid ? sourceErrorId : undefined}
                   aria-invalid={sourceAmountIsInvalid}
                   className={cn(
-                    "h-12 rounded-none border-0 bg-transparent text-right shadow-none [appearance:textfield] tabular-nums focus-visible:ring-0 dark:bg-transparent",
+                    "h-13 rounded-none border-0 px-2 bg-transparent text-right shadow-none [appearance:textfield] tabular-nums focus-visible:ring-0 dark:bg-transparent",
                     "[&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none",
                   )}
                   id={sourceAmountId}
@@ -183,7 +193,7 @@ export function ConversionEditor({
             </>
           }
           identity={
-            <Card className="overflow-hidden" spacing="none">
+            <Card className="overflow-hidden" spacing="flush">
               <Label className="sr-only" htmlFor={sourceCurrencyId}>
                 {translate(locale, "sourceCurrency")}
               </Label>
@@ -240,6 +250,7 @@ export function ConversionEditor({
           onExitComplete={finishTargetEditing}
           onReorder={targetEditingIsRendered ? onReorderTarget : undefined}
           portalled={portalled}
+          renderTrend={renderTargetTrend}
           targetAmounts={targetAmounts}
           targetCurrencies={targetCurrencies}
         />
@@ -296,6 +307,7 @@ interface ConversionTargetAreaProps {
   readonly onExitComplete: () => void;
   readonly onReorder?: ConversionEditorProps["onReorderTarget"];
   readonly portalled: boolean;
+  readonly renderTrend: ConversionEditorProps["renderTargetTrend"];
   readonly targetAmounts: ReadonlyMap<CurrencyCode, ConversionTargetAmount>;
   readonly targetCurrencies: readonly CurrencyCode[];
 }
@@ -310,6 +322,7 @@ function ConversionTargetArea({
   onExitComplete,
   onReorder,
   portalled,
+  renderTrend,
   targetAmounts,
   targetCurrencies,
 }: ConversionTargetAreaProps) {
@@ -321,6 +334,7 @@ function ConversionTargetArea({
       onRemove={editing?.onRemove}
       onReorder={onReorder}
       portalled={portalled}
+      renderTrend={renderTrend}
       targetCurrencies={targetCurrencies}
     />
   );
@@ -330,7 +344,7 @@ function ConversionTargetArea({
       <ShownTargetAmountsContext.Provider value={shownTargetAmounts.current}>
         {editing === undefined ? (
           fallback === undefined ? (
-            <Card className="overflow-hidden" spacing="none">
+            <Card className="overflow-hidden" spacing="flush">
               {content}
             </Card>
           ) : (
@@ -406,7 +420,7 @@ function EditableConversionTargets({
           data-slot="target-editing-list"
           data-target-editing-motion={entering ? "entering" : undefined}
           data-target-editing-state={exiting ? "exiting" : "active"}
-          spacing="none"
+          spacing="flush"
         >
           {content}
         </Card>
@@ -463,6 +477,7 @@ interface ConversionTargetListProps {
   readonly onRemove?: ((currencyCode: CurrencyCode) => void) | undefined;
   readonly onReorder?: ConversionEditorProps["onReorderTarget"];
   readonly portalled: boolean;
+  readonly renderTrend: ConversionEditorProps["renderTargetTrend"];
   readonly targetCurrencies: readonly CurrencyCode[];
 }
 
@@ -472,6 +487,7 @@ const ConversionTargetList = memo(function ConversionTargetList({
   onRemove,
   onReorder,
   portalled,
+  renderTrend,
   targetCurrencies,
 }: ConversionTargetListProps) {
   return (
@@ -492,6 +508,8 @@ const ConversionTargetList = memo(function ConversionTargetList({
           currencyCode,
           freezeAmount: actions.isDeleting,
           locale,
+          renderTrend,
+          targetCurrencies,
         })
       }
     />
@@ -503,6 +521,8 @@ interface ConversionTargetValueRowOptions {
   readonly freezeAmount: boolean;
   readonly leadingAction?: ReactNode | undefined;
   readonly locale: UiLocale;
+  readonly renderTrend: ConversionEditorProps["renderTargetTrend"];
+  readonly targetCurrencies: readonly CurrencyCode[];
   readonly trailingAction?: ReactNode | undefined;
 }
 
@@ -512,8 +532,16 @@ function renderConversionTargetValueRow({
   freezeAmount,
   leadingAction,
   locale,
+  renderTrend,
+  targetCurrencies,
   trailingAction,
 }: ConversionTargetValueRowOptions): ReactNode {
+  const identity = (
+    <CurrencyIdentity
+      currencyCode={currencyCode}
+      description={getCurrencyDisplayName(currencyCode, locale)}
+    />
+  );
   return (
     <CurrencyValueRow
       amount={
@@ -524,16 +552,60 @@ function renderConversionTargetValueRow({
         />
       }
       identity={
-        <CurrencyIdentity
-          currencyCode={currencyCode}
-          description={getCurrencyDisplayName(currencyCode, locale)}
-        />
+        renderTrend === undefined ? (
+          identity
+        ) : (
+          <AlignedTargetIdentity
+            currencyCode={currencyCode}
+            identity={identity}
+            locale={locale}
+            targetCurrencies={targetCurrencies}
+          />
+        )
       }
       currencyCode={currencyCode}
       leadingAction={leadingAction}
       mode="display"
       trailingAction={trailingAction}
+      trend={renderTrend?.(currencyCode)}
     />
+  );
+}
+
+/**
+ * Stacks invisible copies of every target's identity under the visible one, so each row's
+ * name column is as wide as the widest name and the following cells line up across rows.
+ */
+function AlignedTargetIdentity({
+  currencyCode,
+  identity,
+  locale,
+  targetCurrencies,
+}: {
+  readonly currencyCode: CurrencyCode;
+  readonly identity: ReactNode;
+  readonly locale: UiLocale;
+  readonly targetCurrencies: readonly CurrencyCode[];
+}) {
+  return (
+    <span className="grid" data-slot="aligned-currency-identity">
+      <span className="col-start-1 row-start-1 min-w-0">{identity}</span>
+      {targetCurrencies
+        .filter((otherCurrencyCode) => otherCurrencyCode !== currencyCode)
+        .map((otherCurrencyCode) => (
+          <span
+            aria-hidden="true"
+            className="invisible col-start-1 row-start-1 h-0 min-w-0 overflow-hidden"
+            data-slot="currency-identity-sizer"
+            key={otherCurrencyCode}
+          >
+            <CurrencyIdentity
+              currencyCode={otherCurrencyCode}
+              description={getCurrencyDisplayName(otherCurrencyCode, locale)}
+            />
+          </span>
+        ))}
+    </span>
   );
 }
 
@@ -671,7 +743,7 @@ function TargetAdderSurface({
   return embedded ? (
     children
   ) : (
-    <Card className="overflow-hidden" spacing="none">
+    <Card className="overflow-hidden" spacing="flush">
       {children}
     </Card>
   );

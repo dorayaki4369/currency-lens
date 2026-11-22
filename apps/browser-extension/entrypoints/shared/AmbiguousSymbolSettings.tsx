@@ -1,4 +1,5 @@
 import { useId, useMemo } from "react";
+import { ROW_INSET_CLASS_NAME } from "@/components/ui/row-control";
 import {
   getAmbiguousCurrencySymbolGroups,
   isKnownCurrencyCode,
@@ -47,7 +48,7 @@ export function AmbiguousSymbolSettings({
   };
 
   return (
-    <Card className={cn("overflow-hidden", listClassName)} spacing="none">
+    <Card className={cn("overflow-hidden", listClassName)} spacing="flush">
       <List aria-labelledby={headingId} as="ul" className="min-h-0 flex-1 overflow-y-auto">
         {groups.map((group) => (
           <ListItem as="li" key={group.tokens.join("")}>
@@ -84,7 +85,7 @@ function SymbolMappingRow({
       data-slot="ambiguous-symbol-row"
     >
       <Label
-        className="min-h-12 min-w-0 px-3"
+        className={cn("min-w-0", ROW_INSET_CLASS_NAME)}
         data-slot="ambiguous-symbols"
         htmlFor={selectId}
       >

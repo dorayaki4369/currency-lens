@@ -1,8 +1,9 @@
 import type { ComponentProps, HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
+import { ROW_INSET_CLASS_NAME } from "@/components/ui/row-control";
 
 const LIST_DIVIDER_INSET_CLASS_NAMES = {
-  content: "before:inset-x-3",
+  content: "before:inset-x-2",
   edge: "before:inset-x-0",
 } as const;
 const LIST_DIVIDER_VISIBILITY_CLASS_NAMES = {
@@ -20,7 +21,17 @@ type ListProps =
   | ({ readonly as: "ol" } & ComponentProps<"ol">)
   | ({ readonly as: "ul" } & ComponentProps<"ul">);
 
-type ListItemRowProps = HTMLAttributes<HTMLDivElement>;
+type ListItemRowLayout = "inline" | "stacked";
+
+type ListItemRowProps = HTMLAttributes<HTMLDivElement> & {
+  /** "inline" sets a label and its control side by side; "stacked" puts a block below its heading. */
+  readonly layout?: ListItemRowLayout | undefined;
+};
+
+const LIST_ITEM_ROW_LAYOUT_CLASS_NAMES = {
+  inline: "items-center",
+  stacked: "flex-col",
+} as const satisfies Record<ListItemRowLayout, string>;
 
 type ListItemProps = {
   readonly as?: ListItemElement | undefined;
@@ -62,11 +73,16 @@ export function ListItem({
   return <div className={itemClassName} data-slot="list-item" {...props} />;
 }
 
-/** Gives every list row the same padding so rows differ only by their content. */
-export function ListItemRow({ className, ...props }: ListItemRowProps) {
+/** Gives every list row the same inset so rows differ only by their content. */
+export function ListItemRow({ className, layout = "inline", ...props }: ListItemRowProps) {
   return (
     <div
-      className={cn("flex min-h-12 items-center gap-2 px-3 py-1.5", className)}
+      className={cn(
+        "flex gap-2",
+        ROW_INSET_CLASS_NAME,
+        LIST_ITEM_ROW_LAYOUT_CLASS_NAMES[layout],
+        className,
+      )}
       data-slot="list-item-row"
       {...props}
     />

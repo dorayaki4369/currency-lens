@@ -12,6 +12,7 @@ Fonctionnalités
 - Gère les symboles partagés comme « $ » : lorsqu’un symbole est utilisé par plusieurs devises, Currency Lens en choisit une selon vos réglages, la langue de la page et celle du navigateur. Vous pouvez changer la devise associée à chaque symbole.
 - Modifier et reconvertir : changez le montant ou la devise d’origine directement dans la carte.
 - Fenêtre de la barre d’outils : saisissez un montant et une devise pour les convertir directement, et ajoutez, retirez ou réordonnez vos devises.
+- Graphiques de l’évolution des taux : dans la fenêtre de la barre d’outils et dans la carte, suivez l’évolution des taux de vos devises sur des périodes de 1 jour à 1 an, ou comparez leurs variations sur un même graphique.
 - Taux de change récents d’Open Exchange Rates, avec un avertissement s’ils sont anciens.
 - Interface en français, anglais, japonais, chinois simplifié, chinois traditionnel, coréen, espagnol, allemand et portugais du Brésil, selon la langue du navigateur.
 

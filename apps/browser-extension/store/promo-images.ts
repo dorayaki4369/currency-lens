@@ -166,7 +166,7 @@ function localePromoPages(
       </div>
       <div class="stage">
         <div class="price"><mark>$249.00</mark></div>
-        <div class="card">${crop("conversion-card", 256, 219, 384, 400)}</div>
+        <div class="card">${crop("conversion-card", 256, 219, 384, 470)}</div>
       </div>`,
 
     "promo-2-currency-picker": `
@@ -183,7 +183,7 @@ function localePromoPages(
     "promo-3-toolbar-popup": `
       <style>
         .copy{width:460px}
-        .window{position:absolute;left:600px;top:120px;width:640px;height:560px}
+        .window{position:absolute;left:600px;top:100px;width:640px;height:600px}
         .chrome{position:absolute;inset:0;background:#fff;border-radius:16px;overflow:hidden;
           box-shadow:0 40px 80px -24px rgba(15,23,42,.35),0 0 0 1px rgba(15,23,42,.08);
           -webkit-mask-image:linear-gradient(to right,transparent,#000 140px);mask-image:linear-gradient(to right,transparent,#000 140px)}
@@ -216,7 +216,7 @@ function localePromoPages(
             <div class="line" style="width:75%"></div><div class="line" style="width:40%"></div>
           </div>
         </div>
-        <div class="popup">${crop("popup", 0, 0, 400, 440)}</div>
+        <div class="popup">${crop("popup", 0, 0, 400, 504)}</div>
       </div>`,
   };
 }

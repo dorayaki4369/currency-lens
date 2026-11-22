@@ -20,6 +20,62 @@ export const POPUP_PREVIEW: PopupPreviewData = {
   },
 };
 
+const DAILY_SLOTS = 40;
+const HOURLY_SLOTS = 30;
+
+/** Small deterministic history; GBP starts late so its change is measured from a later day. */
+export const POPUP_HISTORY = {
+  daily: {
+    base: "USD",
+    rates: {
+      EUR: Array.from({ length: DAILY_SLOTS }, (_, index) => 0.9 - index * 0.001),
+      GBP: Array.from({ length: DAILY_SLOTS }, (_, index) =>
+        index < 35 ? null : 0.74 + (index - 35) * 0.001,
+      ),
+      JPY: Array.from({ length: DAILY_SLOTS }, (_, index) => 140 + index * 0.25),
+    },
+    resolution: "daily",
+    start: "2026-06-20T00:00:00.000Z",
+  },
+  hourly: {
+    base: "USD",
+    rates: {
+      EUR: Array.from({ length: HOURLY_SLOTS }, () => 0.86),
+      JPY: Array.from({ length: HOURLY_SLOTS }, (_, index) => 150 - index * 0.1),
+    },
+    resolution: "hourly",
+    start: "2026-07-28T00:00:00.000Z",
+  },
+  kind: "data",
+} as const satisfies NonNullable<PopupPreviewData["history"]>;
+
+/** Albanian lek, whose code ALL matches the visible label of the every-target choice. */
+export const POPUP_LEK_PREVIEW: PopupPreviewData = {
+  ...POPUP_PREVIEW,
+  config: { ...POPUP_PREVIEW.config, favorites: ["JPY", "ALL"] },
+  history: {
+    ...POPUP_HISTORY,
+    daily: {
+      ...POPUP_HISTORY.daily,
+      rates: {
+        ...POPUP_HISTORY.daily.rates,
+        ALL: Array.from({ length: DAILY_SLOTS }, (_, index) => 92 + index * 0.05),
+      },
+    },
+  },
+  rates: {
+    ...POPUP_PREVIEW.rates,
+    rates: { ...POPUP_PREVIEW.rates.rates, ALL: "93.95" },
+  },
+};
+
+/** Finds the sliding thumb of the segmented control with the given accessible name. */
+export function getSegmentedThumb(groupName: string): Element | null {
+  return screen
+    .getByRole("radiogroup", { name: groupName })
+    .querySelector('[data-slot="segmented-control-thumb"]');
+}
+
 export type PopupMessageSender = ReturnType<
   typeof vi.fn<(message: unknown) => Promise<unknown>>
 >;

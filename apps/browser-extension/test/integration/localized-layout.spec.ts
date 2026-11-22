@@ -153,10 +153,9 @@ it.each(SUPPORTED_UI_LOCALES)(
   },
 );
 
-// The picker opens below the editor at the browser-mode default viewport, and the store images
-// crop this screenshot at the size the original Japanese source screenshot was taken at.
+// The picker opens below the editor on a phone-sized viewport, where it has the least room.
 it.each(SUPPORTED_UI_LOCALES)(
-  "keeps every %s target picker option readable below the editor for the store images",
+  "keeps every %s target picker option readable below the editor",
   async (locale) => {
     const failures: string[] = [];
     await setViewport({ height: 896, width: 414 });
@@ -174,10 +173,10 @@ it.each(SUPPORTED_UI_LOCALES)(
     collectOverflow(
       failures,
       locale,
-      "store target picker",
+      "target picker below the editor",
       '[data-slot="popover-content"]',
     );
-    await saveReviewScreenshot(`store-${locale}-target-picker`);
+    await saveReviewScreenshot(`locale-${locale}-target-picker-below-editor`);
 
     expect(failures, failures.join("\n")).toEqual([]);
   },

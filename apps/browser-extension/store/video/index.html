@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Diagram Animation</title>
+    <link rel="stylesheet" href="style.css" />
+    <script
+      src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11/dist/index.global.js"
+      integrity="sha384-XXN6/S6yXj8EpXnBTw3JGR9ZM+hixGxFCLYn0FHtg9cWh0ziKmAgTPEhecbCDOmj"
+      crossorigin="anonymous"
+    ></script>
+    <style type="text/tailwindcss">
+      /* shadcn/ui の neutral テーマ（apps/v4/registry/themes.ts）の値。暗い背景にするときは <html class="dark"> にする。 */
+      @custom-variant dark (&:is(.dark *));
+
+      :root {
+        --radius: 0.625rem;
+        --background: oklch(1 0 0);
+        --foreground: oklch(0.145 0 0);
+        --card: oklch(1 0 0);
+        --card-foreground: oklch(0.145 0 0);
+        --popover: oklch(1 0 0);
+        --popover-foreground: oklch(0.145 0 0);
+        --primary: oklch(0.205 0 0);
+        --primary-foreground: oklch(0.985 0 0);
+        --secondary: oklch(0.97 0 0);
+        --secondary-foreground: oklch(0.205 0 0);
+        --muted: oklch(0.97 0 0);
+        --muted-foreground: oklch(0.556 0 0);
+        --accent: oklch(0.97 0 0);
+        --accent-foreground: oklch(0.205 0 0);
+        --destructive: oklch(0.577 0.245 27.325);
+        --border: oklch(0.922 0 0);
+        --input: oklch(0.922 0 0);
+        --ring: oklch(0.708 0 0);
+        /* 強調（光る箱と線、粒）と応答の色。shadcn にはないため、この Skill で足した値。 */
+        --highlight: oklch(0.623 0.214 259.815);
+        --highlight-2: oklch(0.656 0.241 354.308);
+      }
+
+      .dark {
+        --background: oklch(0.145 0 0);
+        --foreground: oklch(0.985 0 0);
+        --card: oklch(0.205 0 0);
+        --card-foreground: oklch(0.985 0 0);
+        --popover: oklch(0.205 0 0);
+        --popover-foreground: oklch(0.985 0 0);
+        --primary: oklch(0.922 0 0);
+        --primary-foreground: oklch(0.205 0 0);
+        --secondary: oklch(0.269 0 0);
+        --secondary-foreground: oklch(0.985 0 0);
+        --muted: oklch(0.269 0 0);
+        --muted-foreground: oklch(0.708 0 0);
+        --accent: oklch(0.269 0 0);
+        --accent-foreground: oklch(0.985 0 0);
+        --destructive: oklch(0.704 0.191 22.216);
+        --border: oklch(1 0 0 / 10%);
+        --input: oklch(1 0 0 / 15%);
+        --ring: oklch(0.556 0 0);
+        --highlight: oklch(0.707 0.165 254.624);
+        --highlight-2: oklch(0.718 0.202 349.761);
+      }
+
+      @theme inline {
+        --font-sans:
+          "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+        --radius-sm: calc(var(--radius) * 0.6);
+        --radius-md: calc(var(--radius) * 0.8);
+        --radius-lg: var(--radius);
+        --radius-xl: calc(var(--radius) * 1.4);
+        --color-background: var(--background);
+        --color-foreground: var(--foreground);
+        --color-card: var(--card);
+        --color-card-foreground: var(--card-foreground);
+        --color-popover: var(--popover);
+        --color-popover-foreground: var(--popover-foreground);
+        --color-primary: var(--primary);
+        --color-primary-foreground: var(--primary-foreground);
+        --color-secondary: var(--secondary);
+        --color-secondary-foreground: var(--secondary-foreground);
+        --color-muted: var(--muted);
+        --color-muted-foreground: var(--muted-foreground);
+        --color-accent: var(--accent);
+        --color-accent-foreground: var(--accent-foreground);
+        --color-destructive: var(--destructive);
+        --color-border: var(--border);
+        --color-input: var(--input);
+        --color-ring: var(--ring);
+        --color-highlight: var(--highlight);
+        --color-highlight-2: var(--highlight-2);
+      }
+
+      @layer base {
+        * {
+          @apply border-border;
+        }
+        body {
+          @apply bg-background text-foreground font-sans;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <div
+        id="stage"
+        style="
+          background:
+            radial-gradient(1400px 900px at 0% 0%, #e3f1ff 0%, transparent 70%),
+            radial-gradient(1200px 900px at 100% 100%, #fff3d1 0%, transparent 70%), #f8fafc;
+        "
+      >
+        <div id="camera" class="absolute inset-0 origin-top-left">
+          <div
+            id="window"
+            class="absolute top-[110px] left-[300px] h-[760px] w-[1320px] overflow-hidden rounded-2xl border bg-background shadow-2xl"
+          >
+            <div class="flex h-14 items-center gap-3 border-b bg-muted px-5">
+              <span class="size-3.5 rounded-full bg-border"></span
+              ><span class="size-3.5 rounded-full bg-border"></span
+              ><span class="size-3.5 rounded-full bg-border"></span>
+              <div
+                class="ml-4 flex h-9 flex-1 items-center rounded-full bg-background px-5 text-[17px] text-muted-foreground"
+              >
+                shop.example.com/headphones
+              </div>
+            </div>
+            <div class="flex gap-14 p-16">
+              <div
+                class="flex size-[400px] shrink-0 items-center justify-center rounded-2xl bg-slate-800"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  class="size-[220px]"
+                  fill="none"
+                  stroke="#e2e8f0"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                >
+                  <path d="M4 15v-3a8 8 0 0 1 16 0v3" />
+                  <rect x="2.5" y="14" width="5" height="7" rx="2" fill="#e2e8f0" />
+                  <rect x="16.5" y="14" width="5" height="7" rx="2" fill="#e2e8f0" />
+                </svg>
+              </div>
+              <div class="flex flex-col gap-5 pt-4">
+                <p class="text-[22px] text-muted-foreground">Example Audio</p>
+                <h2 class="text-[44px] leading-tight font-bold">
+                  Wireless Noise-Cancelling<br />Headphones
+                </h2>
+                <p class="relative w-fit text-[60px] font-bold tracking-tight">
+                  <span
+                    id="selection"
+                    class="absolute inset-y-1 -inset-x-1 origin-left bg-[#b4d5fe]"
+                  ></span
+                  ><span id="price" class="relative">$249.00</span>
+                </p>
+                <p class="text-[22px] text-muted-foreground">Free shipping · In stock</p>
+                <div
+                  class="mt-4 flex h-16 w-[360px] items-center justify-center rounded-xl bg-primary text-[24px] font-semibold text-primary-foreground"
+                >
+                  Add to cart
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            id="quick"
+            class="absolute flex h-[60px] items-center gap-4 rounded-2xl border bg-white px-5 shadow-lg"
+          >
+            <img
+              src="assets/flag-jp.svg"
+              alt=""
+              class="h-[26px] w-[35px] rounded-[3px] border"
+            />
+            <span class="text-[30px] font-bold tracking-wide">¥37,213</span>
+            <svg
+              viewBox="0 0 24 24"
+              class="size-7"
+              fill="none"
+              stroke="#475569"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+          </div>
+          <div
+            id="card"
+            class="absolute w-[520px] rounded-2xl border bg-[#f3f4f6] p-6 shadow-2xl"
+          >
+            <div
+              class="mb-5 grid grid-cols-2 rounded-xl bg-[#e4e4e7] p-1 text-[18px] font-semibold"
+            >
+              <span class="rounded-lg bg-white py-2 text-center shadow-sm">換算</span>
+              <span class="py-2 text-center text-muted-foreground">レート</span>
+            </div>
+            <p class="mb-3 text-[20px] font-semibold">換算元</p>
+            <div class="mb-6 flex gap-3">
+              <div class="flex flex-1 items-center gap-3 rounded-xl bg-white px-4 py-3">
+                <img
+                  src="assets/flag-us.svg"
+                  alt=""
+                  class="h-[22px] w-[30px] rounded-[2px]"
+                />
+                <div>
+                  <p class="text-[20px] font-bold leading-tight">USD</p>
+                  <p class="text-[15px] text-muted-foreground">米ドル</p>
+                </div>
+              </div>
+              <div
+                class="flex w-[150px] items-center justify-end rounded-xl bg-white px-4 text-[22px]"
+              >
+                249
+              </div>
+            </div>
+            <p class="mb-3 text-[20px] font-semibold">換算後</p>
+            <div id="rows" class="rounded-xl bg-white px-4">
+              <div class="flex items-center gap-3 border-b py-3">
+                <img
+                  src="assets/flag-jp.svg"
+                  alt=""
+                  class="h-[22px] w-[30px] rounded-[2px] border"
+                />
+                <div class="flex-1">
+                  <p class="text-[20px] font-bold leading-tight">JPY</p>
+                  <p class="text-[15px] text-muted-foreground">日本円</p>
+                </div>
+                <svg viewBox="0 0 110 40" class="h-[40px] w-[110px]" fill="none">
+                  <path
+                    d="M0 6 L10 4 L20 9 L30 8 L40 14 L50 17 L60 15 L70 22 L80 24 L90 23 L100 29 L110 31 L110 40 L0 40 Z"
+                    fill="#ef4444"
+                    opacity="0.12"
+                  />
+                  <path
+                    d="M0 6 L10 4 L20 9 L30 8 L40 14 L50 17 L60 15 L70 22 L80 24 L90 23 L100 29 L110 31"
+                    stroke="#ef4444"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <p class="w-[130px] text-right text-[22px] font-bold">37,213.00</p>
+              </div>
+              <div class="flex items-center gap-3 border-b py-3">
+                <img
+                  src="assets/flag-eu.svg"
+                  alt=""
+                  class="h-[22px] w-[30px] rounded-[2px]"
+                />
+                <div class="flex-1">
+                  <p class="text-[20px] font-bold leading-tight">EUR</p>
+                  <p class="text-[15px] text-muted-foreground">ユーロ</p>
+                </div>
+                <svg viewBox="0 0 110 40" class="h-[40px] w-[110px]" fill="none">
+                  <path
+                    d="M0 30 L10 29 L20 27 L30 26 L40 22 L50 20 L60 17 L70 12 L80 9 L90 8 L100 7 L110 7 L110 40 L0 40 Z"
+                    fill="#22c55e"
+                    opacity="0.12"
+                  />
+                  <path
+                    d="M0 30 L10 29 L20 27 L30 26 L40 22 L50 20 L60 17 L70 12 L80 9 L90 8 L100 7 L110 7"
+                    stroke="#22c55e"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <p class="w-[130px] text-right text-[22px] font-bold">214.66</p>
+              </div>
+              <div class="flex items-center gap-3 py-3">
+                <img
+                  src="assets/flag-gb.svg"
+                  alt=""
+                  class="h-[22px] w-[30px] rounded-[2px]"
+                />
+                <div class="flex-1">
+                  <p class="text-[20px] font-bold leading-tight">GBP</p>
+                  <p class="text-[15px] text-muted-foreground">英国ポンド</p>
+                </div>
+                <svg viewBox="0 0 110 40" class="h-[40px] w-[110px]" fill="none">
+                  <path
+                    d="M0 12 L10 10 L20 14 L30 13 L40 19 L50 22 L60 20 L70 24 L80 23 L90 27 L100 26 L110 28 L110 40 L0 40 Z"
+                    fill="#ef4444"
+                    opacity="0.12"
+                  />
+                  <path
+                    d="M0 12 L10 10 L20 14 L30 13 L40 19 L50 22 L60 20 L70 24 L80 23 L90 27 L100 26 L110 28"
+                    stroke="#ef4444"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <p class="w-[130px] text-right text-[22px] font-bold">184.96</p>
+              </div>
+            </div>
+            <p class="mt-4 text-[16px] text-muted-foreground">
+              ※ 画面のレートは説明用の例です
+            </p>
+          </div>
+          <svg
+            id="cursor"
+            viewBox="0 0 24 24"
+            class="absolute top-0 left-0 size-[44px]"
+            style="filter: drop-shadow(0 3px 4px rgba(15, 23, 42, 0.35))"
+          >
+            <path
+              d="M5 3l13 7.5-5.6 1.5 3.4 6.3-2.6 1.4-3.4-6.3L5 17z"
+              fill="#0f172a"
+              stroke="#fff"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span
+            id="ripple"
+            class="absolute size-[90px] rounded-full border-4 border-[#0094ff]"
+          ></span>
+        </div>
+        <div
+          id="rates"
+          class="absolute inset-0 flex items-center justify-center"
+          style="
+            background:
+              radial-gradient(1400px 900px at 0% 0%, #e3f1ff 0%, transparent 70%),
+              radial-gradient(1200px 900px at 100% 100%, #fff3d1 0%, transparent 70%),
+              #f8fafc;
+          "
+        >
+          <div
+            id="rates-card"
+            class="-mt-24 w-[1120px] rounded-3xl border bg-white p-10 shadow-2xl"
+          >
+            <div
+              class="mb-6 grid grid-cols-4 rounded-xl bg-[#f4f4f5] p-1 text-[24px] font-semibold"
+            >
+              <span class="rounded-lg bg-white py-2 text-center shadow-sm">ALL</span>
+              <span class="py-2 text-center text-muted-foreground">JPY</span>
+              <span class="py-2 text-center text-muted-foreground">EUR</span>
+              <span class="py-2 text-center text-muted-foreground">GBP</span>
+            </div>
+            <p class="mb-3 text-[22px] text-muted-foreground">対 USD の変化率</p>
+            <div id="rates-legend" class="mb-6 grid grid-cols-3"></div>
+            <svg
+              id="rates-chart"
+              viewBox="0 0 1040 360"
+              class="h-[360px] w-full"
+              fill="none"
+            ></svg>
+            <div
+              class="mt-3 flex justify-between pr-[150px] text-[20px] text-muted-foreground"
+            >
+              <span>10/24</span><span>11/8</span><span>11/22</span>
+            </div>
+          </div>
+        </div>
+        <div
+          id="counts"
+          class="absolute inset-0 flex items-center justify-center"
+          style="
+            background:
+              radial-gradient(1400px 900px at 0% 0%, #e3f1ff 0%, transparent 70%),
+              radial-gradient(1200px 900px at 100% 100%, #fff3d1 0%, transparent 70%),
+              #f8fafc;
+          "
+        >
+          <div class="flex flex-col gap-12">
+            <div class="count flex items-center gap-12">
+              <div class="flex w-[300px] -space-x-2">
+                <span
+                  class="flex size-[96px] items-center justify-center rounded-full text-[44px] font-extrabold shadow-lg ring-[5px] ring-white bg-white text-[#0057d9]"
+                  >$</span
+                ><span
+                  class="flex size-[96px] items-center justify-center rounded-full text-[44px] font-extrabold shadow-lg ring-[5px] ring-white bg-white text-[#0057d9]"
+                  >€</span
+                ><span
+                  class="flex size-[96px] items-center justify-center rounded-full text-[44px] font-extrabold shadow-lg ring-[5px] ring-white bg-white text-[#0057d9]"
+                  >¥</span
+                >
+              </div>
+              <p
+                class="w-[300px] text-right text-[110px] font-extrabold tabular-nums"
+                data-count="169"
+              >
+                169
+              </p>
+              <p class="text-[52px] font-bold">各国通貨</p>
+            </div>
+            <div class="count flex items-center gap-12">
+              <div class="flex w-[300px] -space-x-2">
+                <img
+                  src="assets/coin-btc.svg"
+                  class="size-[96px] rounded-full shadow-lg ring-[5px] ring-white"
+                /><img
+                  src="assets/coin-eth.svg"
+                  class="size-[96px] rounded-full shadow-lg ring-[5px] ring-white"
+                /><img
+                  src="assets/coin-xrp.svg"
+                  class="size-[96px] rounded-full shadow-lg ring-[5px] ring-white"
+                />
+              </div>
+              <p
+                class="w-[300px] text-right text-[110px] font-extrabold tabular-nums"
+                data-count="11"
+              >
+                11
+              </p>
+              <p class="text-[52px] font-bold">暗号資産</p>
+            </div>
+            <div class="count flex items-center gap-12">
+              <div class="flex w-[300px] -space-x-2">
+                <span
+                  class="flex size-[96px] items-center justify-center rounded-full text-[44px] font-extrabold shadow-lg ring-[5px] ring-white text-[32px] text-slate-900/70"
+                  style="background: linear-gradient(135deg, #fde68a, #d4a017 55%, #a16207)"
+                  >Au</span
+                ><span
+                  class="flex size-[96px] items-center justify-center rounded-full text-[44px] font-extrabold shadow-lg ring-[5px] ring-white text-[32px] text-slate-900/70"
+                  style="background: linear-gradient(135deg, #f8fafc, #cbd5e1 55%, #94a3b8)"
+                  >Ag</span
+                ><span
+                  class="flex size-[96px] items-center justify-center rounded-full text-[44px] font-extrabold shadow-lg ring-[5px] ring-white text-[32px] text-slate-900/70"
+                  style="background: linear-gradient(135deg, #f1f5f9, #a8b4c4 55%, #64748b)"
+                  >Pt</span
+                >
+              </div>
+              <p
+                class="w-[300px] text-right text-[110px] font-extrabold tabular-nums"
+                data-count="4"
+              >
+                4
+              </p>
+              <p class="text-[52px] font-bold">貴金属</p>
+            </div>
+          </div>
+        </div>
+        <div
+          id="outro"
+          class="absolute inset-0 flex flex-col items-center justify-center gap-10"
+          style="background: linear-gradient(135deg, #0094ff, #0057d9)"
+        >
+          <div class="flex items-center gap-10">
+            <div
+              class="flex size-[200px] items-center justify-center rounded-[44px] bg-white shadow-2xl"
+            >
+              <img src="assets/logo.svg" alt="" class="size-[150px]" />
+            </div>
+            <p class="text-[110px] font-extrabold tracking-tight text-white">
+              Currency Lens
+            </p>
+          </div>
+          <p class="text-[56px] font-bold text-white/90">選ぶだけですぐ換算</p>
+        </div>
+        <p
+          id="caption"
+          class="absolute bottom-14 left-1/2 -translate-x-1/2 whitespace-nowrap text-[64px] font-extrabold text-slate-900"
+          style="
+            filter: drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px rgba(255, 255, 255, 0.9));
+          "
+        ></p>
+      </div>
+    </div>
+    <script src="lib/anim.js"></script>
+    <script src="scene.js"></script>
+  </body>
+</html>

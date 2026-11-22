@@ -126,6 +126,40 @@ export async function saveScaledReviewScreenshot(
   }
 }
 
+/**
+ * Saves one element of an extension page enlarged with CSS zoom, on a transparent background.
+ * The DevTools capture ignores the clip position on extension pages, so they are zoomed instead.
+ */
+export async function saveZoomedReviewScreenshot(
+  page: Page,
+  element: Locator,
+  name: string,
+  { margin, zoom }: { readonly margin: number; readonly zoom: number },
+): Promise<void> {
+  await page.evaluate(settleFiniteAnimations);
+  // Clears the backgrounds behind the element, so only the element and its shadow remain.
+  await element.evaluate((target, scale) => {
+    document.documentElement.style.zoom = String(scale);
+    for (let node = target.parentElement; node !== null; node = node.parentElement) {
+      node.style.setProperty("background", "transparent", "important");
+    }
+  }, zoom);
+  const box = await element.boundingBox();
+  if (box === null) throw new Error(`${name}: the element is not visible.`);
+  await page.screenshot({
+    clip: {
+      height: box.height + margin * 2 * zoom,
+      width: box.width + margin * 2 * zoom,
+      x: box.x - margin * zoom,
+      y: box.y - margin * zoom,
+    },
+    // The zoomed element can reach below the window, which only a full-page capture includes.
+    fullPage: true,
+    omitBackground: true,
+    path: `${reviewScreenshotDirectory}${name}.png`,
+  });
+}
+
 /** Reads the API origin from the built manifest, so tests follow the endpoint the build embedded. */
 async function readBuiltApiOrigin(): Promise<string> {
   const manifest = builtManifestSchema.parse(

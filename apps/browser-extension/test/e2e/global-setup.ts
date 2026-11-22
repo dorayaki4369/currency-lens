@@ -11,7 +11,7 @@ const WORKER_STARTUP_TIMEOUT_MILLISECONDS = 60_000;
 const serverDirectory = fileURLToPath(new URL("../../../server/", import.meta.url));
 
 /** The rates the fake Open Exchange Rates API returns to the local Worker. */
-const UPSTREAM_RATES = {
+export const UPSTREAM_RATES = {
   BRL: 5.42,
   CNY: 7.12,
   EUR: 0.8621,

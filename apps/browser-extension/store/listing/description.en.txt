@@ -12,8 +12,9 @@ Features
 - Handles shared symbols like "$": when a symbol is shared by several currencies, Currency Lens picks one from your settings, the page language and your browser language. You can change which currency each symbol stands for.
 - Edit and re-convert: change the amount or the source currency right in the card.
 - Toolbar popup: type any amount and currency to convert it directly, and add, remove or reorder your currencies.
+- Rate history charts: in the toolbar popup and the card, see how the rates of your currencies have moved over periods from 1 day to 1 year, or compare the changes of all of them on one chart.
 - Latest exchange rates from Open Exchange Rates, with a warning if they are out of date.
-- English and Japanese interface, following your browser language.
+- Interface in English, Japanese, Simplified and Traditional Chinese, Korean, Spanish, French, German and Brazilian Portuguese, following your browser language.
 
 Privacy
 

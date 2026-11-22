@@ -1,3 +1,4 @@
+import { readdir } from "node:fs/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   formatConvertedAmount,
@@ -6,8 +7,16 @@ import {
   getRegionDisplayNames,
   getUiLocale,
   resolveUiLocale,
+  SUPPORTED_UI_LOCALES,
   translate,
+  type TranslationKey,
 } from "@/lib/i18n";
+import { en } from "@/lib/locales/en";
+
+/** Lists the named placeholders of a message so translations cannot drop or rename them. */
+function placeholders(message: string): string[] {
+  return [...message.matchAll(/\{(\w+)\}/gu)].map((match) => match[1] ?? "").toSorted();
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -15,11 +24,58 @@ afterEach(() => {
 });
 
 describe("UI localization", () => {
-  it("selects Japanese explicitly and falls back to English", () => {
-    expect(resolveUiLocale("ja-JP")).toBe("ja");
-    expect(resolveUiLocale("en-GB")).toBe("en");
-    expect(resolveUiLocale("fr-FR")).toBe("en");
-    expect(resolveUiLocale(undefined)).toBe("en");
+  it.each([
+    ["ja-JP", "ja"],
+    ["en-GB", "en"],
+    ["ko-KR", "ko"],
+    ["es-419", "es"],
+    ["fr-CA", "fr"],
+    ["de-AT", "de"],
+    ["pt-BR", "pt-BR"],
+    ["pt-PT", "pt-BR"],
+    ["zh", "zh-CN"],
+    ["zh-CN", "zh-CN"],
+    ["zh_CN", "zh-CN"],
+    ["zh-SG", "zh-CN"],
+    ["zh-TW", "zh-TW"],
+    ["zh-HK", "zh-TW"],
+    ["zh-Hant", "zh-TW"],
+    ["zh-Hans-HK", "zh-CN"],
+    ["it-IT", "en"],
+    ["", "en"],
+    [undefined, "en"],
+  ] as const)("resolves the browser language %s to %s", (language, locale) => {
+    expect(resolveUiLocale(language)).toBe(locale);
+  });
+
+  it.each(SUPPORTED_UI_LOCALES)(
+    "keeps every %s message and its placeholders aligned with English",
+    (locale) => {
+      for (const key of Object.keys(en.messages) as TranslationKey[]) {
+        const message = translate(locale, key);
+        expect(message.trim(), `${locale}.${key}`).not.toBe("");
+        expect(placeholders(message), `${locale}.${key}`).toEqual(
+          placeholders(en.messages[key]),
+        );
+      }
+    },
+  );
+
+  it("ships no manifest locale without a UI dictionary", async () => {
+    const manifestLocales = await readdir(new URL("../public/_locales", import.meta.url));
+
+    expect(manifestLocales.toSorted()).toEqual(
+      SUPPORTED_UI_LOCALES.map((locale) => locale.replace("-", "_")).toSorted(),
+    );
+  });
+
+  it.each(SUPPORTED_UI_LOCALES)("names every overridden currency in %s", (locale) => {
+    for (const currencyCode of Object.keys(en.currencyNames)) {
+      expect(
+        getCurrencyDisplayName(currencyCode, locale),
+        `${locale}.${currencyCode}`,
+      ).not.toBe("");
+    }
   });
 
   it("formats named placeholders in both shipped languages", () => {

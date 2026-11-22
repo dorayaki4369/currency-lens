@@ -36,6 +36,7 @@ AGENTS.md の実装ルールに加えて、次を守ります。
 - レートの取得に失敗しても、最後に取得できたレートを消しません。
 - レートの提供時刻（`sourceTimestamp`）、拡張機能が取得した時刻（`fetchedAt`）、古さの判定（`isStale`）を混同しません。
 - ブラウザ API は、Chrome と Firefox の両方で使える WebExtensions API を優先します。
+- `packages/currency` に通貨を追加したら、`apps/server/scripts/mock-rates.ts` にもその通貨のレートを足します。Worker は `@cl/currency` に依存しないため、両者の一致はテストで検査していません。
 
 ## 変更の種類ごとのテスト観点
 
@@ -54,6 +55,10 @@ UI を変更するときは、frontend-design と browser の Skill も使いま
 ## 検証する
 
 作業中は対象のテストに絞って実行します。
+
+`pnpm dev` で動作を確かめるときは、既定のモックのレートを使います。
+`RATE_SOURCE=live` は Open Exchange Rates の API 使用量を消費するため、本物の API との結合を確かめる必要がある場合だけ、ユーザーの了承を得てから使います。
+ローカル Worker へ HTTP で問い合わせるときは、8787 番ポートを別の worktree の Worker が使っている場合があるため、`pnpm -C apps/server dev -- --port <空きポート>` のようにポートを指定して起動し、そのポートへ問い合わせます。
 完了前に、ルートで次を実行します。
 
 ```text

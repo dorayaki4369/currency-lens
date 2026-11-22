@@ -37,7 +37,7 @@ PDF、canvas、フォーム入力、ブラウザ内部ページ、クロスオ�
 | `pnpm test:e2e`         | Chrome 向けにビルドし、Firefox 版と審査用 sources ZIP を作ったうえで、成果物の構成と、Chromium へ読み込んだ拡張機能の主要導線を検証します。`API_ENDPOINT` が必要です。 |
 | `pnpm build`            | 拡張機能と Worker をビルドします。環境変数 `API_ENDPOINT` が必要です。                                                                                                 |
 | `pnpm check`            | 整形、lint、型検査をまとめて確認します。`pnpm check --fix` で自動修正します。                                                                                          |
-| `pnpm store:images`     | ストア掲載用の宣伝画像を `apps/browser-extension/.output/store-images/` へ書き出します。CI ではリリース時に生成します。                                                |
+| `pnpm store:images`     | ストア掲載用の宣伝画像を、UIの言語ごとに `apps/browser-extension/.output/store-images/<locale>/` へ書き出します。CI ではリリース時に生成します。                       |
 | `pnpm store:dev`        | ストア掲載用の宣伝画像をプレビューします。元になるレビュー用画像を、先に integration と E2E で保存しておきます。                                                       |
 | `pnpm validate`         | check、coverage、integration、build を順に実行します。`API_ENDPOINT` が必要です。                                                                                      |
 
@@ -50,6 +50,8 @@ PDF、canvas、フォーム入力、ブラウザ内部ページ、クロスオ�
 
 `pnpm dev` は `.env` があれば読み込みます。
 `.env` がない場合や `API_ENDPOINT` が空の場合は、拡張機能の接続先をローカル Worker の `http://localhost:8787` にします。
+ローカル Worker は、`RATE_SOURCE=live` を指定しない限り、Open Exchange Rates ではなくローカルのモックからレートを取得します。
+動作確認のために本物の API へ接続する変更や手順を足すと API 使用量を消費するため、モックで確かめられることはモックで確かめます。
 `pnpm build` は環境ファイルを読まず、`API_ENDPOINT` が未設定ならエラーで止まります。
 
 環境ファイルを読むコマンドを追加するときは、`node --env-file-if-exists` のように読み込み先を明示します。

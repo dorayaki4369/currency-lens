@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "Currency Lens – 환율 변환기"
+  },
+  "extensionDescription": {
+    "message": "웹 페이지에서 가격을 선택하면 최신 환율로 최대 5개 통화로 바로 환산합니다."
+  }
+}

@@ -1,0 +1,27 @@
+Currency Lens convertit les prix directement sur la page que vous lisez. Achats sur un site étranger, préparation d’un voyage ou lecture de l’actualité internationale ? Sélectionnez un prix comme 19,99 $, 49 € ou 1 200 JPY et voyez-le dans jusqu’à 5 devises de votre choix, sans quitter la page ni la modifier.
+
+Fonctionnement
+
+1. Sélectionnez un prix sur une page web.
+2. Cliquez sur le bouton Currency Lens qui apparaît à côté de la sélection.
+3. Une petite carte affiche le prix dans les devises choisies. Vous pouvez les modifier à tout moment depuis la barre d’outils.
+
+Fonctionnalités
+
+- Lit les prix sous de nombreuses formes : symboles monétaires ($, €, ¥), codes (USD, JPY) et noms (« euros », « dollars », « 円 »), y compris des montants comme « $1.5 million », « 5k円 » et « 5万円 », ainsi que les prix au sein de phrases en japonais, chinois, coréen ou thaï.
+- Gère les symboles partagés comme « $ » : lorsqu’un symbole est utilisé par plusieurs devises, Currency Lens en choisit une selon vos réglages, la langue de la page et celle du navigateur. Vous pouvez changer la devise associée à chaque symbole.
+- Modifier et reconvertir : changez le montant ou la devise d’origine directement dans la carte.
+- Fenêtre de la barre d’outils : saisissez un montant et une devise pour les convertir directement, et ajoutez, retirez ou réordonnez vos devises.
+- Graphiques de l’évolution des taux : dans la fenêtre de la barre d’outils et dans la carte, suivez l’évolution des taux de vos devises sur des périodes de 1 jour à 1 an, ou comparez leurs variations sur un même graphique.
+- Taux de change récents d’Open Exchange Rates, avec un avertissement s’ils sont anciens.
+- Interface en français, anglais, japonais, chinois simplifié, chinois traditionnel, coréen, espagnol, allemand et portugais du Brésil, selon la langue du navigateur.
+
+Confidentialité
+
+Aucun compte n’est nécessaire. Le texte sélectionné est analysé dans votre navigateur et n’est jamais envoyé ailleurs. La seule requête réseau récupère les taux de change et ne contient aucun contenu de la page.
+
+Politique de confidentialité : https://cl.dryk.net/privacy
+
+Où l’utiliser
+
+Sur les pages web classiques de Chrome pour ordinateur et de Firefox 140 ou version ultérieure. L’extension ne fonctionne pas sur les PDF, les champs de formulaire, les éléments canvas, les pages de paramètres du navigateur ni les boutiques d’extensions.

@@ -40,7 +40,7 @@ describe("SegmentedControl", () => {
     render(
       <SegmentedControl
         aria-label="Theme"
-        defaultValue="system"
+        defaultValue="light"
         onValueChange={onValueChange}
       >
         <SegmentedControlItem value="system">System</SegmentedControlItem>
@@ -48,24 +48,24 @@ describe("SegmentedControl", () => {
         <SegmentedControlItem value="dark">Dark</SegmentedControlItem>
       </SegmentedControl>,
     );
-    const system = screen.getByRole("radio", { name: "System" });
     const light = screen.getByRole("radio", { name: "Light" });
+    const dark = screen.getByRole("radio", { name: "Dark" });
 
-    // Tab stops on the group, which hands focus to the current choice.
+    // Tab stops on the group, which hands focus to the current choice rather than the first option.
     const group = screen.getByRole("radiogroup", { name: "Theme" });
     expect(group.tabIndex).toBe(0);
     group.focus();
-    await waitFor(() => expect(document.activeElement).toBe(system));
+    await waitFor(() => expect(document.activeElement).toBe(light));
 
-    fireEvent.keyDown(system, { key: "ArrowRight" });
+    fireEvent.keyDown(light, { key: "ArrowRight" });
+    await waitFor(() => expect(document.activeElement).toBe(dark));
+    expect(dark.getAttribute("aria-checked")).toBe("true");
+    expect(onValueChange).toHaveBeenLastCalledWith("dark");
+
+    fireEvent.keyDown(dark, { key: "ArrowLeft" });
     await waitFor(() => expect(document.activeElement).toBe(light));
     expect(light.getAttribute("aria-checked")).toBe("true");
     expect(onValueChange).toHaveBeenLastCalledWith("light");
-
-    fireEvent.keyDown(light, { key: "ArrowLeft" });
-    await waitFor(() => expect(document.activeElement).toBe(system));
-    expect(system.getAttribute("aria-checked")).toBe("true");
-    expect(onValueChange).toHaveBeenLastCalledWith("system");
   });
 
   it("slides the thumb to the checked option and hides it without a choice", async () => {

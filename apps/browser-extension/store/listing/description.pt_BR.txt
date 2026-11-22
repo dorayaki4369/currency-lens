@@ -1,0 +1,27 @@
+O Currency Lens converte preços direto na página que você está lendo. Comprando em uma loja estrangeira, planejando uma viagem ou lendo notícias de outro país? Selecione um preço como US$ 19,99, 49 € ou 1.200 JPY e veja quanto ele vale em até 5 moedas à sua escolha, sem sair da página nem alterá-la.
+
+Como funciona
+
+1. Selecione um preço em uma página da web.
+2. Clique no botão do Currency Lens que aparece ao lado da seleção.
+3. Um pequeno cartão mostra o preço nas moedas escolhidas. Você pode alterá-las quando quiser pela barra de ferramentas.
+
+Recursos
+
+- Lê preços em vários formatos: símbolos de moeda ($, €, ¥), códigos (USD, JPY) e nomes (“reais”, “dollars”, “円”), incluindo valores como “$1.5 million”, “5k円” e “5万円”, e preços dentro de frases em japonês, chinês, coreano ou tailandês.
+- Resolve símbolos compartilhados como “$”: quando um símbolo é usado por várias moedas, o Currency Lens escolhe uma com base nas suas configurações, no idioma da página e no idioma do navegador. Você pode mudar a moeda que cada símbolo representa.
+- Edite e converta de novo: altere o valor ou a moeda de origem direto no cartão.
+- Janela da barra de ferramentas: digite qualquer valor e moeda para converter diretamente, e adicione, remova ou reordene suas moedas.
+- Gráficos do histórico de cotações: na janela da barra de ferramentas e no cartão, veja como as cotações das suas moedas variaram em períodos de 1 dia a 1 ano, ou compare a variação de todas em um só gráfico.
+- Cotações recentes da Open Exchange Rates, com um aviso se estiverem desatualizadas.
+- Interface em português do Brasil, inglês, japonês, chinês simplificado, chinês tradicional, coreano, espanhol, francês e alemão, conforme o idioma do navegador.
+
+Privacidade
+
+Não é preciso criar conta. O texto selecionado é analisado no seu navegador e nunca é enviado a lugar nenhum. A única solicitação de rede busca as cotações e não inclui conteúdo da página.
+
+Política de privacidade: https://cl.dryk.net/privacy
+
+Onde funciona
+
+Em páginas da web comuns no Chrome para computador e no Firefox 140 ou posterior. Não funciona em PDFs, campos de formulário, elementos canvas, páginas de configurações do navegador nem lojas de extensões.

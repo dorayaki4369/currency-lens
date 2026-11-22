@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --env-file-if-exists=../../.env node_modules/wrangler/bin/wrangler.js dev --env-file /dev/null --test-scheduled",
+    "dev": "node --env-file-if-exists=../../.env scripts/dev.mjs",
     "typegen": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --env-file /dev/null --env-interface CloudflareBindings",
     "build": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler build --env-file /dev/null",
     "deploy": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --env-file /dev/null --minify"
@@ -14,6 +14,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@types/node": "^25.0.3",
     "wrangler": "^4.158.0"
   }
 }

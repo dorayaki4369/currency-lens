@@ -1,5 +1,6 @@
 import type { ComponentProps, HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
+import { ROW_INSET_CLASS_NAME } from "@/components/ui/row-control";
 
 const LIST_DIVIDER_INSET_CLASS_NAMES = {
   content: "before:inset-x-3",
@@ -62,11 +63,11 @@ export function ListItem({
   return <div className={itemClassName} data-slot="list-item" {...props} />;
 }
 
-/** Gives every list row the same padding so rows differ only by their content. */
+/** Gives every list row the same 12px inset so rows differ only by their content. */
 export function ListItemRow({ className, ...props }: ListItemRowProps) {
   return (
     <div
-      className={cn("flex min-h-12 items-center gap-2 px-3 py-1.5", className)}
+      className={cn("flex items-center gap-2", ROW_INSET_CLASS_NAME, className)}
       data-slot="list-item-row"
       {...props}
     />

@@ -145,7 +145,7 @@ function RatesScreen({
     <Stack gap={3}>
       <Stack aria-labelledby={baseHeadingId} as="section">
         <SectionHeader id={baseHeadingId} title={translate(locale, "ratesBaseHeading")} />
-        <Card className="overflow-hidden" spacing="none">
+        <Card className="overflow-hidden" spacing="flush">
           <Label className="sr-only" htmlFor={baseCurrencyId}>
             {translate(locale, "ratesBaseHeading")}
           </Label>
@@ -170,7 +170,7 @@ function RatesScreen({
           reserveActionHeight
           title={translate(locale, "ratesHeading")}
         />
-        <Card data-slot="rate-card" spacing="panel">
+        <Card data-slot="rate-card">
           {lineCurrencies.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {translate(locale, "rateHistoryNoTargets", { base: baseCurrency })}

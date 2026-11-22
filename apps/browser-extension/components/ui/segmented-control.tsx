@@ -26,14 +26,20 @@ const ROOT_CLASS_NAMES = {
   pill: "gap-1",
   track: "gap-0.5 rounded-md px-0.5",
 } as const satisfies Record<SegmentedControlVariant, string>;
-// A track sits on a card by default; on the already muted page background it needs a deeper
-// fill to read as a track. Pills have no fill, so the surface does not change them.
+// A track sits on a card by default. On the page layer, beside the cards, it takes a deeper
+// fill to read on the muted background and the card's corner radius, with its thumb's
+// corners kept concentric inside the 2px inset. Pills have no track, so the surface does
+// not change them.
 const TRACK_SURFACE_CLASS_NAMES = {
   card: "bg-muted dark:bg-background",
-  page: "bg-zinc-200 dark:bg-zinc-800",
+  page: "rounded-xl bg-zinc-200 dark:bg-zinc-800",
+} as const satisfies Record<SegmentedControlSurface, string>;
+const TRACK_SURFACE_THUMB_CLASS_NAMES = {
+  card: "",
+  page: "rounded-[calc(var(--radius-xl)-2px)]",
 } as const satisfies Record<SegmentedControlSurface, string>;
 const THUMB_CLASS_NAMES = {
-  pill: "rounded-full border border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-700",
+  pill: "rounded-full bg-zinc-200 dark:bg-zinc-600",
   track: "rounded-sm bg-card shadow-sm dark:bg-muted",
 } as const satisfies Record<SegmentedControlVariant, string>;
 // Pills read lighter than the size's type and only bolden the checked choice.
@@ -104,6 +110,7 @@ function SegmentedControl({
         className={cn(
           "pointer-events-none absolute top-0.5 bottom-0.5 left-0 motion-safe:transition-[translate,width] motion-safe:duration-200 motion-safe:ease-out",
           THUMB_CLASS_NAMES[variant],
+          variant === "track" && TRACK_SURFACE_THUMB_CLASS_NAMES[surface],
         )}
         data-slot="segmented-control-thumb"
         hidden={thumb === null}

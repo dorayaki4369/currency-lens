@@ -48,7 +48,7 @@ function DisplaySettings({ config, locale, updateConfig }: DisplaySettingsProps)
       <p className="text-xs text-muted-foreground">
         {translate(locale, "displayDescription")}
       </p>
-      <Card spacing="none">
+      <Card spacing="flush">
         <List>
           <ListItem>
             <ListItemRow className="justify-between gap-4">

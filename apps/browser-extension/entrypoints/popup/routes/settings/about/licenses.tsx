@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ROW_INSET_CLASS_NAME } from "@/components/ui/row-control";
 import { ChevronRight } from "lucide-react";
 import thirdPartyLicenses from "virtual:third-party-licenses";
 import type { ThirdPartyLicense } from "@/scripts/about-metadata";
@@ -48,7 +49,7 @@ function Licenses({ licenses, locale }: LicensesProps) {
           </Badge>
         </div>
       </div>
-      <Card className="min-h-0 flex-1 overflow-hidden" spacing="none">
+      <Card className="min-h-0 flex-1 overflow-hidden" spacing="flush">
         <List
           aria-labelledby="licenses-title"
           as="ul"
@@ -77,7 +78,8 @@ function LicenseDisclosure({
     <details className="group">
       <summary
         className={cn(
-          "flex min-h-12 cursor-pointer list-none items-center gap-2 px-3 py-1.5 text-sm focus-visible:ring-inset [&::-webkit-details-marker]:hidden",
+          "flex cursor-pointer list-none items-center gap-2 text-sm focus-visible:ring-inset [&::-webkit-details-marker]:hidden",
+          ROW_INSET_CLASS_NAME,
           FOCUS_RING_CLASS_NAME,
         )}
       >

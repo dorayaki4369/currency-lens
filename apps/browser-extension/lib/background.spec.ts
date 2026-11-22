@@ -295,9 +295,42 @@ describe("background lifecycle", () => {
     expect(harness.localSet).not.toHaveBeenCalled();
   });
 
-  it("reports unavailable rates before the first refresh completes", async () => {
-    const fetchRates = vi.fn(() => new Promise<Response>(() => undefined));
+  it("waits for the first refresh instead of reporting rates as unavailable", async () => {
+    // A popup or selection right after installation asks before the first refresh lands.
+    const response = Promise.withResolvers<Response>();
+    const fetchRates = vi.fn(() => response.promise);
+    const harness = installBrowserHarness(fetchRates, {});
+    const { handleMessage } = await import("@/entrypoints/background");
+    await vi.waitFor(() => expect(fetchRates).toHaveBeenCalledOnce());
+
+    const conversion = handleMessage({
+      type: "CONVERT_CURRENCIES",
+      payload: {
+        amounts: [{ amount: 10, currencyCode: "USD" }],
+        targetCurrencies: ["EUR"],
+      },
+    });
+    const rates = handleMessage({ type: "GET_RATES" });
+    response.resolve(createRateResponse({ USD: "1", EUR: "0.8" }));
+
+    await expect(conversion).resolves.toMatchObject({
+      success: true,
+      data: {
+        results: [{ status: "converted", toCurrency: "EUR", convertedAmount: "8.00" }],
+      },
+    });
+    await expect(rates).resolves.toMatchObject({
+      success: true,
+      data: { isStale: false, rates: { USD: "1", EUR: "0.8" } },
+    });
+    expect(fetchRates).toHaveBeenCalledOnce();
+    expect(harness.localSet).toHaveBeenCalledOnce();
+  });
+
+  it("reports unavailable rates when the first refresh fails", async () => {
+    const fetchRates = vi.fn(() => Promise.reject(new Error("offline")));
     installBrowserHarness(fetchRates, {});
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { handleMessage } = await import("@/entrypoints/background");
 
     await expect(

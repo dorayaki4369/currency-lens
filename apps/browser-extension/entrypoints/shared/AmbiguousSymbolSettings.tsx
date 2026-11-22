@@ -81,7 +81,7 @@ function SymbolMappingRow({
   const selectedCurrency = isKnownCurrencyCode(value) ? value : null;
   return (
     <div
-      className="grid min-w-0 grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-center gap-inset"
+      className="grid min-w-0 grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-center gap-1"
       data-slot="ambiguous-symbol-row"
     >
       <Label

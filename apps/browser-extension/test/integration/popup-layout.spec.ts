@@ -22,13 +22,13 @@ beforeEach(async () => {
 });
 
 describe("popup layout", () => {
-  it("keeps every card's content one 8px inset inside its edges and spacing on the 8px grid", async () => {
+  it("keeps every card's content 8px inside its edges and spacing on Tailwind's scale", async () => {
     const failures: string[] = [];
     const check = (screenName: string, root: ParentNode = document) => {
       failures.push(...findCardInsetFailures(screenName, root));
       const frame = root.querySelector('[data-slot="popup-root"], dialog');
       if (frame !== null) {
-        failures.push(...findOffGridSpacing(screenName, frame));
+        failures.push(...findOffScaleSpacing(screenName, frame));
       }
     };
 
@@ -175,6 +175,19 @@ describe("popup layout", () => {
     await expect
       .element(pickerLocator.getByRole("option", { name: /^CAD\b/u }))
       .toBeVisible();
+  });
+
+  it("keeps the converter's spacing in the popup and in a host page with another root size", async () => {
+    await openPopupScreen();
+    expect(readConverterSpacing(document)).toEqual(CONVERTER_SPACING);
+
+    // Shadow DOM sizes come from --lens-rem, so the host page's root size must not leak in.
+    addHostStyle("html { font-size: 10px; }");
+    const root = await openConversionScreen({ root: "shadow" });
+    await expect
+      .poll(() => root.querySelector('[data-slot="conversion-editor"]'))
+      .not.toBeNull();
+    expect(readConverterSpacing(root)).toEqual(CONVERTER_SPACING);
   });
 
   it("insets the theme row 8px on every side like other settings rows", async () => {
@@ -534,6 +547,51 @@ function expectTargetRowsAligned(rowCount: number): void {
   }
 }
 
+// The source currency and its amount sit close as one field pair (gap-1); sections keep
+// 16px apart (gap-4), and rows pad their content 8px (p-2).
+const CONVERTER_SPACING: ConverterSpacing = {
+  rowPadding: 8,
+  sectionGap: 16,
+  sourceFieldGap: 4,
+};
+
+interface ConverterSpacing {
+  readonly rowPadding: number;
+  readonly sectionGap: number;
+  readonly sourceFieldGap: number;
+}
+
+/** Measures the converter's spacing in pixels, as painted, under one render root. */
+function readConverterSpacing(root: ParentNode): ConverterSpacing {
+  const editor = requireElement('[data-slot="conversion-editor"]', root);
+  const sections = queryAll(":scope > section", editor).map((section) =>
+    section.getBoundingClientRect(),
+  );
+  const [source, targets] = sections;
+  if (source === undefined || targets === undefined) {
+    throw new Error("Converter sections were not rendered");
+  }
+  const sourceRow = requireElement('[data-slot="currency-value-row"]', editor);
+  const identity = requireElement(
+    '[data-slot="currency-identity"]',
+    sourceRow,
+  ).getBoundingClientRect();
+  const amount = requireElement(
+    '[data-slot="currency-amount"]',
+    sourceRow,
+  ).getBoundingClientRect();
+  const list = requireElement('[data-slot="list"]', editor).getBoundingClientRect();
+  const firstTarget = requireElement(
+    '[data-slot="currency-identity"]',
+    requireElement('[data-slot="list"]', editor),
+  ).getBoundingClientRect();
+  return {
+    rowPadding: Math.round(firstTarget.left - list.left),
+    sectionGap: Math.round(targets.top - source.bottom),
+    sourceFieldGap: Math.round(amount.left - identity.right),
+  };
+}
+
 /** Verifies each target's icon and code stay inside its name column, clear of the trend. */
 function expectTargetIdentitiesReadable(rowCount: number): void {
   const rows = queryAll(
@@ -699,7 +757,7 @@ function readTextStart(element: Element): number {
   return range.getBoundingClientRect().left;
 }
 
-/** Checks that the rate card's blocks and axis tags keep a 8px inset on both sides. */
+/** Checks that the rate card's blocks and axis tags keep 8px inside both sides. */
 function expectRateCardInsetsEven(): void {
   const card = requireElement('[data-slot="rate-card"]');
   const style = getComputedStyle(card);
@@ -791,7 +849,6 @@ function findTouchTargetRows(card: HTMLElement): DOMRect[] {
     .filter((rect) => Math.abs(rect.height - 44) <= 0.5);
 }
 
-const SPACING_UNIT = 8;
 const SPACING_PROPERTIES = [
   "paddingTop",
   "paddingRight",
@@ -805,10 +862,11 @@ const SPACING_OWNERS =
   "button, input, summary, svg, [data-slot='button'], [role='radio'], [role='slider'], [data-slot='segmented-control'], [data-slot='rate-chart'], [data-slot='popover-content'], [data-slot='skeleton']";
 
 /**
- * Lists layout padding and gaps that are neither a multiple of the 8px unit nor a fine
- * adjustment below it, such as the 2px between a heading and its description.
+ * Lists layout padding and gaps that are not on Tailwind's spacing scale, whose classes step
+ * by half of --spacing (p-0.5, p-1, p-1.5, ...), so arbitrary pixel values stand out.
  */
-function findOffGridSpacing(screenName: string, root: Element): string[] {
+function findOffScaleSpacing(screenName: string, root: Element): string[] {
+  const step = rem(0.125);
   const failures: string[] = [];
   for (const element of [root, ...root.querySelectorAll("*")]) {
     if (element.closest(SPACING_OWNERS) !== null || !isVisible(element)) {
@@ -816,12 +874,11 @@ function findOffGridSpacing(screenName: string, root: Element): string[] {
     }
     const style = getComputedStyle(element);
     for (const property of SPACING_PROPERTIES) {
-      const value = Number.parseFloat(style[property]);
-      const remainder = value % SPACING_UNIT;
-      if (value >= SPACING_UNIT && Math.min(remainder, SPACING_UNIT - remainder) > 0.5) {
+      const steps = Number.parseFloat(style[property]) / step;
+      if (Math.abs(steps - Math.round(steps)) > 0.05) {
         const slot = element.getAttribute("data-slot") ?? element.tagName.toLowerCase();
         failures.push(
-          `${screenName}: ${slot} ${property} ${value}px (${element.className})`,
+          `${screenName}: ${slot} ${property} ${style[property]} (${element.className})`,
         );
       }
     }

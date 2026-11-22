@@ -1,12 +1,12 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-// Every card keeps its content one inset (8px) from all four edges. A "flush" card holds
-// full-width rows that pad themselves by the same inset (see ROW_INSET_CLASS_NAME), so hover
+// Every card keeps its content 8px (p-2) from all four edges. A "flush" card holds
+// full-width rows that pad themselves by the same 8px (see ROW_INSET_CLASS_NAME), so hover
 // fills and dividers can reach the card's edges. A "field" card is the surface of one text field,
 // which fills it; the field matches the height of the row beside it and centers its text.
 const CARD_SPACING = {
-  default: "gap-inset p-inset",
+  default: "gap-2 p-2",
   field: "",
   flush: "",
 } as const;

@@ -9,8 +9,6 @@ const STACK_GAP_CLASS_NAMES = {
   3: "gap-3",
   4: "gap-4",
   6: "gap-6",
-  inset: "gap-inset",
-  section: "gap-section",
 } as const;
 
 type StackGap = keyof typeof STACK_GAP_CLASS_NAMES;

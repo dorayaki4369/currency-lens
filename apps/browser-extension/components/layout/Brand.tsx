@@ -8,7 +8,7 @@ interface BrandProps {
 /** Pairs the app logo with the product title. */
 export function Brand({ eyebrow, title }: BrandProps) {
   return (
-    <div className="flex items-center gap-inset">
+    <div className="flex items-center gap-2">
       <AppLogo />
       <div className="min-w-0">
         {eyebrow === undefined ? null : (

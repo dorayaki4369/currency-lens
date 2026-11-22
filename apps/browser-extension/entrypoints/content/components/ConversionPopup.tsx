@@ -460,16 +460,16 @@ function ConversionCardFrame({
 }: ConversionCardFrameProps) {
   return (
     <>
-      <Stack className="shrink-0 p-inset" data-slot="conversion-card-header" gap="inset">
+      <Stack className="shrink-0 p-2" data-slot="conversion-card-header" gap={2}>
         <div className="flex justify-end" data-slot="conversion-card-toolbar">
           {closeButton}
         </div>
         {screenSwitch}
       </Stack>
       <Stack
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-inset"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
         data-slot="conversion-card-body"
-        gap="section"
+        gap={4}
       >
         {children}
       </Stack>
@@ -595,7 +595,7 @@ function ConversionResultsSkeleton({ locale }: { readonly locale: UiLocale }) {
 /** Preserves the full conversion-card shape before a source is available. */
 function ConversionSkeleton({ locale }: { readonly locale: UiLocale }) {
   return (
-    <Stack aria-label={translate(locale, "loadingConversion")} gap="section" role="status">
+    <Stack aria-label={translate(locale, "loadingConversion")} gap={4} role="status">
       <Skeleton className="h-9 w-2/3" />
       <Skeleton className="h-12 w-full" />
       <Skeleton className="h-12 w-full" />

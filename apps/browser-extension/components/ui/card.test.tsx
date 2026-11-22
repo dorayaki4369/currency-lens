@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 afterEach(cleanup);
 
 describe("Card", () => {
-  it("insets its content one 8px unit on every side unless rows pad themselves", () => {
+  it("insets its content 8px on every side unless rows pad themselves", () => {
     render(
       <>
         <Card aria-label="Settings card">
@@ -19,8 +19,8 @@ describe("Card", () => {
 
     const card = screen.getByLabelText("Settings card");
     expect(card.textContent).toBe("Theme controls");
-    expect(card.className).toContain("p-inset");
-    expect(screen.getByLabelText("Rows card").className).not.toContain("p-inset");
+    expect(card.className.split(" ")).toContain("p-2");
+    expect(screen.getByLabelText("Rows card").className.split(" ")).not.toContain("p-2");
   });
 
   it("lifts an overlay card off the host page with the page fill", () => {

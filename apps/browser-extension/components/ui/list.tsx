@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { ROW_INSET_CLASS_NAME } from "@/components/ui/row-control";
 
 const LIST_DIVIDER_INSET_CLASS_NAMES = {
-  content: "before:inset-x-inset",
+  content: "before:inset-x-2",
   edge: "before:inset-x-0",
 } as const;
 const LIST_DIVIDER_VISIBILITY_CLASS_NAMES = {

@@ -59,8 +59,8 @@ export function CurrencyValueRow({
         className={cn(
           "grid min-w-0 flex-1",
           hasTrend
-            ? "grid-cols-[minmax(0,max-content)_auto_minmax(4.5rem,1fr)] gap-inset @max-trend-row:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
-            : "grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-inset",
+            ? "grid-cols-[minmax(0,max-content)_auto_minmax(4.5rem,1fr)] gap-2 @max-trend-row:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
+            : "grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-1",
           mode === "edit" ? "items-start" : "items-center",
         )}
         data-slot="currency-value-content"

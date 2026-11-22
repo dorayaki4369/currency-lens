@@ -1,9 +1,9 @@
 /**
- * Pads a full-width row so its content sits one inset (8px) from a flush card's edges and
+ * Pads a full-width row so its content sits 8px (p-2) from a flush card's edges and
  * from the dividers between rows. Row height follows the content.
  */
-// Buttons widen their side padding next to an icon; a row keeps the inset regardless.
-export const ROW_INSET_CLASS_NAME = "p-inset has-[>svg]:px-inset";
+// Buttons widen their side padding next to an icon; a row keeps the same 8px regardless.
+export const ROW_INSET_CLASS_NAME = "p-2 has-[>svg]:px-2";
 
 /** Keeps an interactive row at least 44px tall, the minimum touch target. */
 export const ROW_TOUCH_TARGET_CLASS_NAME = "min-h-11";

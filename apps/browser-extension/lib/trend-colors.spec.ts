@@ -1,20 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-  getRateSeriesColor,
-  getTrendColor,
-  getTrendColorScheme,
-  RATE_SERIES_COLORS,
-} from "@/lib/trend-colors";
+import { getRateSeriesColor, getTrendColor, RATE_SERIES_COLORS } from "@/lib/trend-colors";
 
 describe("trend colors", () => {
-  it("follows the Japanese and the western convention for rises and falls", () => {
-    expect(getTrendColorScheme("ja")).toBe("red-up");
-    expect(getTrendColorScheme("en")).toBe("green-up");
-    expect(getTrendColor("up", "red-up").line).toBe("var(--trend-red-line)");
-    expect(getTrendColor("down", "red-up").text).toBe("var(--trend-blue-text)");
-    expect(getTrendColor("up", "green-up").tag).toBe("var(--trend-green-tag)");
-    expect(getTrendColor("down", "green-up").line).toBe("var(--trend-red-line)");
-    expect(getTrendColor("flat", "green-up").line).toBe("var(--trend-flat-line)");
+  it("colors rises green and falls red", () => {
+    expect(getTrendColor("up").tag).toBe("var(--trend-green-tag)");
+    expect(getTrendColor("down").line).toBe("var(--trend-red-line)");
+    expect(getTrendColor("flat").line).toBe("var(--trend-flat-line)");
   });
 
   it("assigns five distinct series colors and repeats them after the fifth", () => {

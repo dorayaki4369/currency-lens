@@ -38,7 +38,6 @@ describe("RateSummary", () => {
       <RateSummary
         baseCurrency="USD"
         change={RISE}
-        colorScheme="red-up"
         currencyCode="EUR"
         locale="ja"
         sinceLabel={null}
@@ -49,7 +48,7 @@ describe("RateSummary", () => {
     expect(readAccessibleText(summary)).toBe("1 USD = 0.8621 EUR +0.0265 (+3.71%)");
     const arrow = screen.getByText("↑");
     expect(arrow.getAttribute("aria-hidden")).toBe("true");
-    expect(arrow.style.color).toBe("var(--trend-red-text)");
+    expect(arrow.style.color).toBe("var(--trend-green-text)");
   });
 
   it("uses a neutral arrow for an unchanged rate", () => {
@@ -57,7 +56,6 @@ describe("RateSummary", () => {
       <RateSummary
         baseCurrency="USD"
         change={{ ...RISE, difference: 0, direction: "flat", percent: 0 }}
-        colorScheme="green-up"
         currencyCode="EUR"
         locale="en"
         sinceLabel="since 7/22"
@@ -78,7 +76,6 @@ describe("RateSummary", () => {
     };
     const props = {
       baseCurrency: "USD",
-      colorScheme: "red-up",
       currencyCode: "EUR",
       locale: "en",
       sinceLabel: null,
@@ -99,7 +96,6 @@ describe("RateSummary", () => {
     stubReducedMotion(true);
     const props = {
       baseCurrency: "USD",
-      colorScheme: "red-up",
       currencyCode: "EUR",
       locale: "en",
       sinceLabel: null,
@@ -118,7 +114,6 @@ describe("RateChangeLegend", () => {
     render(
       <RateChangeLegend
         caption="対 USD の変化率"
-        colorScheme="red-up"
         items={[
           {
             change: { ...RISE, direction: "down", percent: -4.9 },
@@ -159,7 +154,7 @@ describe("RateChangeLegend", () => {
     ]);
     // The visually hidden label carries the plain value inside the colored number.
     expect(screen.getByText("−4.90%").closest<HTMLElement>("[style]")?.style.color).toBe(
-      "var(--trend-blue-text)",
+      "var(--trend-red-text)",
     );
     expect(screen.getByRole("list").style.gridTemplateColumns).toBe(
       "repeat(4, minmax(0, 1fr))",

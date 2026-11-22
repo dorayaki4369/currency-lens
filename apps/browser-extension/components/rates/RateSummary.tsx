@@ -7,12 +7,11 @@ import {
   getRateFractionDigits,
 } from "@/lib/rate-format";
 import type { RateChange } from "@/lib/rate-series";
-import { getTrendColor, type ChartColor, type TrendColorScheme } from "@/lib/trend-colors";
+import { getTrendColor, type ChartColor } from "@/lib/trend-colors";
 
 interface RateSummaryProps {
   readonly baseCurrency: string;
   readonly change: RateChange;
-  readonly colorScheme: TrendColorScheme;
   readonly currencyCode: string;
   /** The date the change is measured from when the period starts without history. */
   readonly sinceLabel: string | null;
@@ -28,13 +27,12 @@ const TREND_ARROWS = { down: "↓", flat: "→", up: "↑" } as const;
 export function RateSummary({
   baseCurrency,
   change,
-  colorScheme,
   currencyCode,
   locale,
   sinceLabel,
 }: RateSummaryProps) {
   const digits = getRateFractionDigits(change.last.value);
-  const trend = getTrendColor(change.direction, colorScheme);
+  const trend = getTrendColor(change.direction);
   return (
     <div className="flex flex-col gap-0.5 tabular-nums" data-slot="rate-summary">
       <p className="leading-tight">
@@ -78,7 +76,6 @@ export interface RateLegendItem {
 
 interface RateChangeLegendProps {
   readonly caption: string;
-  readonly colorScheme: TrendColorScheme;
   readonly items: readonly RateLegendItem[];
   readonly locale: UiLocale;
 }
@@ -86,12 +83,7 @@ interface RateChangeLegendProps {
 const MIN_LEGEND_COLUMNS = 3;
 
 /** Names each overlaid line with its color and its change over the period. */
-export function RateChangeLegend({
-  caption,
-  colorScheme,
-  items,
-  locale,
-}: RateChangeLegendProps) {
+export function RateChangeLegend({ caption, items, locale }: RateChangeLegendProps) {
   return (
     <div className="flex flex-col gap-1.5" data-slot="rate-legend">
       <p className="text-xs text-muted-foreground">{caption}</p>
@@ -118,7 +110,7 @@ export function RateChangeLegend({
             ) : (
               <span
                 className="text-[0.9375rem] font-bold whitespace-nowrap tabular-nums"
-                style={{ color: getTrendColor(item.change.direction, colorScheme).text }}
+                style={{ color: getTrendColor(item.change.direction).text }}
               >
                 <AnimatedNumber
                   text={formatSignedPercent(item.change.percent, locale)}

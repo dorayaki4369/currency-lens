@@ -10,7 +10,7 @@ import { translate, type UiLocale } from "@/lib/i18n";
 import { convertCurrencyBatch } from "@/lib/rates";
 import { getRateHistorySymbols } from "@/lib/rate-history";
 import { getCrossRateSeries, getRateChange, slicePeriod } from "@/lib/rate-series";
-import { getTrendColor, getTrendColorScheme } from "@/lib/trend-colors";
+import { getTrendColor } from "@/lib/trend-colors";
 import { Sparkline } from "@/components/rates/Sparkline";
 import {
   ConversionEditor,
@@ -206,7 +206,7 @@ function TargetSparkline({
 
   return (
     <Sparkline
-      color={getTrendColor(direction, getTrendColorScheme(popup.locale)).line}
+      color={getTrendColor(direction).line}
       label={translate(popup.locale, "openRates", { currency: currencyCode })}
       onOpen={() => {
         setRateSelection(currencyCode);

@@ -6,11 +6,11 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RateHistory, RateHistoryResolution } from "@/lib/rate-history";
 import {
-  PopupRateHistoryProvider,
+  RateHistoryProvider,
   type RateHistoryPreview,
-  usePopupRateHistory,
+  useRateHistoryStore,
   useRateHistory,
-} from "@/entrypoints/popup/stores/rate-history";
+} from "@/stores/rate-history";
 
 const DAILY: RateHistory = {
   base: "USD",
@@ -37,21 +37,21 @@ function renderHistory(
   return renderHook(
     ({ query }) => ({
       entry: useRateHistory(query.resolution, query.symbols),
-      period: usePopupRateHistory((state) => state.period),
-      selection: usePopupRateHistory((state) => state.selection),
-      setPeriod: usePopupRateHistory((state) => state.setPeriod),
-      setSelection: usePopupRateHistory((state) => state.setSelection),
+      period: useRateHistoryStore((state) => state.period),
+      selection: useRateHistoryStore((state) => state.selection),
+      setPeriod: useRateHistoryStore((state) => state.setPeriod),
+      setSelection: useRateHistoryStore((state) => state.setSelection),
     }),
     {
       initialProps: { query: { resolution, symbols } },
       wrapper: ({ children }: { readonly children: ReactNode }) => (
-        <PopupRateHistoryProvider preview={preview}>{children}</PopupRateHistoryProvider>
+        <RateHistoryProvider preview={preview}>{children}</RateHistoryProvider>
       ),
     },
   );
 }
 
-describe("popup rate history store", () => {
+describe("rate history store", () => {
   it("loads each window once through the validated runtime boundary", async () => {
     const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>(() =>
       Promise.resolve({ data: DAILY, success: true }),
@@ -101,7 +101,7 @@ describe("popup rate history store", () => {
       () => [useRateHistory("daily", JPY_EUR), useRateHistory("daily", JPY_EUR)],
       {
         wrapper: ({ children }: { readonly children: ReactNode }) => (
-          <PopupRateHistoryProvider>{children}</PopupRateHistoryProvider>
+          <RateHistoryProvider>{children}</RateHistoryProvider>
         ),
       },
     );
@@ -156,7 +156,7 @@ describe("popup rate history store", () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it("remembers the chart period and selection for the popup", () => {
+  it("remembers the chart period and selection for the provider", () => {
     const { result } = renderHistory("daily", NOTHING, { kind: "empty" });
     expect([result.current.period, result.current.selection]).toEqual(["1M", "*"]);
 
@@ -168,8 +168,8 @@ describe("popup rate history store", () => {
   });
 
   it("requires the provider", () => {
-    expect(() => renderHook(() => usePopupRateHistory((state) => state.period))).toThrow(
-      "usePopupRateHistory must be used within PopupRateHistoryProvider.",
+    expect(() => renderHook(() => useRateHistoryStore((state) => state.period))).toThrow(
+      "useRateHistoryStore must be used within RateHistoryProvider.",
     );
   });
 });

@@ -23,17 +23,8 @@ import { ConfigStoreProvider, useConfigStore } from "@/stores/config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { navigatePopupRoute } from "@/entrypoints/popup/popup-route-transition";
-import {
-  ALL_CURRENCIES_SELECTION,
-  PopupRateHistoryProvider,
-  type RateHistoryPreview,
-  usePopupRateHistory,
-} from "@/entrypoints/popup/stores/rate-history";
-import {
-  SegmentedControl,
-  SegmentedControlItem,
-  selectSegmentedOption,
-} from "@/components/ui/segmented-control";
+import { RateHistoryProvider, type RateHistoryPreview } from "@/stores/rate-history";
+import { RatesScreenSwitch } from "@/components/rates/RatesScreenSwitch";
 
 export interface PopupPreviewData {
   readonly config: Config;
@@ -56,11 +47,6 @@ type PopupScreen =
 /** Top-level screens that sit side by side behind the screen switcher. */
 type PopupPeerScreen = Extract<PopupScreen, "converter" | "rates">;
 
-const PEER_SCREENS = ["converter", "rates"] as const satisfies readonly PopupPeerScreen[];
-const PEER_SCREEN_LABEL_KEYS = {
-  converter: "screenConverter",
-  rates: "screenRates",
-} as const satisfies Record<PopupPeerScreen, TranslationKey>;
 const PEER_SCREEN_PATHS = { converter: "/", rates: "/rates" } as const satisfies Record<
   PopupPeerScreen,
   string
@@ -102,13 +88,13 @@ export function PopupApplication({ preview }: PopupApplicationProps) {
   return (
     <ConfigStoreProvider previewConfig={preview?.config}>
       <PopupConversionProvider previewRates={preview?.rates}>
-        <PopupRateHistoryProvider
+        <RateHistoryProvider
           preview={
             preview === undefined ? undefined : (preview.history ?? EMPTY_HISTORY_PREVIEW)
           }
         >
           <PopupApplicationContent locale={preview?.locale ?? getUiLocale()} />
-        </PopupRateHistoryProvider>
+        </RateHistoryProvider>
       </PopupConversionProvider>
     </ConfigStoreProvider>
   );
@@ -182,7 +168,6 @@ interface PopupRouteFrameProps {
 export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
   const popup = usePopupApplicationContext();
   const navigate = useNavigate();
-  const setRateSelection = usePopupRateHistory((state) => state.setSelection);
   const { settingsReturnScreenReference } = popup;
   const alert =
     popup.error === null ? null : (
@@ -226,30 +211,13 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
 
       {isPeerScreen(screen) ? (
         <div className="shrink-0 px-section pt-section">
-          <SegmentedControl
-            aria-label={translate(popup.locale, "screenSwitcher")}
-            onValueChange={selectSegmentedOption(PEER_SCREENS, (peer) => {
-              if (peer === "rates") {
-                setRateSelection(ALL_CURRENCIES_SELECTION);
-              }
-              // Peer screens swap in place, without the nested-screen slide.
-              void navigate({ to: PEER_SCREEN_PATHS[peer] });
-            })}
-            size="lg"
-            stretch
-            surface="page"
+          <RatesScreenSwitch
+            checkedItemRef={popup.screenSwitcherReference}
+            locale={popup.locale}
+            // Peer screens swap in place, without the nested-screen slide.
+            onValueChange={(peer) => void navigate({ to: PEER_SCREEN_PATHS[peer] })}
             value={screen}
-          >
-            {PEER_SCREENS.map((peer) => (
-              <SegmentedControlItem
-                key={peer}
-                ref={peer === screen ? popup.screenSwitcherReference : undefined}
-                value={peer}
-              >
-                {translate(popup.locale, PEER_SCREEN_LABEL_KEYS[peer])}
-              </SegmentedControlItem>
-            ))}
-          </SegmentedControl>
+          />
         </div>
       ) : null}
 

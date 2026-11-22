@@ -8,10 +8,7 @@ import {
 } from "@/lib/currency-order";
 import { translate, type UiLocale } from "@/lib/i18n";
 import { convertCurrencyBatch } from "@/lib/rates";
-import { getRateHistorySymbols } from "@/lib/rate-history";
-import { getCrossRateSeries, getRateChange, slicePeriod } from "@/lib/rate-series";
-import { getTrendColor } from "@/lib/trend-colors";
-import { Sparkline } from "@/components/rates/Sparkline";
+import { TargetTrend } from "@/components/rates/TargetTrend";
 import {
   ConversionEditor,
   parseConversionSourceAmount,
@@ -26,10 +23,6 @@ import {
   type PopupRatesData,
   usePopupConversion,
 } from "@/entrypoints/popup/stores/conversion";
-import {
-  usePopupRateHistory,
-  useRateHistory,
-} from "@/entrypoints/popup/stores/rate-history";
 import { useConfigStore } from "@/stores/config";
 
 export const Route = createFileRoute("/_peer/")({
@@ -125,9 +118,13 @@ function Converter({
 
   const renderTargetTrend = useCallback(
     (currencyCode: CurrencyCode) => (
-      <TargetTrend currencyCode={currencyCode} favorites={config.favorites} />
+      <ConverterTargetTrend
+        currencyCode={currencyCode}
+        favorites={config.favorites}
+        locale={locale}
+      />
     ),
-    [config.favorites],
+    [config.favorites, locale],
   );
 
   return (
@@ -162,58 +159,25 @@ function Converter({
   );
 }
 
-interface TargetTrendProps {
+interface ConverterTargetTrendProps {
   readonly currencyCode: CurrencyCode;
   readonly favorites: readonly CurrencyCode[];
+  readonly locale: UiLocale;
 }
 
 /**
- * Leaves an empty cell for a target that equals the source: its rate is always 1, and
- * the rates screen does not list the base.
+ * Reads the source here rather than in the row callback, so changing it redraws the trends
+ * without rerendering the target list. A trend opens the rates in place of the converter.
  */
-function TargetTrend(props: TargetTrendProps) {
+function ConverterTargetTrend(props: ConverterTargetTrendProps) {
   const sourceCurrency = usePopupConversion((state) => state.sourceCurrency);
-  return props.currencyCode === sourceCurrency ? (
-    <span aria-hidden="true" className="w-20 shrink-0" data-slot="sparkline-spacer" />
-  ) : (
-    <TargetSparkline {...props} sourceCurrency={sourceCurrency} />
-  );
-}
-
-/** Draws the past month of one target against the source and opens its rate chart. */
-function TargetSparkline({
-  currencyCode,
-  favorites,
-  sourceCurrency,
-}: TargetTrendProps & { readonly sourceCurrency: CurrencyCode }) {
-  const popup = usePopupApplicationContext();
-  const setRateSelection = usePopupRateHistory((state) => state.setSelection);
   const navigate = useNavigate();
-  const symbols = useMemo(
-    () => getRateHistorySymbols(favorites, sourceCurrency),
-    [favorites, sourceCurrency],
-  );
-  const history = useRateHistory("daily", symbols);
-  const series =
-    history.data === null
-      ? []
-      : slicePeriod(
-          // The sparkline draws values only, so the latest point's time does not matter.
-          getCrossRateSeries(history.data, currencyCode, sourceCurrency, 0),
-          "1M",
-        );
-  const direction = getRateChange(series)?.direction ?? "flat";
-
   return (
-    <Sparkline
-      color={getTrendColor(direction).line}
-      label={translate(popup.locale, "openRates", { currency: currencyCode })}
-      onOpen={() => {
-        setRateSelection(currencyCode);
-        // The rates screen is a peer of the converter, so it swaps in without a slide.
-        void navigate({ to: "/rates" });
-      }}
-      values={series.map((point) => point.value)}
+    <TargetTrend
+      {...props}
+      // The rates screen is a peer of the converter, so it swaps in without a slide.
+      onOpenRates={() => void navigate({ to: "/rates" })}
+      sourceCurrency={sourceCurrency}
     />
   );
 }

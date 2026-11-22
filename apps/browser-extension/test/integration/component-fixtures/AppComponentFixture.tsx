@@ -245,7 +245,7 @@ function CurrencyComboboxFixture({ open }: { readonly open: boolean }) {
 
 function CurrencyListFixture() {
   return (
-    <Card className="overflow-hidden" spacing="none">
+    <Card className="overflow-hidden" spacing="flush">
       <ReorderableCurrencyList
         ariaLabel="換算後の通貨"
         getCurrencyCode={(currencyCode) => currencyCode}

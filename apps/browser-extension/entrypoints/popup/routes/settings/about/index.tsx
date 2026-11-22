@@ -91,7 +91,7 @@ function About({
         </p>
       </div>
 
-      <Card spacing="none">
+      <Card spacing="flush">
         <List>
           <ListItem>
             <ListItemRow className="justify-between gap-4 text-sm">

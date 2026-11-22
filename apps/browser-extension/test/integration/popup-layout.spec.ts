@@ -4,6 +4,7 @@ import {
   addHostStyle,
   emulateMedia,
   expectEdge,
+  openConversionScreen,
   openPopupScreen,
   queryAll,
   rem,
@@ -20,6 +21,76 @@ beforeEach(async () => {
 });
 
 describe("popup layout", () => {
+  it("keeps every card's content 12px inside all four edges on every screen", async () => {
+    const failures: string[] = [];
+    const check = (screenName: string, root: ParentNode = document) => {
+      failures.push(...findCardInsetFailures(screenName, root));
+    };
+
+    await openPopupScreen();
+    check("converter");
+    await userEvent.click(page.getByRole("button", { name: "換算後を編集" }));
+    await expect
+      .element(page.getByRole("button", { name: "換算後の編集を終了" }))
+      .toBeVisible();
+    check("target editor");
+
+    for (const history of ["data", "loading", "empty", "error"] as const) {
+      // Each state mounts a fresh popup, so the checks must run in order.
+      /* eslint-disable no-await-in-loop */
+      await openPopupScreen({ history });
+      await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+      await expect.poll(() => queryAll('[data-slot="rate-card"]').length).toBe(1);
+      if (history === "data") {
+        await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(3);
+        check("rates ALL");
+        await userEvent.click(page.getByRole("radio", { name: "JPY", exact: true }));
+      }
+      /* eslint-enable no-await-in-loop */
+      check(`rates ${history}`);
+    }
+
+    await openPopupScreen();
+    await userEvent.click(page.getByRole("button", { name: "設定を開く" }));
+    await expect
+      .element(page.getByRole("heading", { name: "設定", level: 1 }))
+      .toBeVisible();
+    check("settings");
+    for (const routeName of [
+      "外観",
+      "通貨変換設定",
+      "対応通貨一覧",
+      "このアプリについて",
+    ]) {
+      /* eslint-disable no-await-in-loop */
+      await userEvent.click(page.getByRole("button", { name: routeName }));
+      await expect.element(page.getByRole("heading", { name: routeName })).toBeVisible();
+      check(routeName);
+      if (routeName !== "このアプリについて") {
+        await userEvent.click(page.getByRole("button", { name: "戻る" }));
+        await expect
+          .element(page.getByRole("heading", { name: "設定", level: 1 }))
+          .toBeVisible();
+      }
+      /* eslint-enable no-await-in-loop */
+    }
+    await userEvent.click(page.getByRole("button", { name: "オープンソースライセンス" }));
+    await expect
+      .element(page.getByRole("heading", { name: "オープンソースライセンス" }))
+      .toBeVisible();
+    check("licenses");
+
+    for (const state of ["success", "loading", "empty", "error"] as const) {
+      /* eslint-disable no-await-in-loop */
+      const root = await openConversionScreen({ state });
+      await expect.element(page.getByRole("dialog", { name: "換算結果" })).toBeVisible();
+      /* eslint-enable no-await-in-loop */
+      check(`conversion card ${state}`, root);
+    }
+
+    expect(failures, failures.join("\n")).toEqual([]);
+  });
+
   it("reserves the fixed 25-by-37.5-rem workspace", async () => {
     await openPopupScreen();
     const popupBounds = requireElement('[data-slot="popup-root"]').getBoundingClientRect();
@@ -65,7 +136,7 @@ describe("popup layout", () => {
       .toBeVisible();
   });
 
-  it("matches the theme row to the density of other settings rows", async () => {
+  it("insets the theme row 12px on every side like other settings rows", async () => {
     await openPopupScreen();
     await userEvent.click(page.getByRole("button", { name: "設定を開く" }));
     const settingsRow = page.getByRole("button", { name: "外観" });
@@ -84,11 +155,11 @@ describe("popup layout", () => {
     ).getBoundingClientRect();
 
     expectEdge(settingsRowBounds.height, rem(2.75));
-    expectEdge(cardBounds.height, rem(3));
+    expectEdge(cardBounds.height, rem(3.5));
     expectEdge(labelBounds.left - cardBounds.left, rem(0.75));
     expectEdge(cardBounds.right - selectBounds.right, rem(0.75));
-    expectEdge(selectBounds.top - cardBounds.top, rem(0.5));
-    expectEdge(cardBounds.bottom - selectBounds.bottom, rem(0.5));
+    expectEdge(selectBounds.top - cardBounds.top, rem(0.75));
+    expectEdge(cardBounds.bottom - selectBounds.bottom, rem(0.75));
 
     const thumb = requireElement('[data-slot="segmented-control-thumb"]', card);
     await userEvent.click(page.getByRole("radio", { name: "ダーク" }));
@@ -588,4 +659,177 @@ function expectRateCardInsetsEven(): void {
   for (const tag of queryAll('[data-slot="rate-chart-tag"]')) {
     expectEdge(tag.getBoundingClientRect().right, contentRight);
   }
+}
+
+const CARD_INSET = 12;
+
+interface Bounds {
+  bottom: number;
+  left: number;
+  right: number;
+  top: number;
+}
+
+/**
+ * Measures each visible card from its inner border edge to the nearest visible content.
+ * The first and last content sit exactly 12px from the top and bottom. Sideways, nothing
+ * comes closer than 12px and content reaches the inset on at least one side, which allows
+ * centered or left-aligned rows. A side whose content scrolls past the edge is skipped.
+ */
+function findCardInsetFailures(screenName: string, root: ParentNode): string[] {
+  const failures: string[] = [];
+  for (const card of root.querySelectorAll<HTMLElement>('[data-slot="card"]')) {
+    const content =
+      isVisible(card) && card.dataset["spacing"] !== "field"
+        ? collectContentBounds(card)
+        : [];
+    if (content.length === 0) {
+      continue;
+    }
+    const inner = readInnerBounds(card);
+    const insets = {
+      bottom: inner.bottom - Math.max(...content.map((bounds) => bounds.bottom)),
+      left: Math.min(...content.map((bounds) => bounds.left)) - inner.left,
+      right: inner.right - Math.max(...content.map((bounds) => bounds.right)),
+      top: Math.min(...content.map((bounds) => bounds.top)) - inner.top,
+    };
+    const scrolled = (inset: number) =>
+      getComputedStyle(card).overflow !== "visible" && inset < -0.5;
+    const exact = (inset: number) => scrolled(inset) || Math.abs(inset - CARD_INSET) <= 1;
+    const report = (side: string, inset: number) => {
+      failures.push(
+        `${screenName}: card "${describeCard(card)}" ${side} ${inset.toFixed(1)}px`,
+      );
+    };
+    for (const side of ["top", "bottom"] as const) {
+      if (!exact(insets[side])) {
+        report(side, insets[side]);
+      }
+    }
+    for (const side of ["left", "right"] as const) {
+      if (!scrolled(insets[side]) && insets[side] < CARD_INSET - 1) {
+        report(side, insets[side]);
+      }
+    }
+    if (!exact(insets.left) && !exact(insets.right)) {
+      report("nearer side", Math.min(insets.left, insets.right));
+    }
+  }
+  return failures;
+}
+
+/** Names a card by its label or its first words for failure messages. */
+function describeCard(card: HTMLElement): string {
+  return card.getAttribute("aria-label") ?? card.textContent?.trim().slice(0, 24) ?? "";
+}
+
+/** Returns a card's box inside its border. */
+function readInnerBounds(card: HTMLElement): Bounds {
+  const style = getComputedStyle(card);
+  const outer = card.getBoundingClientRect();
+  return {
+    bottom: outer.bottom - Number.parseFloat(style.borderBottomWidth),
+    left: outer.left + Number.parseFloat(style.borderLeftWidth),
+    right: outer.right - Number.parseFloat(style.borderRightWidth),
+    top: outer.top + Number.parseFloat(style.borderTopWidth),
+  };
+}
+
+/**
+ * Collects what a reader sees as content: text lines with their line height, icons,
+ * images, skeletons, icon buttons, filled or bordered surfaces such as tracks, and the text
+ * area of fields.
+ */
+function collectContentBounds(card: HTMLElement): Bounds[] {
+  const bounds: Bounds[] = [];
+  const walker = document.createTreeWalker(
+    card,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+  );
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    if (node instanceof Text) {
+      bounds.push(...readTextBounds(node));
+    } else if (node instanceof Element && isVisible(node)) {
+      const box = readElementContentBounds(node);
+      if (box !== null) {
+        bounds.push(box);
+      }
+    }
+  }
+  return bounds;
+}
+
+/** Returns a text node's line boxes, or nothing when it is hidden or blank. */
+function readTextBounds(node: Text): Bounds[] {
+  const parent = node.parentElement;
+  if (parent === null || node.data.trim() === "" || !isVisible(parent)) {
+    return [];
+  }
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  const lineHeight = Number.parseFloat(getComputedStyle(parent).lineHeight);
+  return [...range.getClientRects()]
+    .filter((rect) => rect.width > 0)
+    .map((rect) => {
+      const middle = rect.top + rect.height / 2;
+      const half = Number.isNaN(lineHeight) ? rect.height / 2 : lineHeight / 2;
+      return {
+        bottom: middle + half,
+        left: rect.left,
+        right: rect.right,
+        top: middle - half,
+      };
+    });
+}
+
+/** Returns the drawn box of an element that is content in itself, or null. */
+function readElementContentBounds(element: Element): Bounds | null {
+  const rect = element.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) {
+    return null;
+  }
+  const style = getComputedStyle(element);
+  if (element.matches("input")) {
+    // A field's text starts inside its padding, like text inside a row.
+    const vertical = (rect.height - Number.parseFloat(style.lineHeight)) / 2;
+    return {
+      bottom: rect.bottom - vertical,
+      left: rect.left + Number.parseFloat(style.paddingLeft),
+      right: rect.right - Number.parseFloat(style.paddingRight),
+      top: rect.top + vertical,
+    };
+  }
+  const isSurface =
+    style.backgroundColor !== "rgba(0, 0, 0, 0)" ||
+    Number.parseFloat(style.borderTopWidth) > 0 ||
+    Number.parseFloat(style.borderLeftWidth) > 0;
+  if (
+    element.matches(
+      "svg, img, canvas, [data-slot='skeleton'], [data-slot='button'][data-size^='icon']",
+    ) ||
+    isSurface
+  ) {
+    return { bottom: rect.bottom, left: rect.left, right: rect.right, top: rect.top };
+  }
+  return null;
+}
+
+/** Tells whether an element is drawn, leaving out hidden copies and screen-reader-only text. */
+function isVisible(element: Element): boolean {
+  for (
+    let current: Element | null = element;
+    current !== null;
+    current = current.parentElement
+  ) {
+    const style = getComputedStyle(current);
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      (style.position === "absolute" &&
+        (style.clip !== "auto" || style.clipPath !== "none"))
+    ) {
+      return false;
+    }
+  }
+  return element.getClientRects().length > 0;
 }

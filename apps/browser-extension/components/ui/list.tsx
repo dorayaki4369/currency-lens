@@ -1,5 +1,6 @@
 import type { ComponentProps, HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
+import { ROW_INSET_CLASS_NAME } from "@/components/ui/row-control";
 
 const LIST_DIVIDER_INSET_CLASS_NAMES = {
   content: "before:inset-x-3",
@@ -28,8 +29,8 @@ type ListItemRowProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 const LIST_ITEM_ROW_LAYOUT_CLASS_NAMES = {
-  inline: "items-center py-1.5",
-  stacked: "flex-col py-3.5",
+  inline: "items-center",
+  stacked: "flex-col",
 } as const satisfies Record<ListItemRowLayout, string>;
 
 type ListItemProps = {
@@ -72,12 +73,13 @@ export function ListItem({
   return <div className={itemClassName} data-slot="list-item" {...props} />;
 }
 
-/** Gives every list row the same padding so rows differ only by their content. */
+/** Gives every list row the same 12px inset so rows differ only by their content. */
 export function ListItemRow({ className, layout = "inline", ...props }: ListItemRowProps) {
   return (
     <div
       className={cn(
-        "flex min-h-12 gap-2 px-3",
+        "flex gap-2",
+        ROW_INSET_CLASS_NAME,
         LIST_ITEM_ROW_LAYOUT_CLASS_NAMES[layout],
         className,
       )}

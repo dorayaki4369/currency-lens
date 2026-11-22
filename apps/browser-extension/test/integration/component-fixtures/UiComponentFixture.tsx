@@ -2,7 +2,7 @@ import { CircleAlert, Settings } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Command,
@@ -78,15 +78,13 @@ export function UiComponentFixture({ fixtureId }: UiComponentFixtureProps) {
     ),
     card: (
       <Card>
-        <CardContent>
-          <Stack>
-            <h2 className="font-semibold">換算設定</h2>
-            <p className="text-sm text-muted-foreground">
-              換算元と換算後に表示する通貨を設定します。
-            </p>
-            <Button size="sm">設定を開く</Button>
-          </Stack>
-        </CardContent>
+        <Stack>
+          <h2 className="font-semibold">換算設定</h2>
+          <p className="text-sm text-muted-foreground">
+            換算元と換算後に表示する通貨を設定します。
+          </p>
+          <Button size="sm">設定を開く</Button>
+        </Stack>
       </Card>
     ),
     checkbox: (
@@ -189,7 +187,7 @@ function NativeSelectFixture() {
 function SegmentedControlFixture() {
   const labelId = useId();
   return (
-    <Card spacing="none">
+    <Card spacing="flush">
       <div className="flex items-center justify-between gap-4 px-3 py-2">
         <Label id={labelId}>テーマ</Label>
         <SegmentedControl aria-labelledby={labelId} defaultValue="light">

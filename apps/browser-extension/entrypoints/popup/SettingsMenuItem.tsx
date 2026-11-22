@@ -3,9 +3,9 @@ import { ChevronRight, ExternalLink, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListItem } from "@/components/ui/list";
+import { ROW_INSET_CLASS_NAME } from "@/components/ui/row-control";
 
-const MENU_ITEM_CLASS_NAME =
-  "h-11 w-full justify-between bg-transparent px-3 font-normal focus-visible:ring-inset";
+const MENU_ITEM_CLASS_NAME = `h-auto w-full justify-between bg-transparent font-normal focus-visible:ring-inset ${ROW_INSET_CLASS_NAME}`;
 
 type SettingsMenuItemProps = {
   readonly icon: LucideIcon;
@@ -62,7 +62,7 @@ export function SettingsMenuItem(props: SettingsMenuItemProps) {
 function SettingsMenuItemFrame({ children }: { readonly children: ReactNode }) {
   return (
     <ListItem as="li" dividerVisibility="hidden">
-      <Card spacing="none">{children}</Card>
+      <Card spacing="flush">{children}</Card>
     </ListItem>
   );
 }

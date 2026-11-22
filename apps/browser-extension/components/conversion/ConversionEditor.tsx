@@ -61,6 +61,8 @@ interface ConversionEditorProps {
    * trend cells line up. Keep the callback stable to avoid rerendering the target list.
    */
   readonly renderTargetTrend?: ((currencyCode: CurrencyCode) => ReactNode) | undefined;
+  /** Sits at the end of the source heading's row, such as the conversion card's close button. */
+  readonly sourceAction?: ReactNode | undefined;
   readonly sourceHeadingLevel?: 2 | 3 | undefined;
   readonly targetAmounts: ReadonlyMap<CurrencyCode, ConversionTargetAmount>;
   readonly targetCurrencies: readonly CurrencyCode[];
@@ -97,6 +99,7 @@ export function ConversionEditor({
   onReorderTarget,
   portalled = true,
   renderTargetTrend,
+  sourceAction,
   sourceHeadingLevel = 2,
   targetAmounts,
   targetCurrencies,
@@ -153,6 +156,7 @@ export function ConversionEditor({
     <Stack gap={3} data-slot="conversion-editor">
       <Stack as="section" aria-labelledby={sourceHeadingId}>
         <SectionHeader
+          action={sourceAction}
           headingLevel={sourceHeadingLevel}
           id={sourceHeadingId}
           title={translate(locale, "sourceHeading")}
@@ -163,12 +167,12 @@ export function ConversionEditor({
               <Label className="sr-only" htmlFor={sourceAmountId}>
                 {translate(locale, "sourceAmount")}
               </Label>
-              <Card className="overflow-hidden" spacing="none">
+              <Card className="overflow-hidden" spacing="field">
                 <Input
                   aria-describedby={sourceAmountIsInvalid ? sourceErrorId : undefined}
                   aria-invalid={sourceAmountIsInvalid}
                   className={cn(
-                    "h-12 rounded-none border-0 bg-transparent text-right shadow-none [appearance:textfield] tabular-nums focus-visible:ring-0 dark:bg-transparent",
+                    "h-15 rounded-none border-0 bg-transparent text-right shadow-none [appearance:textfield] tabular-nums focus-visible:ring-0 dark:bg-transparent",
                     "[&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none",
                   )}
                   id={sourceAmountId}
@@ -189,7 +193,7 @@ export function ConversionEditor({
             </>
           }
           identity={
-            <Card className="overflow-hidden" spacing="none">
+            <Card className="overflow-hidden" spacing="flush">
               <Label className="sr-only" htmlFor={sourceCurrencyId}>
                 {translate(locale, "sourceCurrency")}
               </Label>
@@ -340,7 +344,7 @@ function ConversionTargetArea({
       <ShownTargetAmountsContext.Provider value={shownTargetAmounts.current}>
         {editing === undefined ? (
           fallback === undefined ? (
-            <Card className="overflow-hidden" spacing="none">
+            <Card className="overflow-hidden" spacing="flush">
               {content}
             </Card>
           ) : (
@@ -416,7 +420,7 @@ function EditableConversionTargets({
           data-slot="target-editing-list"
           data-target-editing-motion={entering ? "entering" : undefined}
           data-target-editing-state={exiting ? "exiting" : "active"}
-          spacing="none"
+          spacing="flush"
         >
           {content}
         </Card>
@@ -739,7 +743,7 @@ function TargetAdderSurface({
   return embedded ? (
     children
   ) : (
-    <Card className="overflow-hidden" spacing="none">
+    <Card className="overflow-hidden" spacing="flush">
       {children}
     </Card>
   );

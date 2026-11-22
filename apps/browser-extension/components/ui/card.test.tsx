@@ -2,28 +2,24 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 
 afterEach(cleanup);
 
 describe("Card", () => {
-  it("contains its content without changing the supplied semantics", () => {
+  it("insets its content 12px on every side unless rows pad themselves", () => {
     render(
-      <Card aria-label="Settings card">
-        <CardContent>
+      <>
+        <Card aria-label="Settings card">
           <p>Theme controls</p>
-        </CardContent>
-      </Card>,
+        </Card>
+        <Card aria-label="Rows card" spacing="flush" />
+      </>,
     );
 
-    expect(screen.getByLabelText("Settings card").textContent).toContain("Theme controls");
-  });
-
-  it("insets a panel's blocks on every side", () => {
-    render(<Card aria-label="Rates card" spacing="panel" />);
-
-    expect(screen.getByLabelText("Rates card").className).toContain(
-      "px-(--card-padding-x)",
-    );
+    const card = screen.getByLabelText("Settings card");
+    expect(card.textContent).toBe("Theme controls");
+    expect(card.className).toContain("p-3");
+    expect(screen.getByLabelText("Rows card").className).not.toContain("p-3");
   });
 });

@@ -123,6 +123,9 @@ describe("SegmentedControl", () => {
     // On the muted page background the track takes a deeper fill.
     expect(group.className).toContain("bg-zinc-200");
     expect(group.className).not.toContain("bg-muted");
+    // Beside the cards it takes their radius, with a concentric thumb.
+    expect(group.className).toContain("rounded-xl");
+    expect(thumb?.className).toContain("rounded-[calc(var(--radius-xl)-2px)]");
 
     rerender(
       <SegmentedControl

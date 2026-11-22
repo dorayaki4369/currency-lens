@@ -26,7 +26,7 @@ import { RateTimestamp } from "@/components/conversion/RateTimestamp";
 import { Stack } from "@/components/layout/Stack";
 import { IconButton } from "@/components/ui/icon-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { List, ListItem, ListItemRow } from "@/components/ui/list";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -119,41 +119,42 @@ export function ConversionPopup({
       style={floatingStyles}
       tabIndex={-1}
     >
-      <Card className="relative w-full bg-background shadow-lg" spacing="compact">
+      <Card className="relative w-full bg-background shadow-lg">
         <h2 className="sr-only" id={titleId}>
           {translate(locale, "conversionResult")}
         </h2>
-        <IconButton
-          className="absolute top-2 right-2 z-10"
-          label={translate(locale, "closeApp")}
-          onClick={() => onClose("close-button")}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <X aria-hidden="true" />
-        </IconButton>
-
-        <CardContent className="pt-6">
-          <ConversionCardBody
-            data={data}
-            detection={detection}
-            error={error}
-            loading={loading}
-            locale={locale}
-            onReorderTarget={onReorderTarget}
-            onSourceChange={onSourceChange}
-            settingsSaveFailed={settingsSaveFailed}
-            targetCurrencies={targetCurrencies}
-            targetEditing={targetEditing}
-          />
-        </CardContent>
+        <ConversionCardBody
+          closeButton={
+            <IconButton
+              label={translate(locale, "closeApp")}
+              onClick={() => onClose("close-button")}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              <X aria-hidden="true" />
+            </IconButton>
+          }
+          data={data}
+          detection={detection}
+          error={error}
+          loading={loading}
+          locale={locale}
+          onReorderTarget={onReorderTarget}
+          onSourceChange={onSourceChange}
+          settingsSaveFailed={settingsSaveFailed}
+          targetCurrencies={targetCurrencies}
+          targetEditing={targetEditing}
+        />
       </Card>
     </dialog>
   );
 }
 
-type ConversionCardBodyProps = Pick<
+type ConversionCardBodyProps = {
+  /** Shares the first row with the content, which keeps it 12px from the card's corner. */
+  readonly closeButton: ReactNode;
+} & Pick<
   ConversionPopupProps,
   | "data"
   | "detection"
@@ -169,6 +170,7 @@ type ConversionCardBodyProps = Pick<
 
 /** Selects exactly one mutually exclusive body state. */
 function ConversionCardBody({
+  closeButton,
   data,
   detection,
   error,
@@ -181,20 +183,26 @@ function ConversionCardBody({
   targetEditing,
 }: ConversionCardBodyProps) {
   if (detection === null) {
-    if (loading) {
-      return <ConversionSkeleton locale={locale} />;
-    }
-    if (error !== null) {
-      return <ErrorState locale={locale} />;
-    }
     return (
-      <p className="py-6 text-center text-sm text-muted-foreground">
-        {translate(locale, "conversionEmpty")}
-      </p>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          {loading ? (
+            <ConversionSkeleton locale={locale} />
+          ) : error === null ? (
+            <p className="text-center text-sm text-muted-foreground">
+              {translate(locale, "conversionEmpty")}
+            </p>
+          ) : (
+            <ErrorState locale={locale} />
+          )}
+        </div>
+        {closeButton}
+      </div>
     );
   }
   return (
     <ConversionDetails
+      closeButton={closeButton}
       data={data}
       detection={detection}
       error={error}
@@ -210,6 +218,7 @@ function ConversionCardBody({
 }
 
 interface ConversionDetailsProps {
+  readonly closeButton: ReactNode;
   readonly data: ConversionPopupData | null;
   readonly detection: DetectedCurrency;
   readonly error: string | null;
@@ -226,6 +235,7 @@ type RatePresentation = Pick<ConversionPopupData, "isStale" | "sourceTimestamp">
 
 /** Renders the source amount and ordered conversion results. */
 function ConversionDetails({
+  closeButton,
   data,
   detection,
   error,
@@ -343,6 +353,7 @@ function ConversionDetails({
         }}
         onReorderTarget={onReorderTarget}
         portalled={false}
+        sourceAction={closeButton}
         sourceHeadingLevel={3}
         targetAmounts={targetAmounts}
         targetCurrencies={displayedTargetCurrencies}
@@ -465,7 +476,7 @@ function useDismissableLayer(
 /** Preserves the result-list shape while conversion data is loading. */
 function ConversionResultsSkeleton({ locale }: { readonly locale: UiLocale }) {
   return (
-    <Card aria-label={translate(locale, "loadingConversion")} role="status" spacing="none">
+    <Card aria-label={translate(locale, "loadingConversion")} role="status" spacing="flush">
       <List>
         {[0, 1].map((row) => (
           <ListItem key={row}>

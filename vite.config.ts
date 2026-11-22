@@ -75,6 +75,8 @@ export default defineConfig({
       "**/dist/**",
       "**/node_modules/**",
       "apps/server/worker-configuration.d.ts",
+      // The store video is a standalone page that a recorder opens frame by frame, not shipped code.
+      "apps/browser-extension/store/video/**",
     ],
     options: {
       denyWarnings: true,

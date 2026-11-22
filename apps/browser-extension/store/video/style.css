@@ -1,0 +1,154 @@
+/*
+ * 構成図（SVG）と再生バーの見た目。色は index.html で定義した shadcn のテーマ変数を使う。
+ * HTML 部品の見た目は Tailwind のクラスで書き、ここには SVG のように Tailwind で書きにくいものだけを置く。
+ * render(t) は transition や animation に頼らないため、実時間で動く CSS はすべて止める。
+ */
+*,
+*::before,
+*::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+#stage {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  transform-origin: 0 0;
+}
+
+#diagram {
+  font-family:
+    "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+}
+
+/* 箱 */
+.node .shape path,
+.node .shape ellipse,
+.node rect.shape {
+  fill: var(--card);
+  stroke: var(--border);
+  stroke-width: 2;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.08));
+}
+.node text {
+  fill: var(--card-foreground);
+  font-weight: 600;
+}
+.node .node-sub {
+  fill: var(--muted-foreground);
+  font-size: 20px;
+  font-weight: 400;
+}
+.node.glow .shape path,
+.node.glow .shape ellipse,
+.node.glow rect.shape {
+  stroke: var(--highlight);
+  stroke-width: 4;
+  filter: drop-shadow(0 0 16px color-mix(in oklch, var(--highlight) 45%, transparent));
+}
+
+/* グループ */
+.group .shape {
+  fill: color-mix(in oklch, var(--muted) 60%, transparent);
+  stroke: var(--border);
+  stroke-width: 2;
+  stroke-dasharray: 10 8;
+}
+.group-label {
+  fill: var(--muted-foreground);
+  font-size: 22px;
+  font-weight: 600;
+}
+.group.glow .shape {
+  stroke: var(--highlight);
+}
+
+/* 線 */
+.edge path {
+  fill: none;
+  stroke: var(--ring);
+  stroke-width: 3;
+}
+.edge.dashed path {
+  stroke-dasharray: 12 10;
+}
+.edge.glow path {
+  stroke: var(--highlight);
+  stroke-width: 5;
+}
+.edge-head {
+  fill: var(--ring);
+}
+.edge-head.glow {
+  fill: var(--highlight);
+}
+.edge-label rect {
+  fill: var(--background);
+}
+.edge-label text {
+  fill: var(--muted-foreground);
+  font-size: 20px;
+}
+
+/* 線上を流れる粒 */
+.packet circle {
+  fill: var(--highlight);
+  filter: drop-shadow(0 0 8px color-mix(in oklch, var(--highlight) 60%, transparent));
+}
+.packet rect {
+  fill: var(--highlight);
+}
+.packet text {
+  fill: white;
+  font-size: 22px;
+  font-weight: 700;
+}
+.packet.response circle,
+.packet.response rect {
+  fill: var(--highlight-2);
+  filter: drop-shadow(0 0 8px color-mix(in oklch, var(--highlight-2) 60%, transparent));
+}
+
+/* プレビュー（?capture=1 なしで開いたとき）だけの再生バー */
+body.preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  background: var(--muted);
+}
+.frame {
+  overflow: hidden;
+}
+.player {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: min(100%, 960px);
+  padding: 12px 16px;
+  font-size: 14px;
+}
+.player button {
+  width: 44px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 0.8);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  cursor: pointer;
+}
+.player input {
+  flex: 1;
+  accent-color: var(--primary);
+}
+.player output {
+  min-width: 140px;
+  font-variant-numeric: tabular-nums;
+}

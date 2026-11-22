@@ -35,6 +35,12 @@ function renderRateChart(series: readonly RateChartSeries[], mode: "percent" | "
   );
 }
 
+/** Reads the hidden label that sets the right axis's width. */
+function readAxisWidthSample(): string | null | undefined {
+  return document.querySelector('[data-slot="rate-chart-y-axis"]')?.firstElementChild
+    ?.firstElementChild?.textContent;
+}
+
 describe("RateChart", () => {
   it("draws the line, gradient area, axis tag, ticks, and dates for one rate", () => {
     renderRateChart(
@@ -58,6 +64,24 @@ describe("RateChart", () => {
     );
     expect(document.querySelector('[data-slot="rate-chart-zero"]')).toBeNull();
     expect(document.querySelector('[data-slot="rate-chart-cursor"]')).toBeNull();
+  });
+
+  it("sizes the right axis from the mode's widest label, not from the values", () => {
+    const { unmount } = renderRateChart(
+      [{ code: "EUR", color: RED, points: daily([0.86, 0.87]) }],
+      "rate",
+    );
+    expect(readAxisWidthSample()).toBe("88,888.88");
+    unmount();
+
+    renderRateChart([{ code: "EUR", color: RED, points: daily([0, 1.5]) }], "percent");
+    expect(readAxisWidthSample()).toBe("−88.88%");
+    const tag = document.querySelector<HTMLElement>('[data-slot="rate-chart-tag"]');
+    // Tags take the column's width from its inset, never from their own text.
+    expect(tag?.style.width).toBe("");
+    expect(tag?.parentElement?.className).toContain(
+      "*:data-[slot=rate-chart-tag]:right-0.5",
+    );
   });
 
   it("overlays percentage lines with a zero line, real rates on hover, and gap markers", () => {

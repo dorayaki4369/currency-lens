@@ -51,7 +51,7 @@ Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必�
 
 `pnpm store:images`は、言語に依存しないプロモーションタイル（小タイル440×280とマーキー1400×560）も`promo-tiles/`へ書き出します。Chrome Web Storeのプロモーション画像は言語ごとに登録できないため、タイルには文字を入れず、数字と記号だけで伝えます。
 
-ストア掲載用の説明動画（日本語、28秒）は`apps/browser-extension/store/video/currency-lens-intro-ja.mp4`にあります。撮影元は同じフォルダの`index.html`と`scene.js`で、`index.html`をブラウザで開くと再生バーで時刻を動かして確かめられます。撮り直すときは`pnpm store:video`を実行します。Chrome系ブラウザ、libx264付きのffmpeg、Tailwind CSSを読み込むための`cdn.jsdelivr.net`への接続が要ります。動画はChrome Web StoreへYouTubeのURLとして登録します。
+ストア掲載用の説明動画（日本語、28.5秒）は`apps/browser-extension/store/video/currency-lens-intro-ja.mp4`にあります。撮影元は同じフォルダの`index.html`と`scene.js`で、`index.html`をブラウザで開くと再生バーで時刻を動かして確かめられます。撮り直すときは`pnpm store:video`を実行します。Chrome系ブラウザ、libx264付きのffmpeg、Tailwind CSSを読み込むための`cdn.jsdelivr.net`への接続が要ります。動画はChrome Web StoreへYouTubeのURLとして登録します。
 
 ストアの掲載文の正本と反映手順は[ストア掲載文](../apps/browser-extension/store/listing/README.md)にあります。
 

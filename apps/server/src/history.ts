@@ -148,9 +148,12 @@ export async function updateHistory(
   );
 
   const today = toDateString(nowMs);
-  const months = new MonthlyHistoryCache((month) =>
-    readOrRebuild(monthlyHistoryKey(month), () => readMonthlyHistory(bucket, month)),
-  );
+  const months = new MonthlyHistoryCache(async (month) => {
+    const key = monthlyHistoryKey(month);
+    const stored = await readOrRebuild(key, () => readMonthlyHistory(bucket, month));
+    // An invalid file is replaced even when no close can be recovered in this run.
+    return { stored, dirty: rebuiltKeys.includes(key) };
+  });
   const recentDates = Array.from({ length: RECENT_DAYS_TO_CHECK }, (_, index) =>
     addDays(today, -(index + 1)),
   );
@@ -365,17 +368,20 @@ type MonthlyHistoryEntry = { history: MonthlyHistory; dirty: boolean };
 class MonthlyHistoryCache {
   private readonly entries = new Map<string, Promise<MonthlyHistoryEntry>>();
 
+  /** `load` marks a month dirty when its stored file must be replaced regardless of edits. */
   public constructor(
-    private readonly load: (month: string) => Promise<MonthlyHistory | null>,
+    private readonly load: (
+      month: string,
+    ) => Promise<{ stored: MonthlyHistory | null; dirty: boolean }>,
   ) {}
 
   /** Returns the month's entry, starting an empty month when it is not stored yet. */
   public get(month: string): Promise<MonthlyHistoryEntry> {
     let entry = this.entries.get(month);
     if (entry === undefined) {
-      entry = this.load(month).then((stored) => ({
+      entry = this.load(month).then(({ stored, dirty }) => ({
         history: stored ?? { version: 1, month, rates: {} },
-        dirty: false,
+        dirty,
       }));
       this.entries.set(month, entry);
     }

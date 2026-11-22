@@ -403,6 +403,28 @@ describe("updateHistory", () => {
     expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-13" });
   });
 
+  it("replaces an invalid month with a valid file even when no close can be recovered", async () => {
+    const bucket = createMemoryBucket();
+    bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2026-11-13" });
+    bucket.seed("history/daily/2026-11.tsv", "{");
+
+    const result = await updateHistory(
+      bucket,
+      { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
+      HISTORY_NOW_MS,
+    );
+
+    expect(result.rebuiltKeys).toEqual(["history/daily/2026-11.tsv"]);
+    expect(bucket.read("history/daily/2026-11.tsv")).toEqual({
+      version: 1,
+      month: "2026-11",
+      rates: {},
+    });
+    await expect(
+      readHistory(bucket, { resolution: "daily", symbols: ["JPY"] }, HISTORY_NOW_MS),
+    ).resolves.toMatchObject({ resolution: "daily" });
+  });
+
   it("rotates the hourly repairs over successive runs so that older gaps are retried", async () => {
     const bucket = createMemoryBucket();
     bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2025-11-20" });

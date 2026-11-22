@@ -66,6 +66,10 @@ export const test = base.extend<ExtensionFixtures>({
     );
 
     await use(context);
+    // The extension keeps requesting rates after a short test ends. Closing the context while
+    // a forward is in flight disposes the request context under `route.fetch`, so let every
+    // forward finish first.
+    await context.unrouteAll({ behavior: "wait" });
     await context.close();
   },
   extensionId: async ({ context }, use) => {

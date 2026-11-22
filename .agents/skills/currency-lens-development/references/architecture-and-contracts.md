@@ -49,9 +49,13 @@ Popup と Content Script は別の実行コンテキストなので、Zustand �
 
 Popup の換算元とレート表示状態は内部ルートの切り替えを越えて保持するため、`entrypoints/popup/stores/conversion.tsx` の Popup 単位ストアに置きます。
 換算元はレート画面の基準通貨を兼ねます。
-レート履歴、グラフの期間、表示する通貨は、換算画面とレート画面で共有するため、`entrypoints/popup/stores/rate-history.tsx` の Popup 単位ストアに置きます。
+レート履歴、グラフの期間、表示する通貨は、換算画面とレート画面で共有するため、`stores/rate-history.tsx` のストアに置きます。
+Popup は開いている間に1つ、換算カードは開くたびに1つ作るため、換算カードの期間と通貨は開くたびに1か月とすべての通貨に戻ります。
+レート画面、推移のグラフ、「換算｜レート」の切り替えは `components/rates` の共通部品で、Popup と換算カードが同じものを使います。
+換算カードのレート画面の基準はカードの換算元で、保存された換算元の設定は変えません。
 上昇と下降の既定の色は、表示の言語によらず上昇を緑、下降を赤にし、利用者が選んだ色は `getTrendPalette` が方向ごとに上書きします。
-選んだ色は `browser.storage.sync` の `config` ではなく `chartColors` キーに保存し、Popup の `entrypoints/popup/stores/chart-colors.tsx` が `storage.onChanged` で同期します。
+選んだ色は `browser.storage.sync` の `config` ではなく `chartColors` キーに保存し、`stores/chart-colors.tsx` のストアが `storage.onChanged` で同期します。
+このストアは Popup と換算カードがそれぞれ持ち、共通部品は `useTrendPalette` で色を読みます。
 `config` は strict schema で読むため、項目を足すと古い版が設定全体を既定値へ戻します。
 `config` に新しい項目を加えるときは、古い版での読み込みを確かめるか、同じように別のキーへ分けます。
 選んだ色は文字の色に使わず、軸のタグの文字は白か黒をコントラスト比で選びます。

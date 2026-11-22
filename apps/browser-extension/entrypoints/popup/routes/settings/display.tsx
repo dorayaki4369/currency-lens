@@ -13,10 +13,7 @@ import {
   PopupRouteFrame,
   usePopupApplicationContext,
 } from "@/entrypoints/popup/PopupApplication";
-import {
-  usePopupChartColors,
-  useTrendPalette,
-} from "@/entrypoints/popup/stores/chart-colors";
+import { useChartColors, useTrendPalette } from "@/stores/chart-colors";
 import { CHANGE_DIRECTIONS, getDefaultTrendColor } from "@/lib/trend-colors";
 
 export const Route = createFileRoute("/settings/display")({
@@ -92,9 +89,9 @@ function DisplaySettings({ config, locale, updateConfig }: DisplaySettingsProps)
 
 /** Lets the user replace the rise and fall colors used by charts and sparklines. */
 function ChartColorSettingsRow({ locale }: { readonly locale: UiLocale }) {
-  const settings = usePopupChartColors((state) => state.settings);
-  const saveFailed = usePopupChartColors((state) => state.saveFailed);
-  const setColor = usePopupChartColors((state) => state.setColor);
+  const settings = useChartColors((state) => state.settings);
+  const saveFailed = useChartColors((state) => state.saveFailed);
+  const setColor = useChartColors((state) => state.setColor);
   const palette = useTrendPalette();
 
   return (

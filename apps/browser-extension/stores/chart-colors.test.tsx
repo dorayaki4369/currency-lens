@@ -5,10 +5,10 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChartColorSettings } from "@/lib/trend-colors";
 import {
-  PopupChartColorsProvider,
-  usePopupChartColors,
+  ChartColorsProvider,
+  useChartColors,
   useTrendPalette,
-} from "@/entrypoints/popup/stores/chart-colors";
+} from "@/stores/chart-colors";
 
 type StorageListener = (
   changes: Record<string, { readonly newValue?: unknown }>,
@@ -136,19 +136,19 @@ function renderChartColors(preview?: ChartColorSettings) {
   return renderHook(
     () => ({
       palette: useTrendPalette(),
-      saveFailed: usePopupChartColors((state) => state.saveFailed),
-      setColor: usePopupChartColors((state) => state.setColor),
-      settings: usePopupChartColors((state) => state.settings),
+      saveFailed: useChartColors((state) => state.saveFailed),
+      setColor: useChartColors((state) => state.setColor),
+      settings: useChartColors((state) => state.settings),
     }),
     {
       wrapper: ({ children }: { readonly children: ReactNode }) => (
-        <PopupChartColorsProvider preview={preview}>{children}</PopupChartColorsProvider>
+        <ChartColorsProvider preview={preview}>{children}</ChartColorsProvider>
       ),
     },
   );
 }
 
-describe("popup chart color store", () => {
+describe("chart color store", () => {
   it("applies preview choices without touching the browser", () => {
     const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>();
     stubBrowser(sendMessage);
@@ -323,8 +323,8 @@ describe("popup chart color store", () => {
   });
 
   it("requires the provider", () => {
-    expect(() => renderHook(() => usePopupChartColors((state) => state.settings))).toThrow(
-      "usePopupChartColors must be used within PopupChartColorsProvider.",
+    expect(() => renderHook(() => useChartColors((state) => state.settings))).toThrow(
+      "useChartColors must be used within ChartColorsProvider.",
     );
   });
 });

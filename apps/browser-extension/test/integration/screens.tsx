@@ -23,6 +23,7 @@ export interface ConversionScreenOptions {
   readonly motion: "default" | "reduce";
   readonly root: "document" | "shadow";
   readonly state: ConversionCardState;
+  readonly theme: "dark" | "light";
 }
 
 export type PopupHistoryState = "data" | "empty" | "error" | "loading";
@@ -89,7 +90,9 @@ export function mountConversionScreen(
     <StrictMode>
       <main
         className={cn(
-          "theme-light min-h-screen bg-muted/40 p-8 text-foreground",
+          `theme-${options.theme}`,
+          options.theme === "dark" && "dark",
+          "min-h-screen bg-muted/40 p-8 text-foreground",
           motionClassName,
         )}
         data-motion={options.motion}
@@ -122,6 +125,7 @@ export function mountConversionScreen(
             <ConversionPopup
               {...conversionStateProps[options.state]}
               floatingStyles={{ position: "relative" }}
+              historyPreview={FIXTURE_HISTORY}
               locale="ja"
               onClose={() => undefined}
               onReorderTarget={() => undefined}

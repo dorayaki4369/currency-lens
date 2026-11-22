@@ -17,7 +17,7 @@ import {
   type TrendPalette,
 } from "@/lib/trend-colors";
 
-export interface PopupChartColorsState {
+export interface ChartColorsState {
   /** True after the latest save failed and the last stored choice was restored. */
   readonly saveFailed: boolean;
   readonly settings: ChartColorSettings;
@@ -25,58 +25,53 @@ export interface PopupChartColorsState {
   readonly setColor: (direction: ChangeDirection, color: string | null) => void;
 }
 
-interface ChartColorsStore extends StoreApi<PopupChartColorsState> {
+interface ChartColorsStore extends StoreApi<ChartColorsState> {
   readonly startSynchronization: () => () => void;
 }
 
-interface PopupChartColorsProviderProps {
+interface ChartColorsProviderProps {
   readonly children: ReactNode;
   readonly preview?: ChartColorSettings | undefined;
 }
 
-const PopupChartColorsContext = createContext<ChartColorsStore | null>(null);
+const ChartColorsContext = createContext<ChartColorsStore | null>(null);
 
-/** Keeps the chart color choices of one popup in step with synchronized storage. */
-export function PopupChartColorsProvider({
-  children,
-  preview,
-}: PopupChartColorsProviderProps) {
+/** Keeps the chart color choices of one popup or conversion card in step with synchronized storage. */
+export function ChartColorsProvider({ children, preview }: ChartColorsProviderProps) {
   const [store] = useState(() => createChartColorsStore(preview));
 
   useEffect(() => store.startSynchronization(), [store]);
 
   return (
-    <PopupChartColorsContext.Provider value={store}>
-      {children}
-    </PopupChartColorsContext.Provider>
+    <ChartColorsContext.Provider value={store}>{children}</ChartColorsContext.Provider>
   );
 }
 
-/** Selects chart color state or actions from the current popup instance. */
-export function usePopupChartColors<Selected>(
-  selector: (state: PopupChartColorsState) => Selected,
+/** Selects chart color state or actions from the nearest provider. */
+export function useChartColors<Selected>(
+  selector: (state: ChartColorsState) => Selected,
 ): Selected {
-  const store = useContext(PopupChartColorsContext);
+  const store = useContext(ChartColorsContext);
   if (store === null) {
-    throw new Error("usePopupChartColors must be used within PopupChartColorsProvider.");
+    throw new Error("useChartColors must be used within ChartColorsProvider.");
   }
   return useStore(store, selector);
 }
 
 /** Resolves the rise, fall, and flat colors from the defaults and the user's choices. */
 export function useTrendPalette(): TrendPalette {
-  const settings = usePopupChartColors((state) => state.settings);
+  const settings = useChartColors((state) => state.settings);
   return useMemo(() => getTrendPalette(settings), [settings]);
 }
 
-/** Creates one popup's chart color store and its storage synchronization. */
+/** Creates one provider's chart color store and its storage synchronization. */
 function createChartColorsStore(preview: ChartColorSettings | undefined): ChartColorsStore {
   let lastStored: ChartColorSettings = preview ?? {};
   let latestRevision = 0;
   let pendingSaves = 0;
   let saveQueue = Promise.resolve();
 
-  const store = createStore<PopupChartColorsState>()((set, get) => ({
+  const store = createStore<ChartColorsState>()((set, get) => ({
     saveFailed: false,
     settings: preview ?? {},
     setColor: (direction, color) => {

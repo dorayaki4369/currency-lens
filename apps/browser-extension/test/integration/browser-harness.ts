@@ -77,6 +77,7 @@ export async function openConversionScreen(
       motion: options.motion ?? "default",
       root: options.root ?? "document",
       state: options.state ?? "success",
+      theme: options.theme ?? "light",
     }),
   );
   const renderRoot = container.shadowRoot ?? document;

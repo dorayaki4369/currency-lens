@@ -2,7 +2,7 @@
 
 import type { CurrencyCode } from "@cl/currency";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DetectedCurrency } from "@/lib/currency-detection";
 import type { CurrencyDropPlacement } from "@/lib/currency-order";
 import * as i18n from "@/lib/i18n";
@@ -13,6 +13,7 @@ import {
   type ConversionPopupData,
   type ConversionSource,
 } from "@/entrypoints/content/components/ConversionPopup";
+import { POPUP_HISTORY } from "@/test/popup";
 
 const DETECTION: DetectedCurrency = {
   amount: 120,
@@ -49,6 +50,16 @@ const CONVERSION_DATA: ConversionPopupData = {
   ],
   sourceTimestamp: 1_752_900_000_000,
 };
+
+// The card reads the saved chart colors; without a background it keeps the defaults.
+beforeEach(() => {
+  vi.stubGlobal("browser", {
+    runtime: {
+      sendMessage: () =>
+        Promise.resolve({ error: "Background unavailable", success: false }),
+    },
+  });
+});
 
 afterEach(() => {
   cleanup();
@@ -453,6 +464,8 @@ describe("ConversionPopup", () => {
     ]);
     expect(readValueColumnOrder(targetRow)).toEqual([
       "currency-identity",
+      // Like the popup, each target draws its trend against the source.
+      "currency-trend",
       "currency-amount",
     ]);
     expect(sourceRow?.querySelector('[data-currency-icon="USD"]')).not.toBeNull();
@@ -801,6 +814,130 @@ describe("ConversionPopup", () => {
     expect(screen.getByText("1.23")).toBeDefined();
   });
 });
+
+describe("ConversionPopup rates", () => {
+  it("puts the screen switch below the close button and starts on the converter", async () => {
+    renderRatesCard();
+
+    const toolbar = document.querySelector('[data-slot="conversion-card-toolbar"]');
+    expect(toolbar?.querySelector("button")?.getAttribute("aria-label")).toBe("Close");
+    // The switch takes the row below the close button and spans the card; both stay put
+    // above the body, which alone scrolls.
+    const screenSwitch = screen.getByRole("radiogroup", { name: "Screen" });
+    expect(toolbar?.nextElementSibling).toBe(screenSwitch);
+    const body = document.querySelector('[data-slot="conversion-card-body"]');
+    expect(screenSwitch.parentElement?.nextElementSibling).toBe(body);
+    expect(body?.className).toContain("overflow-y-auto");
+    expect(body?.querySelector('[data-slot="conversion-editor"]')).not.toBeNull();
+    expect(screenSwitch.className).toContain("w-full");
+    expect(
+      screen.getByRole("radio", { name: "Convert" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    const trend = screen.getByRole("button", { name: "Open JPY rates" });
+    await waitFor(() => expect(trend.querySelectorAll("path")).toHaveLength(2));
+    expect(screen.queryByRole("heading", { name: "Base" })).toBeNull();
+  });
+
+  it("opens a trend's currency and moves focus to the switch", async () => {
+    renderRatesCard();
+    fireEvent.click(screen.getByRole("button", { name: "Open EUR rates" }));
+
+    const rates = screen.getByRole("radio", { name: "Rates" });
+    expect(rates.getAttribute("aria-checked")).toBe("true");
+    expect(document.activeElement).toBe(rates);
+    expect(screen.getByRole("heading", { level: 3, name: "Base" })).toBeDefined();
+    expect(screen.getByRole("radio", { name: "EUR" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    expect(
+      await screen.findByRole("slider", { name: "USD to EUR chart, past month" }),
+    ).toBeDefined();
+    expect(screen.getByRole("link", { name: "Open Exchange Rates" })).toBeDefined();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Convert" }));
+    expect(document.activeElement).toBe(screen.getByRole("radio", { name: "Convert" }));
+    expect(screen.getByRole("spinbutton", { name: "Amount" })).toBeDefined();
+  });
+
+  it("uses the card's source as the base and shares a new base back", async () => {
+    const { onSourceChange } = renderRatesCard();
+    fireEvent.click(screen.getByRole("radio", { name: "Rates" }));
+
+    expect(
+      screen.getByRole("radio", { name: "All currencies" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    await chooseCurrency("Base", "EUR", "Euro");
+    expect(onSourceChange).toHaveBeenLastCalledWith({ ...DETECTION, currencyCode: "EUR" });
+    expect(await screen.findByText("Change against EUR")).toBeDefined();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Convert" }));
+    expect(screen.getByRole("combobox", { name: "Currency" }).textContent).toContain("EUR");
+  });
+
+  it("starts the rates over at one month of every target each time the card opens", async () => {
+    const { rerender } = renderRatesCard();
+    fireEvent.click(screen.getByRole("button", { name: "Open JPY rates" }));
+    fireEvent.click(screen.getByRole("radio", { name: "5D" }));
+    await screen.findByRole("slider", { name: "USD to JPY chart, past 5 days" });
+
+    rerender(createRatesCard({ visible: false }));
+    rerender(createRatesCard());
+    expect(
+      screen.getByRole("radio", { name: "Convert" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: "Rates" }));
+    expect(
+      screen.getByRole("radio", { name: "All currencies" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(screen.getByRole("radio", { name: "1M" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+  });
+
+  it("requests history from the background without a preview", async () => {
+    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>(() =>
+      Promise.resolve({ data: POPUP_HISTORY.daily, success: true }),
+    );
+    vi.stubGlobal("browser", { runtime: { sendMessage } });
+    renderRatesCard({ historyPreview: undefined });
+
+    const trend = screen.getByRole("button", { name: "Open JPY rates" });
+    await waitFor(() => expect(trend.querySelectorAll("path")).toHaveLength(2));
+    expect(sendMessage).toHaveBeenCalledWith({
+      payload: { resolution: "daily", symbols: ["JPY", "EUR", "GBP"] },
+      type: "GET_RATE_HISTORY",
+    });
+  });
+});
+
+type ConversionPopupProps = Parameters<typeof ConversionPopup>[0];
+
+/** Creates a converted card with three targets and fixed rate history. */
+function createRatesCard(overrides: Partial<ConversionPopupProps> = {}) {
+  return (
+    <ConversionPopup
+      data={CONVERSION_DATA}
+      detection={DETECTION}
+      error={null}
+      floatingStyles={{}}
+      historyPreview={POPUP_HISTORY}
+      loading={false}
+      locale="en"
+      onClose={vi.fn<() => void>()}
+      setFloating={vi.fn<(element: HTMLElement | null) => void>()}
+      targetCurrencies={["JPY", "EUR", "GBP"]}
+      visible
+      {...overrides}
+    />
+  );
+}
+
+/** Renders the converted card and reports the source changes it makes. */
+function renderRatesCard(overrides: Partial<ConversionPopupProps> = {}) {
+  const onSourceChange = vi.fn<(source: ConversionSource | null) => void>();
+  const view = render(createRatesCard({ onSourceChange, ...overrides }));
+  return { onSourceChange, rerender: view.rerender };
+}
 
 /** Temporarily adds the Popover API missing from happy-dom. */
 function replaceDialogPopoverMethods(

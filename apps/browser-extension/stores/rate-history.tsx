@@ -30,7 +30,7 @@ export type RateHistoryPreview =
   | { readonly kind: "error" }
   | { readonly kind: "loading" };
 
-export interface PopupRateHistoryState {
+export interface RateHistoryState {
   readonly entries: Readonly<Record<string, RateHistoryEntry>>;
   readonly period: RatePeriod;
   readonly selection: RateChartSelection;
@@ -42,7 +42,7 @@ export interface PopupRateHistoryState {
   readonly setSelection: (selection: RateChartSelection) => void;
 }
 
-interface PopupRateHistoryProviderProps {
+interface RateHistoryProviderProps {
   readonly children: ReactNode;
   readonly preview?: RateHistoryPreview | undefined;
 }
@@ -54,28 +54,23 @@ const NO_SYMBOL_ENTRIES = {
   hourly: { data: createEmptyHistory("hourly"), status: "ready" },
 } as const satisfies Record<RateHistoryResolution, RateHistoryEntry>;
 
-const PopupRateHistoryContext = createContext<StoreApi<PopupRateHistoryState> | null>(null);
+const RateHistoryContext = createContext<StoreApi<RateHistoryState> | null>(null);
 
-/** Keeps loaded histories and chart choices for the lifetime of one popup. */
-export function PopupRateHistoryProvider({
-  children,
-  preview,
-}: PopupRateHistoryProviderProps) {
-  const [store] = useState(() => createPopupRateHistoryStore(preview));
+/** Keeps loaded histories and chart choices for the lifetime of one popup or conversion card. */
+export function RateHistoryProvider({ children, preview }: RateHistoryProviderProps) {
+  const [store] = useState(() => createRateHistoryStore(preview));
   return (
-    <PopupRateHistoryContext.Provider value={store}>
-      {children}
-    </PopupRateHistoryContext.Provider>
+    <RateHistoryContext.Provider value={store}>{children}</RateHistoryContext.Provider>
   );
 }
 
-/** Selects rate history state or actions from the current popup instance. */
-export function usePopupRateHistory<Selected>(
-  selector: (state: PopupRateHistoryState) => Selected,
+/** Selects rate history state or actions from the nearest provider. */
+export function useRateHistoryStore<Selected>(
+  selector: (state: RateHistoryState) => Selected,
 ): Selected {
-  const store = useContext(PopupRateHistoryContext);
+  const store = useContext(RateHistoryContext);
   if (store === null) {
-    throw new Error("usePopupRateHistory must be used within PopupRateHistoryProvider.");
+    throw new Error("useRateHistoryStore must be used within RateHistoryProvider.");
   }
   return useStore(store, selector);
 }
@@ -89,10 +84,10 @@ export function useRateHistory(
   symbols: readonly CurrencyCode[],
 ): RateHistoryEntry {
   const key = symbols.length === 0 ? null : getRateHistoryKey({ resolution, symbols });
-  const entry = usePopupRateHistory((state) =>
+  const entry = useRateHistoryStore((state) =>
     key === null ? NO_SYMBOL_ENTRIES[resolution] : (state.entries[key] ?? LOADING_ENTRY),
   );
-  const loadHistory = usePopupRateHistory((state) => state.loadHistory);
+  const loadHistory = useRateHistoryStore((state) => state.loadHistory);
 
   useEffect(() => {
     if (symbols.length > 0) {
@@ -103,13 +98,13 @@ export function useRateHistory(
   return entry;
 }
 
-/** Creates one popup instance's history cache and chart choices. */
-function createPopupRateHistoryStore(
+/** Creates one provider's history cache and chart choices. */
+function createRateHistoryStore(
   preview: RateHistoryPreview | undefined,
-): StoreApi<PopupRateHistoryState> {
+): StoreApi<RateHistoryState> {
   const activeLoads = new Map<string, Promise<void>>();
 
-  return createStore<PopupRateHistoryState>()((set, get) => {
+  return createStore<RateHistoryState>()((set, get) => {
     const setEntry = (key: string, entry: RateHistoryEntry) =>
       set((state) => ({ entries: { ...state.entries, [key]: entry } }));
 
@@ -119,7 +114,7 @@ function createPopupRateHistoryStore(
       selection: ALL_CURRENCIES_SELECTION,
       loadHistory: (resolution, symbols) => {
         const key = getRateHistoryKey({ resolution, symbols });
-        // Loaded windows stay for the popup's lifetime; only failures are retried.
+        // Loaded windows stay for the provider's lifetime; only failures are retried.
         if (get().entries[key]?.status === "ready") {
           return Promise.resolve();
         }

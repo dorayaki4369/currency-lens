@@ -10,21 +10,32 @@ const CARD_SPACING = {
   field: "",
   flush: "",
 } as const;
+// A "raised" card sits on the page. An "overlay" card is itself the page of a panel that floats
+// over a web page, such as the conversion card: it takes the page fill, so raised cards inside
+// it read the same as in the popup, and a deeper shadow to lift it off the host page.
+const CARD_LAYER = {
+  overlay: "bg-background shadow-lg",
+  raised: "bg-card shadow-sm",
+} as const;
 
 /** Provides the shared card surface and its inset. */
 function Card({
   className,
+  layer = "raised",
   spacing = "default",
   ...props
 }: ComponentProps<"div"> & {
+  readonly layer?: keyof typeof CARD_LAYER | undefined;
   readonly spacing?: keyof typeof CARD_SPACING | undefined;
 }) {
   return (
     <div
+      data-layer={layer}
       data-slot="card"
       data-spacing={spacing}
       className={cn(
-        "flex min-h-0 flex-col rounded-xl bg-card text-card-foreground shadow-sm",
+        "flex min-h-0 flex-col rounded-xl text-card-foreground",
+        CARD_LAYER[layer],
         CARD_SPACING[spacing],
         className,
       )}

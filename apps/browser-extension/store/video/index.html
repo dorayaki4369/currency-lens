@@ -190,6 +190,12 @@
             id="card"
             class="absolute w-[520px] rounded-2xl border bg-[#f3f4f6] p-6 shadow-2xl"
           >
+            <div
+              class="mb-5 grid grid-cols-2 rounded-xl bg-[#e4e4e7] p-1 text-[18px] font-semibold"
+            >
+              <span class="rounded-lg bg-white py-2 text-center shadow-sm">換算</span>
+              <span class="py-2 text-center text-muted-foreground">レート</span>
+            </div>
             <p class="mb-3 text-[20px] font-semibold">換算元</p>
             <div class="mb-6 flex gap-3">
               <div class="flex flex-1 items-center gap-3 rounded-xl bg-white px-4 py-3">
@@ -221,7 +227,20 @@
                   <p class="text-[20px] font-bold leading-tight">JPY</p>
                   <p class="text-[15px] text-muted-foreground">日本円</p>
                 </div>
-                <p class="text-[22px] font-bold">37,213.00</p>
+                <svg viewBox="0 0 110 40" class="h-[40px] w-[110px]" fill="none">
+                  <path
+                    d="M0 6 L10 4 L20 9 L30 8 L40 14 L50 17 L60 15 L70 22 L80 24 L90 23 L100 29 L110 31 L110 40 L0 40 Z"
+                    fill="#ef4444"
+                    opacity="0.12"
+                  />
+                  <path
+                    d="M0 6 L10 4 L20 9 L30 8 L40 14 L50 17 L60 15 L70 22 L80 24 L90 23 L100 29 L110 31"
+                    stroke="#ef4444"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <p class="w-[130px] text-right text-[22px] font-bold">37,213.00</p>
               </div>
               <div class="flex items-center gap-3 border-b py-3">
                 <img
@@ -233,7 +252,20 @@
                   <p class="text-[20px] font-bold leading-tight">EUR</p>
                   <p class="text-[15px] text-muted-foreground">ユーロ</p>
                 </div>
-                <p class="text-[22px] font-bold">214.66</p>
+                <svg viewBox="0 0 110 40" class="h-[40px] w-[110px]" fill="none">
+                  <path
+                    d="M0 30 L10 29 L20 27 L30 26 L40 22 L50 20 L60 17 L70 12 L80 9 L90 8 L100 7 L110 7 L110 40 L0 40 Z"
+                    fill="#22c55e"
+                    opacity="0.12"
+                  />
+                  <path
+                    d="M0 30 L10 29 L20 27 L30 26 L40 22 L50 20 L60 17 L70 12 L80 9 L90 8 L100 7 L110 7"
+                    stroke="#22c55e"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <p class="w-[130px] text-right text-[22px] font-bold">214.66</p>
               </div>
               <div class="flex items-center gap-3 py-3">
                 <img
@@ -245,7 +277,20 @@
                   <p class="text-[20px] font-bold leading-tight">GBP</p>
                   <p class="text-[15px] text-muted-foreground">英国ポンド</p>
                 </div>
-                <p class="text-[22px] font-bold">184.96</p>
+                <svg viewBox="0 0 110 40" class="h-[40px] w-[110px]" fill="none">
+                  <path
+                    d="M0 12 L10 10 L20 14 L30 13 L40 19 L50 22 L60 20 L70 24 L80 23 L90 27 L100 26 L110 28 L110 40 L0 40 Z"
+                    fill="#ef4444"
+                    opacity="0.12"
+                  />
+                  <path
+                    d="M0 12 L10 10 L20 14 L30 13 L40 19 L50 22 L60 20 L70 24 L80 23 L90 27 L100 26 L110 28"
+                    stroke="#ef4444"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <p class="w-[130px] text-right text-[22px] font-bold">184.96</p>
               </div>
             </div>
             <p class="mt-4 text-[16px] text-muted-foreground">
@@ -270,6 +315,43 @@
             id="ripple"
             class="absolute size-[90px] rounded-full border-4 border-[#0094ff]"
           ></span>
+        </div>
+        <div
+          id="rates"
+          class="absolute inset-0 flex items-center justify-center"
+          style="
+            background:
+              radial-gradient(1400px 900px at 0% 0%, #e3f1ff 0%, transparent 70%),
+              radial-gradient(1200px 900px at 100% 100%, #fff3d1 0%, transparent 70%),
+              #f8fafc;
+          "
+        >
+          <div
+            id="rates-card"
+            class="-mt-24 w-[1120px] rounded-3xl border bg-white p-10 shadow-2xl"
+          >
+            <div
+              class="mb-6 grid grid-cols-4 rounded-xl bg-[#f4f4f5] p-1 text-[24px] font-semibold"
+            >
+              <span class="rounded-lg bg-white py-2 text-center shadow-sm">ALL</span>
+              <span class="py-2 text-center text-muted-foreground">JPY</span>
+              <span class="py-2 text-center text-muted-foreground">EUR</span>
+              <span class="py-2 text-center text-muted-foreground">GBP</span>
+            </div>
+            <p class="mb-3 text-[22px] text-muted-foreground">対 USD の変化率</p>
+            <div id="rates-legend" class="mb-6 grid grid-cols-3"></div>
+            <svg
+              id="rates-chart"
+              viewBox="0 0 1040 360"
+              class="h-[360px] w-full"
+              fill="none"
+            ></svg>
+            <div
+              class="mt-3 flex justify-between pr-[150px] text-[20px] text-muted-foreground"
+            >
+              <span>10/24</span><span>11/8</span><span>11/22</span>
+            </div>
+          </div>
         </div>
         <div
           id="counts"

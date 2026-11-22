@@ -11,6 +11,7 @@
     { name: "select", dur: 3.5 },
     { name: "quick", dur: 4 },
     { name: "card", dur: 5 },
+    { name: "rates", dur: 4.5 },
     { name: "counts", dur: 4.5 },
     { name: "outro", dur: 4 },
   ]);
@@ -23,6 +24,11 @@
       at: T.start("card"),
       until: T.end("card"),
       text: "ワンクリックで複数通貨にまとめて換算",
+    },
+    {
+      at: T.start("rates") + 0.4,
+      until: T.end("rates"),
+      text: "レートの推移もグラフで確認",
     },
     {
       at: T.start("counts") + 0.4,
@@ -47,6 +53,89 @@
     };
   }
 
+  /** レート画面の系列。1か月の対 USD の変化率（%）で、最後の値が凡例とタグに出る。 */
+  const SERIES = [
+    { code: "JPY", color: "#5b4ff5", tag: "#4f46e5", final: -0.34, wave: 0.35, phase: 0.4 },
+    { code: "EUR", color: "#f59e0b", tag: "#b45309", final: 3.36, wave: 0.3, phase: 1.7 },
+    { code: "GBP", color: "#14b8a6", tag: "#0f766e", final: -0.91, wave: 0.25, phase: 2.9 },
+  ];
+  const CHART = { width: 860, top: 20, bottom: 340, min: -1.6, max: 4 };
+  const POINTS = 31;
+
+  /** 変化率をグラフの縦位置へ写す。 */
+  function chartY(value) {
+    return lerp(CHART.bottom, CHART.top, (value - CHART.min) / (CHART.max - CHART.min));
+  }
+
+  /** 0 から最後の値まで、なだらかに揺れながら進む系列。乱数を使わず、毎回同じ形になる。 */
+  function seriesValues({ final, wave, phase }) {
+    return Array.from({ length: POINTS }, (_, i) => {
+      const x = i / (POINTS - 1);
+      // 大きな揺れに細かな揺れを重ね、実際のレートのような細かい上下を出す。
+      const swing =
+        wave * Math.sin(x * 9 + phase) + wave * 0.35 * Math.sin(x * 47 + phase * 3);
+      return final * ease.inOut(x) + swing * Math.sin(Math.PI * x);
+    });
+  }
+
+  function formatChange(value) {
+    return `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}%`;
+  }
+
+  /** レート画面の凡例、線、右端のタグを描く。 */
+  function buildRatesChart() {
+    const svg = $("rates-chart");
+    const ns = "http://www.w3.org/2000/svg";
+    const grid = [CHART.top, chartY(0), CHART.bottom];
+    svg.innerHTML = grid
+      .map(
+        (y, i) =>
+          `<line x1="0" x2="${CHART.width}" y1="${y}" y2="${y}" stroke="${i === 1 ? "#94a3b8" : "#e2e8f0"}" stroke-width="2" ${i === 1 ? "" : 'stroke-dasharray="6 6"'}/>`,
+      )
+      .join("");
+    $("rates-legend").innerHTML = SERIES.map(
+      (s) => `<div>
+        <p class="flex items-center gap-2 text-[22px] font-semibold"><span class="h-[5px] w-6 rounded-full" style="background:${s.color}"></span>${s.code}</p>
+        <p class="mt-1 text-[34px] font-bold ${s.final >= 0 ? "text-[#16a34a]" : "text-[#dc2626]"}">${s.final >= 0 ? "↑" : "↓"} <span class="text-slate-900">${formatChange(s.final)}</span></p>
+      </div>`,
+    ).join("");
+    // タグは値の位置に置き、重なる場合だけ上下へ離す。
+    const TAG_HEIGHT = 40;
+    const tagY = new Map();
+    let previous = -Infinity;
+    for (const s of [...SERIES].sort((a, b) => b.final - a.final)) {
+      const y = Math.max(chartY(s.final), previous + TAG_HEIGHT + 6);
+      tagY.set(s.code, y);
+      previous = y;
+    }
+    for (const s of SERIES) {
+      const values = seriesValues(s);
+      const path = document.createElementNS(ns, "path");
+      path.setAttribute(
+        "d",
+        values
+          .map(
+            (v, i) =>
+              `${i === 0 ? "M" : "L"}${((i / (POINTS - 1)) * CHART.width).toFixed(1)} ${chartY(v).toFixed(1)}`,
+          )
+          .join(" "),
+      );
+      path.setAttribute("stroke", s.color);
+      path.setAttribute("stroke-width", "5");
+      path.setAttribute("stroke-linejoin", "round");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("pathLength", "1");
+      path.setAttribute("stroke-dasharray", "1 1");
+      path.classList.add("rate-line");
+      svg.append(path);
+      const tag = document.createElementNS(ns, "g");
+      tag.classList.add("rate-tag");
+      tag.innerHTML = `<rect x="${CHART.width + 16}" y="${tagY.get(s.code) - 20}" width="150" height="${TAG_HEIGHT}" rx="6" fill="${s.tag}"/>
+        <text x="${CHART.width + 91}" y="${tagY.get(s.code) + 9}" text-anchor="middle" fill="#fff" font-size="24" font-weight="700">${formatChange(s.final)}</text>`;
+      svg.append(tag);
+    }
+  }
+
   /** 2 点の間を、緩急を付けて p（0→1）で移動した座標。 */
   function between(a, b, p) {
     return { x: lerp(a.x, b.x, p), y: lerp(a.y, b.y, p) };
@@ -63,6 +152,7 @@
       $("card").style.left = `${box.price.left}px`;
       $("card").style.top = `${quickTop}px`;
       box.card = measure($("card"));
+      buildRatesChart();
     },
     render(t) {
       caption($("caption"), t, CUES);
@@ -126,6 +216,19 @@
       const ty = shown.y - focus.y * scale + lift;
       $("camera").style.transformOrigin = "0 0";
       $("camera").style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+
+      // レートの推移: グラフの画面に切り替わり、各通貨の線が左から伸びて右端にタグが出る。
+      const ratesIn = T.p("rates", t, { offset: 0, dur: 0.5, easing: ease.out });
+      $("rates").style.opacity = ratesIn;
+      $("rates-card").style.transform = `translateY(${lerp(30, 0, ratesIn)}px)`;
+      const draw = T.p("rates", t, { offset: 0.5, dur: 1.8, easing: ease.inOut });
+      document.querySelectorAll("#rates-chart .rate-line").forEach((line) => {
+        line.style.strokeDashoffset = String(1 - draw);
+      });
+      const tags = T.p("rates", t, { offset: 2.1, dur: 0.4, easing: ease.out });
+      document.querySelectorAll("#rates-chart .rate-tag").forEach((tag) => {
+        tag.style.opacity = tags;
+      });
 
       // 対応通貨数: 種類ごとの数が上から順に現れ、0 から数え上がる。
       const countsIn = T.p("counts", t, { offset: 0, dur: 0.5, easing: ease.out });

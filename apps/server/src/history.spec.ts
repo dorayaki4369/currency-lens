@@ -333,18 +333,28 @@ describe("updateHistory", () => {
     expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-09-28" });
   });
 
-  it("stops backfilling at the oldest served day without rewriting the cursor", async () => {
+  it("cycles the backfill back to the newest day after passing the oldest served day", async () => {
     const bucket = createMemoryBucket();
+    // The previous cycle ended; aggregation then missed days older than the recent check.
     bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2025-11-20" });
-    const put = vi.spyOn(bucket, "put");
-
-    await updateHistory(
-      bucket,
-      { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
-      HISTORY_NOW_MS,
+    bucket.seed(
+      "2026-11-12T23:00:00.000Z.json",
+      createSnapshotBody(Date.UTC(2026, 10, 12, 23), { JPY: 147 }),
     );
 
-    expect(put.mock.calls.map(([key]) => key)).toEqual([HOURLY_HISTORY_KEY]);
+    for (let run = 0; run < 2; run += 1) {
+      // Scheduled runs are sequential; each run reads what the previous one wrote.
+      // eslint-disable-next-line no-await-in-loop
+      await updateHistory(
+        bucket,
+        { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
+        HISTORY_NOW_MS,
+      );
+    }
+
+    const november = bucket.read("history/daily/2026-11.tsv") as MonthlyHistory;
+    expect(november.rates["JPY"]?.[11]).toBe(147);
+    expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-09" });
   });
 
   it("skips archived snapshots that are missing or invalid", async () => {

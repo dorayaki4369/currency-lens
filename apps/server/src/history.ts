@@ -168,7 +168,9 @@ export async function updateHistory(
   const restarted = state === null || lostMonth();
   const oldestDate = addDays(today, -(DAILY_SLOT_COUNT - 1));
   const backfillDates: string[] = [];
-  let nextDate = restarted ? restartDate : state.nextDate;
+  // After passing the oldest served day the backfill cycles back to the newest
+  // one, so days missed while aggregation was failing are found again.
+  let nextDate = restarted || state.nextDate < oldestDate ? restartDate : state.nextDate;
   while (backfillDates.length < MAX_BACKFILL_DAYS_PER_RUN && nextDate >= oldestDate) {
     backfillDates.push(nextDate);
     nextDate = addDays(nextDate, -1);

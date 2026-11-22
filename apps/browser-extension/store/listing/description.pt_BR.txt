@@ -12,6 +12,7 @@ Recursos
 - Resolve símbolos compartilhados como “$”: quando um símbolo é usado por várias moedas, o Currency Lens escolhe uma com base nas suas configurações, no idioma da página e no idioma do navegador. Você pode mudar a moeda que cada símbolo representa.
 - Edite e converta de novo: altere o valor ou a moeda de origem direto no cartão.
 - Janela da barra de ferramentas: digite qualquer valor e moeda para converter diretamente, e adicione, remova ou reordene suas moedas.
+- Gráficos do histórico de cotações: na janela da barra de ferramentas e no cartão, veja como as cotações das suas moedas variaram em períodos de 1 dia a 1 ano, ou compare a variação de todas em um só gráfico.
 - Cotações recentes da Open Exchange Rates, com um aviso se estiverem desatualizadas.
 - Interface em português do Brasil, inglês, japonês, chinês simplificado, chinês tradicional, coreano, espanhol, francês e alemão, conforme o idioma do navegador.
 

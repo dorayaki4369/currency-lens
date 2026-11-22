@@ -12,6 +12,7 @@ Funktionen
 - Mehrdeutige Symbole wie „$“: Wird ein Symbol von mehreren Währungen verwendet, wählt Currency Lens anhand deiner Einstellungen, der Seitensprache und der Browsersprache eine aus. Du kannst festlegen, für welche Währung jedes Symbol steht.
 - Bearbeiten und neu umrechnen: Ändere Betrag oder Ausgangswährung direkt in der Karte.
 - Fenster in der Symbolleiste: Gib einen beliebigen Betrag und eine Währung ein, um direkt umzurechnen, und füge Währungen hinzu, entferne sie oder ordne sie neu an.
+- Kursverlauf als Diagramm: Sieh dir im Fenster der Symbolleiste und in der Karte an, wie sich die Kurse deiner Währungen über Zeiträume von 1 Tag bis 1 Jahr entwickelt haben, oder vergleiche die Veränderungen aller Währungen in einem Diagramm.
 - Aktuelle Wechselkurse von Open Exchange Rates, mit einem Hinweis, wenn sie veraltet sind.
 - Oberfläche auf Deutsch, Englisch, Japanisch, vereinfachtem und traditionellem Chinesisch, Koreanisch, Spanisch, Französisch und brasilianischem Portugiesisch, passend zur Browsersprache.
 

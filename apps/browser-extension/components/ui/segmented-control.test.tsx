@@ -116,6 +116,15 @@ describe("SegmentedControl", () => {
     expect(item.className).toContain("font-semibold");
 
     rerender(
+      <SegmentedControl aria-label="Screen" defaultValue="a" surface="page">
+        <SegmentedControlItem value="a">A</SegmentedControlItem>
+      </SegmentedControl>,
+    );
+    // On the muted page background the track takes a deeper fill.
+    expect(group.className).toContain("bg-zinc-200");
+    expect(group.className).not.toContain("bg-muted");
+
+    rerender(
       <SegmentedControl
         aria-label="Screen"
         defaultValue="a"

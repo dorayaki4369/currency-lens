@@ -21,12 +21,13 @@
 @theme {
   --spacing: calc(var(--lens-rem) * 0.25);
   /*
-   * Layout spacing comes from one 8px unit: "inset" pads cards and rows and separates
-   * blocks and columns inside them; "section" separates sections and pads the popup frame.
+   * A currency row keeps its trend column only while it still fits a 5rem name (icon and
+   * code), the 5rem trend, a 4.5rem amount, and two 0.75rem column gaps:
+   * 16rem at the row's text-sm.
+   * Container conditions cannot read --lens-rem, and rem there follows the host page, so
+   * the width is in em, which follows the row's own font size.
    */
-  --spacing-unit: calc(var(--lens-rem) * 0.5);
-  --spacing-inset: var(--spacing-unit);
-  --spacing-section: calc(var(--spacing-unit) * 2);
+  --container-trend-row: 18.375em;
   --text-xs: calc(var(--lens-rem) * 0.75);
   --text-sm: calc(var(--lens-rem) * 0.875);
   --text-base: var(--lens-rem);

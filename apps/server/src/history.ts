@@ -127,9 +127,8 @@ export async function updateHistory(
     slotMs,
   );
   setHourlySlot(hourly, slotMs, snapshot.rates);
-  const rotation = (slotMs / HOUR_MS) * MAX_HOURLY_REPAIRS_PER_RUN;
   const repairs = await Promise.all(
-    missingHourlySlots(hourly, MAX_HOURLY_REPAIRS_PER_RUN, rotation).map(
+    missingHourlySlots(hourly, MAX_HOURLY_REPAIRS_PER_RUN, slotMs / HOUR_MS).map(
       async (missingMs) => ({
         missingMs,
         repaired: await findSnapshotForHour(bucket, missingMs),
@@ -149,9 +148,12 @@ export async function updateHistory(
   );
 
   const today = toDateString(nowMs);
-  const months = new MonthlyHistoryCache((month) =>
-    readOrRebuild(monthlyHistoryKey(month), () => readMonthlyHistory(bucket, month)),
-  );
+  const months = new MonthlyHistoryCache(async (month) => {
+    const key = monthlyHistoryKey(month);
+    const stored = await readOrRebuild(key, () => readMonthlyHistory(bucket, month));
+    // An invalid file is replaced even when no close can be recovered in this run.
+    return { stored, dirty: rebuiltKeys.includes(key) };
+  });
   const recentDates = Array.from({ length: RECENT_DAYS_TO_CHECK }, (_, index) =>
     addDays(today, -(index + 1)),
   );
@@ -161,18 +163,23 @@ export async function updateHistory(
   const state = await readOrRebuild(BACKFILL_STATE_KEY, () =>
     readJson(bucket, BACKFILL_STATE_KEY, backfillStateSchema),
   );
-  const restart = rebuiltKeys.some((key) => key.startsWith("history/daily/"));
+  const lostMonth = () => rebuiltKeys.some((key) => key.startsWith("history/daily/"));
+  const restartDate = addDays(today, -(RECENT_DAYS_TO_CHECK + 1));
+  const restarted = state === null || lostMonth();
   const oldestDate = addDays(today, -(DAILY_SLOT_COUNT - 1));
   const backfillDates: string[] = [];
-  let nextDate =
-    state === null || restart
-      ? addDays(today, -(RECENT_DAYS_TO_CHECK + 1))
-      : state.nextDate;
+  // After passing the oldest served day the backfill cycles back to the newest
+  // one, so days missed while aggregation was failing are found again.
+  let nextDate = restarted || state.nextDate < oldestDate ? restartDate : state.nextDate;
   while (backfillDates.length < MAX_BACKFILL_DAYS_PER_RUN && nextDate >= oldestDate) {
     backfillDates.push(nextDate);
     nextDate = addDays(nextDate, -1);
   }
   await Promise.all(backfillDates.map((date) => fillDay(months, bucket, date)));
+  // A month found invalid by this batch also lost the closes newer than the cursor.
+  if (!restarted && lostMonth()) {
+    nextDate = restartDate;
+  }
   await months.flush((month, history) =>
     writeSeriesFile(bucket, monthlyHistoryKey(month), { version: 1, month }, history.rates),
   );
@@ -241,7 +248,9 @@ export function setHourlySlot(
 /**
  * Lists up to `limit` slots that have no rate for any currency. Half of the
  * budget goes to the newest gaps; the rest rotates through the older ones so
- * that unrecoverable recent gaps cannot starve them.
+ * that unrecoverable recent gaps cannot starve them. `rotation` counts runs,
+ * and each run advances by the older budget so that successive runs visit
+ * every older gap.
  */
 export function missingHourlySlots(
   history: HourlyHistory,
@@ -261,11 +270,12 @@ export function missingHourlySlots(
   }
 
   const newestCount = Math.ceil(limit / 2);
+  const olderBudget = limit - newestCount;
   const older = missing.slice(newestCount);
-  const offset = rotation % older.length;
+  const offset = (rotation * olderBudget) % older.length;
   return [
     ...missing.slice(0, newestCount),
-    ...[...older.slice(offset), ...older.slice(0, offset)].slice(0, limit - newestCount),
+    ...[...older.slice(offset), ...older.slice(0, offset)].slice(0, olderBudget),
   ];
 }
 
@@ -363,17 +373,20 @@ type MonthlyHistoryEntry = { history: MonthlyHistory; dirty: boolean };
 class MonthlyHistoryCache {
   private readonly entries = new Map<string, Promise<MonthlyHistoryEntry>>();
 
+  /** `load` marks a month dirty when its stored file must be replaced regardless of edits. */
   public constructor(
-    private readonly load: (month: string) => Promise<MonthlyHistory | null>,
+    private readonly load: (
+      month: string,
+    ) => Promise<{ stored: MonthlyHistory | null; dirty: boolean }>,
   ) {}
 
   /** Returns the month's entry, starting an empty month when it is not stored yet. */
   public get(month: string): Promise<MonthlyHistoryEntry> {
     let entry = this.entries.get(month);
     if (entry === undefined) {
-      entry = this.load(month).then((stored) => ({
+      entry = this.load(month).then(({ stored, dirty }) => ({
         history: stored ?? { version: 1, month, rates: {} },
-        dirty: false,
+        dirty,
       }));
       this.entries.set(month, entry);
     }

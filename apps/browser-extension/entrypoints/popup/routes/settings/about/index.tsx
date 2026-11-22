@@ -77,7 +77,7 @@ function About({
   const newTabLabel = translate(locale, "openInNewTab");
 
   return (
-    <Stack as="section" aria-labelledby="about-title" gap="section">
+    <Stack as="section" aria-labelledby="about-title" gap={4}>
       <div className="flex flex-col items-center gap-2 pt-2 text-center">
         <AppLogo className="size-12" />
         <div>

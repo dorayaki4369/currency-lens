@@ -41,13 +41,8 @@ interface LicensesProps {
 /** Lists each package with its license, expanding to the full notice on demand. */
 function Licenses({ licenses, locale }: LicensesProps) {
   return (
-    <Stack
-      as="section"
-      aria-labelledby="licenses-title"
-      className="min-h-0 flex-1"
-      gap="inset"
-    >
-      <div className="flex items-start justify-between gap-inset">
+    <Stack as="section" aria-labelledby="licenses-title" className="min-h-0 flex-1" gap={3}>
+      <div className="flex items-start justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           {translate(locale, "licensesDescription")}
         </p>
@@ -102,13 +97,13 @@ function LicenseDisclosure({
         </span>
         <span className="shrink-0 text-xs text-muted-foreground">{entry.license}</span>
       </summary>
-      <div className="px-inset pb-inset">
+      <div className="px-3 pb-3">
         {entry.licenseText === null ? (
           <p className="text-xs text-muted-foreground">
             {translate(locale, "licensesNoText", { license: entry.license })}
           </p>
         ) : (
-          <div className="flex flex-col gap-2 rounded-md bg-muted p-inset text-xs leading-relaxed break-words text-foreground">
+          <div className="flex flex-col gap-2 rounded-md bg-muted p-2.5 text-xs leading-relaxed break-words text-foreground">
             {splitLicenseParagraphs(entry.licenseText).map((paragraph, index) => (
               // License paragraphs never reorder, and identical paragraphs can repeat.
               <p key={index}>{paragraph}</p>

@@ -65,7 +65,7 @@ describe("RateSummary", () => {
     expect(readAccessibleText(document.body)).toContain("0.0000 (0.00%) since 7/22");
   });
 
-  it("rolls the rate and its change toward the new values", () => {
+  it("rolls the change toward the new values while the rate switches in place", () => {
     stubReducedMotion(false);
     const fall: RateChange = {
       ...RISE,
@@ -82,14 +82,14 @@ describe("RateSummary", () => {
     } as const;
     const { rerender } = render(<RateSummary {...props} change={RISE} />);
     const summary = document.querySelector('[data-slot="rate-summary"]');
-    expect(readRollDirections(summary)).toEqual([undefined, undefined, undefined]);
+    expect(readRollDirections(summary)).toEqual([undefined, undefined]);
 
     rerender(<RateSummary {...props} change={fall} />);
-    expect(readRollDirections(summary)).toEqual(["down", "down", "down"]);
+    expect(readRollDirections(summary)).toEqual(["down", "down"]);
     expect(readAccessibleText(summary)).toBe("1 USD = 0.8500 EUR −0.0100 (−1.16%)");
 
     rerender(<RateSummary {...props} change={RISE} />);
-    expect(readRollDirections(summary)).toEqual(["up", "up", "up"]);
+    expect(readRollDirections(summary)).toEqual(["up", "up"]);
   });
 
   it("swaps the numbers without rolling when reduced motion is requested", () => {
@@ -104,7 +104,7 @@ describe("RateSummary", () => {
     rerender(<RateSummary {...props} change={{ ...RISE, percent: 1 }} />);
 
     const summary = document.querySelector('[data-slot="rate-summary"]');
-    expect(readRollDirections(summary)).toEqual([undefined, undefined, undefined]);
+    expect(readRollDirections(summary)).toEqual([undefined, undefined]);
     expect(readAccessibleText(summary)).toContain("(+1.00%)");
   });
 });

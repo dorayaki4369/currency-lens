@@ -24,6 +24,15 @@ API_ENDPOINT=https://cl.dryk.net pnpm test:e2e
 pnpm exec playwright install chromium
 ```
 
+Popupの配置、換算カードの位置、言語ごとのはみ出しを確かめるintegrationは、Firefoxでも実行します。Firefoxはcontainer query、ポップオーバーの位置、フォントの大きさがChromiumと異なるためです。CIでは、Chromiumのintegrationと並行して別のjobで実行します。ローカルでは、Firefoxを入れてから実行します。
+
+```sh
+pnpm exec playwright install firefox
+pnpm test:integration:firefox
+```
+
+Firefoxで保存したレビュー用画像は、名前の先頭に`firefox-`が付きます。宣伝画像の元になるChromiumの画像は上書きしません。
+
 どのテストも環境ファイルを読まず、外部のレートAPIにも接続しません。
 
 - integrationは、`test/integration/screens.tsx`の描画関数で、コンポーネントや画面をテスト中のページへ直接描画します。
@@ -58,7 +67,8 @@ integrationのカバレッジは計測しません。Viteが変換時に加え�
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `popup-{light,dark}-*.png`                     | Popupの換算画面、換算先の編集と追加、レート画面（ALLと1通貨）、設定一覧、各設定詳細、チャートの色の選択と黄色を選んだ後の画面    |
 | `popup-rates-*.png`                            | レート画面の読み込み中、履歴なし、取得失敗、カーソル表示、幅320px                                                                |
-| `popup-narrow-*.png`                           | 文字サイズ125%や長い通貨名での幅320pxのPopup、5通貨を編集中の幅320pxのPopup                                                      |
+| `popup-narrow-*.png`                           | 文字サイズ125%や長い通貨名での幅320pxのPopup、5通貨を編集中の幅320pxのPopup、幅320pxの外観設定で開いたチャートの色の小窓         |
+| `firefox-*.png`                                | 配置のintegrationをFirefoxで実行したときの同じ画面                                                                               |
 | `conversion-{success,loading,empty,error}.png` | ホストページ上の換算カードの各状態                                                                                               |
 | `conversion-shadow-dom.png`                    | Shadow DOM内へ描画した換算カード                                                                                                 |
 | `conversion-{light,dark}-*.png`                | Shadow DOM内の換算カードの換算画面とレート画面（ALLと1通貨）、黄色を選んだチャートの色                                           |

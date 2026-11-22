@@ -234,6 +234,26 @@ describe("popup layout", () => {
     expectEdge(expectAlignedRightAxis(), rateAxis);
   });
 
+  it("ends every block of the rate card 12px inside both card edges", async () => {
+    for (const history of ["data", "loading", "empty", "error"] as const) {
+      for (const width of [420, 320]) {
+        // Each state and width mounts a fresh popup, so the checks must run in order.
+        /* eslint-disable no-await-in-loop */
+        await setViewport({ height: 600, width });
+        await openPopupScreen({ history });
+        await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+        await expect.poll(() => queryAll('[data-slot="rate-card"]').length).toBe(1);
+        if (history === "data") {
+          await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(3);
+        }
+        /* eslint-enable no-await-in-loop */
+        expectRateCardInsetsEven();
+      }
+    }
+    await userEvent.click(page.getByRole("radio", { name: "JPY", exact: true }));
+    expectRateCardInsetsEven();
+  });
+
   it("keeps the rate chart, its axis tags, and the legend inside the card", async () => {
     for (const width of [420, 320]) {
       // Each width mounts a fresh popup, so the checks must run in order.
@@ -500,4 +520,25 @@ function readTextStart(element: Element): number {
   const range = document.createRange();
   range.selectNodeContents(element);
   return range.getBoundingClientRect().left;
+}
+
+/** Checks that the rate card's blocks and axis tags keep a 12px inset on both sides. */
+function expectRateCardInsetsEven(): void {
+  const card = requireElement('[data-slot="rate-card"]');
+  const style = getComputedStyle(card);
+  const bounds = card.getBoundingClientRect();
+  const contentLeft = bounds.left + Number.parseFloat(style.borderLeftWidth) + 12;
+  const contentRight = bounds.right - Number.parseFloat(style.borderRightWidth) - 12;
+  const blocks = [...card.children].filter(
+    (child) => child.getBoundingClientRect().height > 0,
+  );
+  expect(blocks.length).toBeGreaterThan(1);
+  for (const block of blocks) {
+    const blockBounds = block.getBoundingClientRect();
+    expectEdge(blockBounds.left, contentLeft);
+    expectEdge(blockBounds.right, contentRight);
+  }
+  for (const tag of queryAll('[data-slot="rate-chart-tag"]')) {
+    expectEdge(tag.getBoundingClientRect().right, contentRight);
+  }
 }

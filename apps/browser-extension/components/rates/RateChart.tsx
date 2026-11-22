@@ -445,7 +445,7 @@ function AxisLabels({
   return (
     <div
       aria-hidden="true"
-      className="relative h-31 min-w-14 shrink-0 text-[0.6875rem] text-muted-foreground tabular-nums *:data-[slot=rate-chart-tag]:right-0.5"
+      className="relative h-31 min-w-14 shrink-0 text-[0.6875rem] text-muted-foreground tabular-nums *:data-[slot=rate-chart-tag]:right-0"
       data-slot="rate-chart-y-axis"
     >
       <div className="invisible flex h-0 flex-col overflow-hidden pr-1 pl-2 font-semibold">

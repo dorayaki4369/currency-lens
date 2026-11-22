@@ -170,16 +170,16 @@ function RatesScreen({
           reserveActionHeight
           title={translate(locale, "ratesHeading")}
         />
-        <Card className="gap-3 py-3 pr-1.5 pl-3" data-slot="rate-card" spacing="none">
+        <Card className="gap-3 p-3" data-slot="rate-card" spacing="none">
           {lineCurrencies.length === 0 ? (
-            <p className="pr-1.5 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {translate(locale, "rateHistoryNoTargets", { base: baseCurrency })}
             </p>
           ) : (
             <>
               <SegmentedControl
                 aria-label={translate(locale, "ratesCurrencyGroup")}
-                className="mr-1.5 flex"
+                className="flex"
                 onValueChange={selectSegmentedOption<RateChartSelection>(
                   [ALL_SELECTION, ...lineCurrencies],
                   onSelectionChange,
@@ -255,7 +255,7 @@ function RatePanel({
     <SegmentedControl
       aria-label={translate(locale, "ratesPeriodGroup")}
       // As tall as the currency choice above it, while keeping the period labels' type.
-      className="mr-1.5 flex h-7"
+      className="flex h-7"
       onValueChange={selectSegmentedOption(RATE_PERIODS, onPeriodChange)}
       value={period}
       variant="pill"
@@ -281,7 +281,7 @@ function RatePanel({
     return (
       <RatePanelLayout
         body={
-          <Alert className="mr-1.5" variant="destructive">
+          <Alert variant="destructive">
             <AlertDescription>
               <p>{translate(locale, "rateHistoryError")}</p>
               <Button
@@ -474,7 +474,7 @@ function createRateView({
 function RateHistoryEmpty({ locale }: { readonly locale: UiLocale }) {
   return (
     <p
-      className="mr-1.5 flex h-31 items-center justify-center rounded-lg border border-dashed px-4 text-center text-sm text-muted-foreground"
+      className="flex h-31 items-center justify-center rounded-lg border border-dashed px-4 text-center text-sm text-muted-foreground"
       data-slot="rate-history-empty"
     >
       {translate(locale, "rateHistoryEmpty")}
@@ -485,7 +485,7 @@ function RateHistoryEmpty({ locale }: { readonly locale: UiLocale }) {
 /** Keeps the summary's footprint while history loads. */
 function RateSummarySkeleton() {
   return (
-    <Stack aria-hidden="true" className="mr-1.5" gap={1.5}>
+    <Stack aria-hidden="true" gap={1.5}>
       <Skeleton className="h-7 w-40" />
       <Skeleton className="h-4 w-48" />
     </Stack>
@@ -495,11 +495,7 @@ function RateSummarySkeleton() {
 /** Keeps the chart's footprint while history loads. */
 function RateChartSkeleton({ locale }: { readonly locale: UiLocale }) {
   return (
-    <div
-      aria-label={translate(locale, "rateHistoryLoading")}
-      className="mr-1.5"
-      role="status"
-    >
+    <div aria-label={translate(locale, "rateHistoryLoading")} role="status">
       <Skeleton className="h-31 w-full" />
     </div>
   );

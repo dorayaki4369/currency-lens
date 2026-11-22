@@ -11,6 +11,7 @@ import {
   requireElement,
   saveReviewScreenshot,
   setViewport,
+  waitForElement,
 } from "@/test/integration/browser-harness";
 
 const POPUP_PADDING_REM = 1;
@@ -91,6 +92,12 @@ describe("popup layout", () => {
       /* eslint-enable no-await-in-loop */
       check(`conversion card ${state}`, root);
     }
+    const cardRoot = await openConversionScreen();
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(3);
+    check("conversion card rates ALL", cardRoot);
+    await userEvent.click(page.getByRole("radio", { name: "JPY", exact: true }));
+    check("conversion card rates JPY", cardRoot);
 
     expect(failures, failures.join("\n")).toEqual([]);
   });
@@ -101,6 +108,36 @@ describe("popup layout", () => {
 
     expectEdge(popupBounds.width, rem(25));
     expectEdge(popupBounds.height, rem(37.5));
+  });
+
+  it("lays out the conversion card's rates at the popup's width, below a full-width switch", async () => {
+    await openPopupScreen();
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    const popupRateCard = (
+      await waitForElement('[data-slot="rate-card"]')
+    ).getBoundingClientRect();
+
+    await openConversionScreen();
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    const cardRateCard = (
+      await waitForElement('[data-slot="rate-card"]')
+    ).getBoundingClientRect();
+    expectEdge(cardRateCard.width, popupRateCard.width);
+
+    const card = requireElement('dialog [data-slot="card"]').getBoundingClientRect();
+    const close = page
+      .getByRole("button", { name: "閉じる" })
+      .element()
+      .getBoundingClientRect();
+    const screenSwitch = page
+      .getByRole("radiogroup", { name: "表示する画面" })
+      .element()
+      .getBoundingClientRect();
+    // The close button keeps the top row; the switch spans the card's content below it.
+    expectEdge(close.right, card.right - rem(0.5));
+    expectEdge(screenSwitch.top, close.bottom + rem(0.5));
+    expectEdge(screenSwitch.left, card.left + rem(0.5));
+    expectEdge(screenSwitch.right, card.right - rem(0.5));
   });
 
   it("keeps the target currency menu fully usable inside the popup", async () => {

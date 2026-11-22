@@ -26,6 +26,7 @@ import {
   FIXTURE_CONFIG,
   FIXTURE_CONVERSION_DATA,
   FIXTURE_DETECTION,
+  FIXTURE_HISTORY,
 } from "@/test/integration/fixture-data";
 import type { ComponentFixtureId } from "@/test/integration/component-fixtures/fixtures";
 import type { UiFixtureId } from "@/test/integration/component-fixtures/UiComponentFixture";
@@ -317,6 +318,7 @@ function ConversionPopupFixture({
         position: "fixed",
         top: "3rem",
       }}
+      historyPreview={FIXTURE_HISTORY}
       locale="ja"
       onClose={() => undefined}
       onReorderTarget={() => undefined}

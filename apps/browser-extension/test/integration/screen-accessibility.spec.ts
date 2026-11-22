@@ -159,6 +159,38 @@ it("keeps the conversion card in Shadow DOM free of automatically detectable vio
   expect(failures.length, failures.join("\n\n")).toBe(0);
 });
 
+it.each(["light", "dark"] as const)(
+  "keeps the %s conversion card's rates in Shadow DOM free of automatically detectable violations",
+  async (theme) => {
+    const failures: string[] = [];
+    const include: LabelledShadowDomSelector = {
+      fromShadowDom: ["#root", '[data-slot="conversion-host"]'],
+    };
+    await openConversionScreen({ root: "shadow", theme });
+    await expect.element(page.getByRole("dialog", { name: "換算結果" })).toBeVisible();
+    await collectViolations(failures, `conversion card ${theme} converter`, include);
+    await saveReviewScreenshot(`conversion-${theme}-converter`);
+
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect
+      .element(page.getByRole("slider", { name: "対 USD の変化率のチャート（過去1か月）" }))
+      .toBeVisible();
+    await collectViolations(failures, `conversion card ${theme} rates for all`, include);
+    await saveReviewScreenshot(`conversion-${theme}-rates-all`);
+
+    await userEvent.click(page.getByRole("radio", { name: "JPY", exact: true }));
+    await expect
+      .element(
+        page.getByRole("slider", { name: "USD に対する JPY のチャート（過去1か月）" }),
+      )
+      .toBeVisible();
+    await collectViolations(failures, `conversion card ${theme} rates for one`, include);
+    await saveReviewScreenshot(`conversion-${theme}-rates-single`);
+
+    expect(failures.length, failures.join("\n\n")).toBe(0);
+  },
+);
+
 /** Runs and labels one state check so all failures in a test are reported together. */
 async function collectViolations(
   failures: string[],

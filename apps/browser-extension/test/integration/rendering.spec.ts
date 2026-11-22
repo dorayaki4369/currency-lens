@@ -91,6 +91,37 @@ describe("popup route motion", () => {
     expect(screenTransitions).toEqual([]);
   });
 
+  it("slides the conversion card's switch thumb in Shadow DOM and opens a trend's rates", async () => {
+    const root = await openConversionScreen({ root: "shadow" });
+    const screenThumb = requireSegmentedThumb("表示する画面");
+    expect(root.contains(screenThumb)).toBe(true);
+    const screenTransitions = recordTransitionProperties(screenThumb);
+
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect.element(page.getByRole("heading", { name: "基準" })).toBeVisible();
+    expect(requireSegmentedThumb("表示する画面")).toBe(screenThumb);
+    await expect.poll(() => screenTransitions).toContain("translate");
+
+    await userEvent.click(page.getByRole("radio", { name: "換算", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "EUR のレートを開く" }));
+    const ratesChoice = page.getByRole("radio", { name: "レート", exact: true });
+    await expect.element(ratesChoice).toHaveAttribute("aria-checked", "true");
+    // Focus inside Shadow DOM shows on the shadow root; the document only sees its host.
+    await expect.poll(() => root.activeElement).toBe(ratesChoice.element());
+    await expect
+      .element(page.getByRole("radio", { name: "EUR", exact: true }))
+      .toHaveAttribute("aria-checked", "true");
+
+    // The trend moved the thumb; let that slide finish before motion is reduced.
+    await expect.poll(() => screenThumb.getAnimations().length).toBe(0);
+    await emulateMedia({ reducedMotion: "reduce" });
+    screenTransitions.length = 0;
+    await userEvent.click(page.getByRole("radio", { name: "換算", exact: true }));
+    await expect.element(page.getByRole("heading", { name: "換算元" })).toBeVisible();
+    await nextFrames(2);
+    expect(screenTransitions).toEqual([]);
+  });
+
   it("rolls the rate summary's numbers when the period changes, also across a load", async () => {
     await openPopupScreen();
     await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));

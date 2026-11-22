@@ -91,6 +91,7 @@ const SOURCE_SCREENSHOTS = {
   "conversion-card": { file: "e2e-{locale}-conversion-card", test: "pnpm test:e2e" },
   popup: { file: "e2e-{locale}-popup", test: "pnpm test:e2e" },
   "quick-conversion": { file: "e2e-{locale}-quick-conversion", test: "pnpm test:e2e" },
+  "rate-chart": { file: "e2e-{locale}-rate-chart", test: "pnpm test:e2e" },
 } as const;
 
 type SourceScreenshot = keyof typeof SOURCE_SCREENSHOTS;
@@ -362,6 +363,9 @@ function localePromoPages(
     width: number,
     height: number,
   ) => cropScreenshot(locale, name, x, y, width, height);
+  const rateChart = reviewScreenshotPath(
+    SOURCE_SCREENSHOTS["rate-chart"].file.replace("{locale}", locale),
+  );
   return {
     "promo-1-select-and-convert": selectAndConvertPage(locale, copy, crop),
 
@@ -419,8 +423,21 @@ function localePromoPages(
             <div class="line" style="width:75%"></div><div class="line" style="width:40%"></div>
           </div>
         </div>
-        <div class="popup">${crop("popup", 0, 0, 400, 392)}</div>
+        <div class="popup">${crop("popup", 0, 0, 400, 452)}</div>
       </div>`,
+
+    // The E2E test saves the rates card at twice its size, so half of it is the popup's size.
+    "promo-4-rate-history": `
+      <style>
+        .copy{width:480px}
+        .chart{position:absolute;left:600px;top:50%;width:${pngWidth(rateChart) * 0.75}px;
+          transform:translateY(-50%);filter:drop-shadow(0 24px 40px rgba(15,23,42,.22))}
+        .chart img{display:block;width:100%}
+      </style>
+      <div class="copy">
+        ${copyBlock(copy.rateHistory)}
+      </div>
+      <div class="chart"><img src="${dataUri(rateChart, "image/png")}" alt=""></div>`,
   };
 }
 
@@ -503,7 +520,7 @@ function selectAndConvertPage(
           <path d="M1 1 9 5 1 9" stroke="#0094ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
         <path d="M${arrowStart} 237 C ${arrowStart + 70} 237 1040 270 1040 344" stroke="#0094ff" stroke-width="5" stroke-linecap="round" marker-end="url(#head)"/>
       </svg>
-      <div class="card">${crop("conversion-card", 256, 219, 384, 353)}</div>
+      <div class="card">${crop("conversion-card", 256, 219, 384, 436)}</div>
       <div class="quick">
         ${scaledShot(locale, "quick-conversion", QUICK_CONVERSION_TOP)}
         <svg class="cursor" viewBox="0 0 24 24"><path d="M5 3l13 7.5-5.6 1.5 3.4 6.3-2.6 1.4-3.4-6.3L5 17z" fill="#0f172a" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>

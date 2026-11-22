@@ -45,13 +45,13 @@ Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必�
 
 ### ストア掲載用の宣伝画像
 
-提出とdry-runのどちらでも、`render store promo images` jobが1280×800の宣伝画像をUIの言語ごとに3枚作り、Actions artifactの`store-promo-images-{run id}`へ言語別のフォルダで保存します。画像はintegrationとE2Eが言語ごとに保存するレビュー用画像からpopupと換算カードを切り抜いて作るので、そのversionの画面がそのまま載ります。Chrome Web Storeはスクリーンショットを言語ごとに登録できますが、Firefox Add-onsは1組しか登録できません。ストアへの掲載は自動化していないため、必要なときにartifactから取り出して各ストアのdashboardで差し替えます。このjobが失敗しても提出とGitHub Releaseは止まりません。ただしrunは失敗と表示されるため、提出とReleaseの結果は`publish Chrome and Firefox packages`と`record the release on GitHub`のjobで確かめます。
+提出とdry-runのどちらでも、`render store promo images` jobが1280×800の宣伝画像をUIの言語ごとに4枚作り、Actions artifactの`store-promo-images-{run id}`へ言語別のフォルダで保存します。画像はE2Eが言語ごとに保存するレビュー用画像からpopup、換算カード、レートのグラフを切り抜いて作るので、そのversionの画面がそのまま載ります。E2EのWorkerはレートの履歴を持たないため、宣伝画像を撮るテストでは`test/e2e/rate-history.ts`が履歴の応答を作り、グラフを描かせます。Chrome Web Storeはスクリーンショットを言語ごとに登録できますが、Firefox Add-onsは1組しか登録できません。ストアへの掲載は自動化していないため、必要なときにartifactから取り出して各ストアのdashboardで差し替えます。このjobが失敗しても提出とGitHub Releaseは止まりません。ただしrunは失敗と表示されるため、提出とReleaseの結果は`publish Chrome and Firefox packages`と`record the release on GitHub`のjobで確かめます。
 
-画像の構成は`apps/browser-extension/store/promo-images.ts`、言語ごとの文言は`apps/browser-extension/store/promo-copy.ts`にあります。変えるときは、`pnpm test:integration`と`pnpm test:e2e`でレビュー用画像を作ってから`pnpm store:dev`でプレビューし、`pnpm store:images`で書き出した画像を確認します。ローカルとCIではフォントが異なり、macOSではヒラギノやPingFangなどのシステムフォント、CIではNoto Sans CJKで描画されます。
+画像の構成は`apps/browser-extension/store/promo-images.ts`、言語ごとの文言は`apps/browser-extension/store/promo-copy.ts`にあります。変えるときは、`pnpm test:e2e`でレビュー用画像を作ってから`pnpm store:dev`でプレビューし、`pnpm store:images`で書き出した画像を確認します。ローカルとCIではフォントが異なり、macOSではヒラギノやPingFangなどのシステムフォント、CIではNoto Sans CJKで描画されます。
 
 `pnpm store:images`は、言語に依存しないプロモーションタイル（小タイル440×280とマーキー1400×560）も`promo-tiles/`へ書き出します。Chrome Web Storeのプロモーション画像は言語ごとに登録できないため、タイルには文字を入れず、数字と記号だけで伝えます。
 
-ストア掲載用の説明動画（日本語、24秒）は`apps/browser-extension/store/video/currency-lens-intro-ja.mp4`にあります。撮影元は同じフォルダの`index.html`と`scene.js`で、`index.html`をブラウザで開くと再生バーで時刻を動かして確かめられます。撮り直すときは`pnpm store:video`を実行します。Chrome系ブラウザ、libx264付きのffmpeg、Tailwind CSSを読み込むための`cdn.jsdelivr.net`への接続が要ります。動画はChrome Web StoreへYouTubeのURLとして登録します。
+ストア掲載用の説明動画（日本語、28秒）は`apps/browser-extension/store/video/currency-lens-intro-ja.mp4`にあります。撮影元は同じフォルダの`index.html`と`scene.js`で、`index.html`をブラウザで開くと再生バーで時刻を動かして確かめられます。撮り直すときは`pnpm store:video`を実行します。Chrome系ブラウザ、libx264付きのffmpeg、Tailwind CSSを読み込むための`cdn.jsdelivr.net`への接続が要ります。動画はChrome Web StoreへYouTubeのURLとして登録します。
 
 ストアの掲載文の正本と反映手順は[ストア掲載文](../apps/browser-extension/store/listing/README.md)にあります。
 

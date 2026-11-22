@@ -11,6 +11,7 @@ export interface PromoCopy {
     readonly categories: readonly [string, string, string];
   };
   readonly toolbarPopup: PromoPageCopy;
+  readonly rateHistory: PromoPageCopy;
 }
 
 interface PromoPageCopy {
@@ -35,6 +36,9 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
       toolbarPopup: {
         headline: ["Convert anytime", "from the toolbar"],
       },
+      rateHistory: {
+        headline: ["Track rates", "over time"],
+      },
     },
     ja: {
       fontFamily: `"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans CJK JP",system-ui,sans-serif`,
@@ -47,6 +51,9 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
       },
       toolbarPopup: {
         headline: ["ツールバーから", "いつでも換算"],
+      },
+      rateHistory: {
+        headline: ["レートの推移を", "グラフで確認"],
       },
     },
     "zh-CN": {
@@ -61,6 +68,9 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
       toolbarPopup: {
         headline: ["在工具栏中", "随时换算"],
       },
+      rateHistory: {
+        headline: ["汇率走势", "一目了然"],
+      },
     },
     "zh-TW": {
       fontFamily: `"PingFang TC","Noto Sans CJK TC",system-ui,sans-serif`,
@@ -73,6 +83,9 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
       },
       toolbarPopup: {
         headline: ["從工具列", "隨時換算"],
+      },
+      rateHistory: {
+        headline: ["匯率走勢", "一目了然"],
       },
     },
     ko: {
@@ -87,6 +100,9 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
       toolbarPopup: {
         headline: ["툴바에서", "언제든 환산"],
       },
+      rateHistory: {
+        headline: ["환율 추이를", "차트로 확인"],
+      },
     },
     es: {
       fontFamily: LATIN_FONTS,
@@ -99,6 +115,9 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
       },
       toolbarPopup: {
         headline: ["Convierte", "desde la barra"],
+      },
+      rateHistory: {
+        headline: ["Sigue los tipos", "en un gráfico"],
       },
     },
     fr: {
@@ -113,6 +132,9 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
       toolbarPopup: {
         headline: ["Convertissez", "depuis la barre"],
       },
+      rateHistory: {
+        headline: ["Suivez les taux", "en graphique"],
+      },
     },
     de: {
       fontFamily: LATIN_FONTS,
@@ -126,6 +148,9 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
       toolbarPopup: {
         headline: ["Umrechnen", "per Symbolleiste"],
       },
+      rateHistory: {
+        headline: ["Kursverlauf", "im Diagramm"],
+      },
     },
     "pt-BR": {
       fontFamily: LATIN_FONTS,
@@ -138,6 +163,9 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
       },
       toolbarPopup: {
         headline: ["Converta", "pela barra"],
+      },
+      rateHistory: {
+        headline: ["Acompanhe", "as cotações"],
       },
     },
   };

@@ -445,7 +445,7 @@ function AxisLabels({
   return (
     <div
       aria-hidden="true"
-      className="relative h-31 min-w-14 shrink-0 text-[0.6875rem] text-muted-foreground tabular-nums *:data-[slot=rate-chart-tag]:right-0"
+      className="relative h-31 min-w-14 shrink-0 text-[0.6875rem] text-muted-foreground tabular-nums"
       data-slot="rate-chart-y-axis"
     >
       <div className="invisible flex h-0 flex-col overflow-hidden pr-1 pl-2 font-semibold">
@@ -467,7 +467,7 @@ function AxisLabels({
       ))}
       {axis.tags.map((tag) => (
         <span
-          className="absolute left-0.5 flex h-4.5 items-center rounded-[0.1875rem] px-1 font-semibold whitespace-nowrap text-white"
+          className="absolute right-0 left-0.5 flex h-4.5 items-center rounded-[0.1875rem] px-1 font-semibold whitespace-nowrap text-white"
           data-slot="rate-chart-tag"
           key={`${tag.text}-${String(tag.top)}`}
           style={{ backgroundColor: tag.color, top: tag.top }}

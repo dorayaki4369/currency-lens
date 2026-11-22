@@ -1,11 +1,15 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
+// Most spacings pad only vertically and leave the sides to CardContent; "panel" holds its
+// blocks directly, inset 12px on every side and 12px apart.
 const CARD_SPACING = {
   default: "[--card-padding-x:--spacing(6)] [--card-padding-y:--spacing(6)]",
   compact: "[--card-padding-x:--spacing(4)] [--card-padding-y:--spacing(4)]",
   row: "[--card-padding-x:--spacing(3)] [--card-padding-y:--spacing(2)]",
   none: "[--card-padding-x:0rem] [--card-padding-y:0rem]",
+  panel:
+    "px-(--card-padding-x) [--card-padding-x:--spacing(3)] [--card-padding-y:--spacing(3)]",
 } as const;
 
 /** Provides the shared card surface and spacing. */

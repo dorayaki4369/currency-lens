@@ -170,7 +170,7 @@ function RatesScreen({
           reserveActionHeight
           title={translate(locale, "ratesHeading")}
         />
-        <Card className="gap-3 p-3" data-slot="rate-card" spacing="none">
+        <Card data-slot="rate-card" spacing="panel">
           {lineCurrencies.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {translate(locale, "rateHistoryNoTargets", { base: baseCurrency })}
@@ -179,7 +179,7 @@ function RatesScreen({
             <>
               <SegmentedControl
                 aria-label={translate(locale, "ratesCurrencyGroup")}
-                className="flex"
+                stretch
                 onValueChange={selectSegmentedOption<RateChartSelection>(
                   [ALL_SELECTION, ...lineCurrencies],
                   onSelectionChange,
@@ -254,10 +254,10 @@ function RatePanel({
   const periodSelector = (
     <SegmentedControl
       aria-label={translate(locale, "ratesPeriodGroup")}
-      // As tall as the currency choice above it, while keeping the period labels' type.
-      className="flex h-7"
       onValueChange={selectSegmentedOption(RATE_PERIODS, onPeriodChange)}
       value={period}
+      size="sm"
+      stretch
       variant="pill"
     >
       {RATE_PERIODS.map((value) => (

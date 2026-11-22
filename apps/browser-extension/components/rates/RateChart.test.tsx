@@ -79,7 +79,7 @@ describe("RateChart", () => {
     const tag = document.querySelector<HTMLElement>('[data-slot="rate-chart-tag"]');
     // Tags take the column's width from its inset, never from their own text.
     expect(tag?.style.width).toBe("");
-    expect(tag?.parentElement?.className).toContain("*:data-[slot=rate-chart-tag]:right-0");
+    expect(tag?.className).toContain("right-0");
   });
 
   it("overlays percentage lines with a zero line, real rates on hover, and gap markers", () => {

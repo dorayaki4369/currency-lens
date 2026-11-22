@@ -36,7 +36,7 @@ export function CurrencyValueRow({
       className={cn(
         "relative flex min-w-0 text-sm motion-safe:transition-[padding-left,padding-right] motion-safe:duration-300 motion-safe:ease-in-out",
         mode === "edit" ? "items-start" : "flex-1 items-center",
-        { "pl-8": hasLeadingAction, "pr-10": hasTrailingAction },
+        { "@container": hasTrend, "pl-8": hasLeadingAction, "pr-10": hasTrailingAction },
         className,
       )}
       data-currency-code={currencyCode}
@@ -59,7 +59,7 @@ export function CurrencyValueRow({
         className={cn(
           "grid min-w-0 flex-1",
           hasTrend
-            ? "grid-cols-[minmax(0,max-content)_auto_minmax(4.5rem,1fr)] gap-inset"
+            ? "grid-cols-[minmax(0,max-content)_auto_minmax(4.5rem,1fr)] gap-inset @max-trend-row:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
             : "grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-inset",
           mode === "edit" ? "items-start" : "items-center",
         )}
@@ -69,7 +69,7 @@ export function CurrencyValueRow({
           {identity}
         </div>
         {hasTrend ? (
-          <div className="flex" data-slot="currency-trend">
+          <div className="flex @max-trend-row:hidden" data-slot="currency-trend">
             {trend}
           </div>
         ) : null}

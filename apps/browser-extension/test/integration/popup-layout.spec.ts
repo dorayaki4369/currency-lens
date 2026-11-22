@@ -304,6 +304,34 @@ describe("popup layout", () => {
     await saveReviewScreenshot("popup-narrow-long-target-name");
   });
 
+  it("keeps every target's icon and code readable while editing a narrow list", async () => {
+    await openPopupScreen();
+    await userEvent.click(page.getByRole("button", { name: "換算後を編集" }));
+    // The popup's own width leaves room for the trends beside the editing controls.
+    expectTargetIdentitiesReadable(3);
+    expect(queryAll('[data-slot="sparkline"]').filter(isRendered)).toHaveLength(3);
+
+    await setViewport({ height: 700, width: 320 });
+    for (const currencyCode of ["BAM", "CAD"]) {
+      // Each addition reopens the menu for the next currency, so they run in order.
+      /* eslint-disable no-await-in-loop */
+      await userEvent.click(page.getByRole("combobox", { name: "換算通貨を追加" }));
+      await userEvent.fill(
+        page.getByRole("combobox", { name: "通貨を検索" }),
+        currencyCode,
+      );
+      await userEvent.click(
+        page.getByRole("option", { name: new RegExp(`^${currencyCode}\\b`, "u") }),
+      );
+      /* eslint-enable no-await-in-loop */
+    }
+    await expect.poll(() => queryAll('[data-slot="currency-identity"]').length).toBe(6);
+    const popup = requireElement('[data-slot="popup-root"]');
+    expect(popup.scrollWidth > popup.clientWidth).toBe(false);
+    expectTargetIdentitiesReadable(5);
+    await saveReviewScreenshot("popup-narrow-target-editing");
+  });
+
   it("keeps the rates heading where the converter's is and sizes both rate choices alike", async () => {
     await openPopupScreen();
     const targetsRow = requireHeadingRow("換算後");
@@ -504,6 +532,43 @@ function expectTargetRowsAligned(rowCount: number): void {
     expectEdge(listBounds.right - amount.right, rem(0.5));
     expect(amount.width).toBeGreaterThanOrEqual(rem(4.5) - 0.5);
   }
+}
+
+/** Verifies each target's icon and code stay inside its name column, clear of the trend. */
+function expectTargetIdentitiesReadable(rowCount: number): void {
+  const rows = queryAll(
+    '[data-slot="currency-value-content"]',
+    requireElement('[data-slot="list"]'),
+  );
+  expect(rows).toHaveLength(rowCount);
+  for (const row of rows) {
+    const identity = requireElement(
+      '[data-slot="currency-identity"]',
+      row,
+    ).getBoundingClientRect();
+    const icon = requireElement(
+      '[data-slot="currency-identity-label"] > :first-child',
+      row,
+    ).getBoundingClientRect();
+    const code = requireElement(
+      '[data-slot="currency-identity-label"] strong',
+      row,
+    ).getBoundingClientRect();
+    expect(icon.left).toBeGreaterThanOrEqual(identity.left - 0.5);
+    expect(code.left).toBeGreaterThanOrEqual(icon.right);
+    expect(code.right).toBeLessThanOrEqual(identity.right + 0.5);
+    const trend = row.querySelector<HTMLElement>('[data-slot="currency-trend"]');
+    if (trend !== null && isRendered(trend)) {
+      expect(trend.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+        identity.right - 0.5,
+      );
+    }
+  }
+}
+
+/** Tells whether an element takes part in the layout rather than being hidden. */
+function isRendered(element: HTMLElement): boolean {
+  return element.checkVisibility();
 }
 
 /** Verifies the rate card's chart parts stay inside it and its axis tags never overlap. */

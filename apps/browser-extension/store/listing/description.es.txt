@@ -1,0 +1,26 @@
+Currency Lens convierte los precios directamente en la página que estás leyendo. ¿Compras en una tienda extranjera, planificas un viaje o lees noticias de otro país? Selecciona un precio como 19,99 $, 49 € o 1.200 JPY y consúltalo en hasta 5 divisas que elijas, sin salir de la página ni modificarla.
+
+Cómo funciona
+
+1. Selecciona un precio en una página web.
+2. Pulsa el botón de Currency Lens que aparece junto a la selección.
+3. Una pequeña tarjeta muestra el precio en las divisas que has elegido. Puedes cambiarlas cuando quieras desde la barra de herramientas.
+
+Funciones
+
+- Lee precios en muchos formatos: símbolos de divisa ($, €, ¥), códigos (USD, JPY) y nombres («dólares», «euros», «円»), incluidos importes como «$1.5 million», «5k円» y «5万円», y precios dentro de frases en japonés, chino, coreano o tailandés.
+- Resuelve símbolos compartidos como «$»: cuando varias divisas usan el mismo símbolo, Currency Lens elige una según tus ajustes, el idioma de la página y el idioma del navegador. Puedes cambiar a qué divisa corresponde cada símbolo.
+- Edita y vuelve a convertir: cambia el importe o la divisa de origen directamente en la tarjeta.
+- Ventana de la barra de herramientas: escribe cualquier importe y divisa para convertirlo directamente, y añade, quita o reordena tus divisas.
+- Tipos de cambio recientes de Open Exchange Rates, con un aviso si están desactualizados.
+- Interfaz en español, inglés, japonés, chino simplificado, chino tradicional, coreano, francés, alemán y portugués de Brasil, según el idioma del navegador.
+
+Privacidad
+
+No necesitas una cuenta. El texto seleccionado se analiza en tu navegador y nunca se envía a ningún sitio. La única solicitud de red obtiene los tipos de cambio y no incluye contenido de la página.
+
+Política de privacidad: https://cl.dryk.net/privacy
+
+Dónde funciona
+
+En páginas web normales de Chrome para escritorio y Firefox 140 o posterior. No funciona en PDF, campos de formulario, elementos canvas, páginas de configuración del navegador ni tiendas de extensiones.

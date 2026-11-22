@@ -4,11 +4,24 @@ import { readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
 import { z } from "zod";
 
-/** Maps each extension locale to the AMO locale its listing text is published under. */
-export const AMO_LOCALES = { en: "en-US", ja: "ja" } as const;
+/**
+ * Maps each extension locale, named as its `_locales` directory, to the AMO locales its listing
+ * text is published under. AMO has no plain Spanish, so one text serves every Spanish region.
+ */
+export const AMO_LOCALES = {
+  de: ["de"],
+  en: ["en-US"],
+  es: ["es-ES", "es-MX", "es-AR", "es-CL"],
+  fr: ["fr"],
+  ja: ["ja"],
+  ko: ["ko"],
+  pt_BR: ["pt-BR"],
+  zh_CN: ["zh-CN"],
+  zh_TW: ["zh-TW"],
+} as const;
 
 type ExtensionLocale = keyof typeof AMO_LOCALES;
-type AmoLocale = (typeof AMO_LOCALES)[ExtensionLocale];
+type AmoLocale = (typeof AMO_LOCALES)[ExtensionLocale][number];
 type Translations = Record<AmoLocale, string>;
 
 const LISTING_ROOT = new URL("./listing/", import.meta.url);
@@ -22,7 +35,7 @@ const messagesSchema = z.object({
 // AMO's edit API takes categories per application and only accepts tags from its fixed list.
 export const amoSettingsSchema = z.strictObject({
   categories: z.strictObject({ firefox: z.array(z.string().min(1)).min(1) }),
-  default_locale: z.enum(Object.values(AMO_LOCALES)),
+  default_locale: z.enum(Object.values(AMO_LOCALES).flat()),
   tags: z.array(z.string().min(1)),
 });
 
@@ -57,13 +70,23 @@ export function createAmoMetadata(
 
 /** Reads the repository's listing sources and builds the AMO metadata from them. */
 export async function readAmoMetadata(): Promise<AmoMetadata> {
-  const [en, ja, settingsText] = await Promise.all([
+  const [de, en, es, fr, ja, ko, ptBR, zhCN, zhTW, settingsText] = await Promise.all([
+    readListing("de"),
     readListing("en"),
+    readListing("es"),
+    readListing("fr"),
     readListing("ja"),
+    readListing("ko"),
+    readListing("pt_BR"),
+    readListing("zh_CN"),
+    readListing("zh_TW"),
     readText(LISTING_ROOT, "amo.json"),
   ]);
 
-  return createAmoMetadata({ en, ja }, amoSettingsSchema.parse(JSON.parse(settingsText)));
+  return createAmoMetadata(
+    { de, en, es, fr, ja, ko, pt_BR: ptBR, zh_CN: zhCN, zh_TW: zhTW },
+    amoSettingsSchema.parse(JSON.parse(settingsText)),
+  );
 }
 
 /** Writes the AMO metadata JSON to the path given on the command line. */
@@ -89,14 +112,25 @@ async function readListing(locale: ExtensionLocale): Promise<LocalizedListing> {
   };
 }
 
-/** Keys one listing field by AMO locale. */
+/** Keys one listing field by every AMO locale in `AMO_LOCALES`. */
 function translate(
   listings: Readonly<Record<ExtensionLocale, LocalizedListing>>,
   pick: (listing: LocalizedListing) => string,
 ): Translations {
+  const text = (locale: ExtensionLocale) => pick(listings[locale]);
   return {
-    [AMO_LOCALES.en]: pick(listings.en),
-    [AMO_LOCALES.ja]: pick(listings.ja),
+    de: text("de"),
+    "en-US": text("en"),
+    "es-AR": text("es"),
+    "es-CL": text("es"),
+    "es-ES": text("es"),
+    "es-MX": text("es"),
+    fr: text("fr"),
+    ja: text("ja"),
+    ko: text("ko"),
+    "pt-BR": text("pt_BR"),
+    "zh-CN": text("zh_CN"),
+    "zh-TW": text("zh_TW"),
   };
 }
 

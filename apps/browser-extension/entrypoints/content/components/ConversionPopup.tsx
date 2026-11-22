@@ -331,7 +331,7 @@ function ConversionDetails({
   };
 
   return (
-    <Stack gap={3}>
+    <Stack gap="section">
       {settingsSaveFailed ? (
         <Alert role="alert" variant="destructive">
           <CircleAlert aria-hidden="true" />
@@ -493,7 +493,7 @@ function ConversionResultsSkeleton({ locale }: { readonly locale: UiLocale }) {
 /** Preserves the full conversion-card shape before a source is available. */
 function ConversionSkeleton({ locale }: { readonly locale: UiLocale }) {
   return (
-    <Stack aria-label={translate(locale, "loadingConversion")} gap={3} role="status">
+    <Stack aria-label={translate(locale, "loadingConversion")} gap="section" role="status">
       <Skeleton className="h-9 w-2/3" />
       <Skeleton className="h-12 w-full" />
       <Skeleton className="h-12 w-full" />

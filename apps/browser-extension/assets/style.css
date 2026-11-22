@@ -20,6 +20,13 @@
 
 @theme {
   --spacing: calc(var(--lens-rem) * 0.25);
+  /*
+   * Layout spacing comes from one 8px unit: "inset" pads cards and rows and separates
+   * blocks and columns inside them; "section" separates sections and pads the popup frame.
+   */
+  --spacing-unit: calc(var(--lens-rem) * 0.5);
+  --spacing-inset: var(--spacing-unit);
+  --spacing-section: calc(var(--spacing-unit) * 2);
   --text-xs: calc(var(--lens-rem) * 0.75);
   --text-sm: calc(var(--lens-rem) * 0.875);
   --text-base: var(--lens-rem);

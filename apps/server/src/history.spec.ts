@@ -97,13 +97,15 @@ describe("hourly aggregation", () => {
     const history = createHourly({ JPY: seriesWith(HOURLY_SLOT_COUNT, { 120: 150 }) });
 
     const first = missingHourlySlots(history, 4, 0);
-    const rotated = missingHourlySlots(history, 4, 5);
+    const next = missingHourlySlots(history, 4, 1);
+    const rotated = missingHourlySlots(history, 4, 3);
 
     expect(first.slice(0, 2)).toEqual([NOW_SLOT_MS - HOUR_MS, NOW_SLOT_MS - 2 * HOUR_MS]);
     expect(first.slice(2)).toEqual([NOW_SLOT_MS - 3 * HOUR_MS, NOW_SLOT_MS - 4 * HOUR_MS]);
+    expect(next.slice(2)).toEqual([NOW_SLOT_MS - 5 * HOUR_MS, NOW_SLOT_MS - 6 * HOUR_MS]);
     expect(rotated.slice(2)).toEqual([
-      NOW_SLOT_MS - 8 * HOUR_MS,
       NOW_SLOT_MS - 9 * HOUR_MS,
+      NOW_SLOT_MS - 10 * HOUR_MS,
     ]);
   });
 
@@ -399,6 +401,48 @@ describe("updateHistory", () => {
       (bucket.read("history/daily/2026-11.tsv") as MonthlyHistory).rates["JPY"]?.[16],
     ).toBe(148);
     expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-13" });
+  });
+
+  it("rotates the hourly repairs over successive runs so that older gaps are retried", async () => {
+    const bucket = createMemoryBucket();
+    bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2025-11-20" });
+    // Six newest gaps have no archive; the three oldest gaps can be recovered.
+    const unrecoverable = [1, 2, 3, 4, 5, 6];
+    const recoverable = [50, 51, 52];
+    const gaps = new Set([0, ...unrecoverable, ...recoverable]);
+    bucket.seed(HOURLY_HISTORY_KEY, {
+      ...createHourly(),
+      rates: {
+        JPY: Array.from({ length: HOURLY_SLOT_COUNT }, (_, index) =>
+          gaps.has(HOURLY_SLOT_COUNT - 1 - index) ? null : 150,
+        ),
+      },
+    });
+    for (const hoursAgo of recoverable) {
+      const slotMs = NOW_SLOT_MS - hoursAgo * HOUR_MS;
+      bucket.seed(
+        `${new Date(slotMs).toISOString()}.json`,
+        createSnapshotBody(slotMs, { JPY: 140 + hoursAgo }),
+      );
+    }
+
+    for (const elapsedHours of [0, 1]) {
+      // Scheduled runs are sequential; each run reads what the previous one wrote.
+      // eslint-disable-next-line no-await-in-loop
+      await updateHistory(
+        bucket,
+        {
+          timestampMs: NOW_SLOT_MS + elapsedHours * HOUR_MS,
+          rates: { USD: 1, JPY: 150 },
+        },
+        HISTORY_NOW_MS + elapsedHours * HOUR_MS,
+      );
+    }
+
+    const series = (bucket.read(HOURLY_HISTORY_KEY) as HourlyHistory).rates["JPY"];
+    expect(recoverable.map((hoursAgo) => series?.at(-2 - hoursAgo))).toEqual([
+      190, 191, 192,
+    ]);
   });
 
   it.each([

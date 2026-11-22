@@ -127,9 +127,8 @@ export async function updateHistory(
     slotMs,
   );
   setHourlySlot(hourly, slotMs, snapshot.rates);
-  const rotation = (slotMs / HOUR_MS) * MAX_HOURLY_REPAIRS_PER_RUN;
   const repairs = await Promise.all(
-    missingHourlySlots(hourly, MAX_HOURLY_REPAIRS_PER_RUN, rotation).map(
+    missingHourlySlots(hourly, MAX_HOURLY_REPAIRS_PER_RUN, slotMs / HOUR_MS).map(
       async (missingMs) => ({
         missingMs,
         repaired: await findSnapshotForHour(bucket, missingMs),
@@ -241,7 +240,9 @@ export function setHourlySlot(
 /**
  * Lists up to `limit` slots that have no rate for any currency. Half of the
  * budget goes to the newest gaps; the rest rotates through the older ones so
- * that unrecoverable recent gaps cannot starve them.
+ * that unrecoverable recent gaps cannot starve them. `rotation` counts runs,
+ * and each run advances by the older budget so that successive runs visit
+ * every older gap.
  */
 export function missingHourlySlots(
   history: HourlyHistory,
@@ -261,11 +262,12 @@ export function missingHourlySlots(
   }
 
   const newestCount = Math.ceil(limit / 2);
+  const olderBudget = limit - newestCount;
   const older = missing.slice(newestCount);
-  const offset = rotation % older.length;
+  const offset = (rotation * olderBudget) % older.length;
   return [
     ...missing.slice(0, newestCount),
-    ...[...older.slice(offset), ...older.slice(0, offset)].slice(0, limit - newestCount),
+    ...[...older.slice(offset), ...older.slice(0, offset)].slice(0, olderBudget),
   ];
 }
 

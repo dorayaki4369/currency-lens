@@ -60,7 +60,10 @@ export async function openPopupScreen(
   options: Partial<PopupScreenOptions> = {},
 ): Promise<void> {
   mountScreen((container) =>
-    mountPopupScreen(container, { theme: options.theme ?? "light" }),
+    mountPopupScreen(container, {
+      locale: options.locale ?? "ja",
+      theme: options.theme ?? "light",
+    }),
   );
   await expect.element(page.getByRole("heading", { name: "Currency Lens" })).toBeVisible();
 }
@@ -71,6 +74,7 @@ export async function openConversionScreen(
 ): Promise<Document | ShadowRoot> {
   const container = mountScreen((element) =>
     mountConversionScreen(element, {
+      locale: options.locale ?? "ja",
       motion: options.motion ?? "default",
       root: options.root ?? "document",
       state: options.state ?? "success",

@@ -230,7 +230,7 @@ describe("ConversionPopup", () => {
     rerender(
       <ConversionPopup {...commonProps} error="Background unavailable" loading={false} />,
     );
-    expect(screen.getByText("Couldn’t focus the rates")).toBeDefined();
+    expect(screen.getByText("Couldn’t fetch the rates")).toBeDefined();
   });
 
   it("announces a failed target-order save", () => {
@@ -717,7 +717,7 @@ describe("ConversionPopup", () => {
     );
 
     const alert = screen.getByRole("alert");
-    expect(alert.textContent).toContain("Couldn’t focus the rates");
+    expect(alert.textContent).toContain("Couldn’t fetch the rates");
     expect(alert.textContent).toContain("Try selecting the price again");
     expect(alert.textContent).not.toContain("internal background detail");
   });

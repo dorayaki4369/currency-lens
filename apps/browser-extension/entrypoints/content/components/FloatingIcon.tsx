@@ -44,6 +44,8 @@ export function FloatingIcon({
   return (
     <Button
       {...variant.props}
+      // The button sits in a host page of any language, so it declares its own for glyphs and speech.
+      lang={locale}
       onClick={onClick}
       onMouseDown={preservePageSelection}
       ref={setFloating}

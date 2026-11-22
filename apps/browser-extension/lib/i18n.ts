@@ -1,204 +1,75 @@
-export const SUPPORTED_UI_LOCALES = ["en", "ja"] as const;
+import { de } from "@/lib/locales/de";
+import { en, type LocaleDictionary, type TranslationKey } from "@/lib/locales/en";
+import { es } from "@/lib/locales/es";
+import { fr } from "@/lib/locales/fr";
+import { ja } from "@/lib/locales/ja";
+import { ko } from "@/lib/locales/ko";
+import { ptBR } from "@/lib/locales/pt-BR";
+import { zhCN } from "@/lib/locales/zh-CN";
+import { zhTW } from "@/lib/locales/zh-TW";
+
+export type { TranslationKey } from "@/lib/locales/en";
+
+export const SUPPORTED_UI_LOCALES = [
+  "en",
+  "ja",
+  "zh-CN",
+  "zh-TW",
+  "ko",
+  "es",
+  "fr",
+  "de",
+  "pt-BR",
+] as const;
 
 export type UiLocale = (typeof SUPPORTED_UI_LOCALES)[number];
 
 const MAX_STANDARD_CONVERTED_AMOUNT_CHARACTERS = 14;
 
-const currencyDisplayNameOverrides: Readonly<
-  Record<UiLocale, Readonly<Record<string, string>>>
-> = {
-  en: {
-    BTC: "Bitcoin",
-    BTS: "BitShares",
-    CNH: "Chinese Yuan (offshore)",
-    DASH: "Dash",
-    DOGE: "Dogecoin",
-    ETH: "Ethereum",
-    LD: "Linden Dollar",
-    LTC: "Litecoin",
-    NXT: "Nxt",
-    STR: "Stellar",
-    XAG: "Silver",
-    XAU: "Gold",
-    XDR: "Special Drawing Rights",
-    XMR: "Monero",
-    XPD: "Palladium",
-    XPT: "Platinum",
-    XRP: "XRP",
-  },
-  ja: {
-    BTC: "ビットコイン",
-    BTS: "ビットシェアーズ",
-    CNH: "中国人民元（オフショア）",
-    DASH: "ダッシュ",
-    DOGE: "ドージコイン",
-    ETH: "イーサリアム",
-    LD: "リンデンドル",
-    LTC: "ライトコイン",
-    NXT: "ネクスト",
-    STR: "ステラ",
-    XAG: "銀",
-    XAU: "金",
-    XDR: "特別引出権",
-    XMR: "モネロ",
-    XPD: "パラジウム",
-    XPT: "プラチナ",
-    XRP: "XRP",
-  },
+const dictionaries: Readonly<Record<UiLocale, LocaleDictionary>> = {
+  de,
+  en,
+  es,
+  fr,
+  ja,
+  ko,
+  "pt-BR": ptBR,
+  "zh-CN": zhCN,
+  "zh-TW": zhTW,
 };
 
-const messages = {
-  en: {
-    aboutHeading: "About",
-    aboutLicense: "License",
-    aboutPrivacyPolicy: "Privacy policy",
-    aboutRateSource: "Exchange rates",
-    aboutReview: "Write a review on {store}",
-    aboutSourceCode: "Source code",
-    aboutVersion: "Version {version}",
-    addTarget: "Add a target",
-    ambiguousAutomatic: "Automatic",
-    ambiguousDescription:
-      "Choose how symbols with more than one meaning should be interpreted.",
-    ambiguousHeading: "Currency conversion settings",
-    ambiguousMixed: "Mixed alias settings · choose a value",
-    ambiguousOpen: "Manage all symbol mappings",
-    appName: "Currency Lens",
-    autoSaveError: "Couldn’t save your settings.",
-    closeApp: "Close",
-    conversionEmpty: "No supported monetary amount was found.",
-    conversionError: "Couldn’t focus the rates",
-    conversionRetry: "Try selecting the price again after rates are available.",
-    conversionResult: "Conversion result",
-    conversionUnavailable: "Rate unavailable",
-    convertedHeading: "Converted",
-    convertSelection: "Convert selected price",
-    currencyNoResults: "No matching currency found.",
-    currencySearchLabel: "Search currencies",
-    currencySearchPlaceholder: "Code, name, or region",
-    displayDescription: "Choose the display theme for Currency Lens.",
-    displayHeading: "Appearance",
-    displayTheme: "Theme",
-    displayThemeDark: "Dark",
-    displayThemeLight: "Light",
-    displayThemeSystem: "System",
-    editTargets: "Edit conversion targets",
-    extensionDescription:
-      "Currency converter: select any price on a web page and convert it into up to 5 currencies with live exchange rates.",
-    finishTargetEditing: "Finish editing conversion targets",
-    interfaceEyebrow: "Interface",
-    licensesCount: "{count} packages",
-    licensesDescription: "Currency Lens includes the following open source software.",
-    licensesHeading: "Open source licenses",
-    licensesNoText:
-      "This package does not ship a license file. Its declared license is {license}.",
-    loadingApp: "Loading Currency Lens",
-    loadingConversion: "Converting currency",
-    openApp: "Open Currency Lens",
-    openInNewTab: "(opens in a new tab)",
-    openSettings: "Open settings",
-    popupBack: "Back",
-    quickConversion: "{amount} ({currency}). Show all conversions",
-    ratesStale: "Using the last available rates. They are at least 24 hours old.",
-    removeCurrency: "Remove {currency}",
-    reorderCurrency: "Reorder {currency}, position {position} of {total}",
-    reorderInstructions:
-      "Drag a reorder handle, or use the up and down arrow keys, to reorder converted currencies.",
-    reorderMoved: "{currency} moved to position {position} of {total}.",
-    sourceAmount: "Amount",
-    storeChrome: "Chrome Web Store",
-    storeFirefox: "Firefox Add-ons",
-    sourceAmountInvalid: "Enter an amount greater than 0.",
-    sourceCurrency: "Currency",
-    sourceHeading: "Original",
-    settingsHeading: "Settings",
-    supportedCurrenciesCount: "{count} currencies",
-    supportedCurrenciesDescription:
-      "Every currency in the bundled currency data is listed here.",
-    supportedCurrenciesHeading: "Supported currencies",
-    targetChoose: "Choose currency…",
-    targetDescription:
-      "The selected price is converted into each currency below, in this order.",
-    targetsHeading: "Conversion targets",
-  },
-  ja: {
-    aboutHeading: "このアプリについて",
-    aboutLicense: "ライセンス",
-    aboutPrivacyPolicy: "プライバシーポリシー",
-    aboutRateSource: "為替レートの提供元",
-    aboutReview: "{store}でレビューを書く",
-    aboutSourceCode: "ソースコード",
-    aboutVersion: "バージョン {version}",
-    addTarget: "換算通貨を追加",
-    ambiguousAutomatic: "自動判定",
-    ambiguousDescription: "複数の通貨を表す記号を、どの通貨として読むか設定します。",
-    ambiguousHeading: "通貨変換設定",
-    ambiguousMixed: "別表記ごとの設定が混在しています · 選び直してください",
-    ambiguousOpen: "すべての記号設定を開く",
-    appName: "Currency Lens",
-    autoSaveError: "設定を保存できませんでした。",
-    closeApp: "閉じる",
-    conversionEmpty: "対応している金額が見つかりませんでした。",
-    conversionError: "為替レートを取得できませんでした",
-    conversionRetry: "レート取得後に、もう一度金額を選択してください。",
-    conversionResult: "換算結果",
-    conversionUnavailable: "レートを利用できません",
-    convertedHeading: "換算後",
-    convertSelection: "選択した金額を換算",
-    currencyNoResults: "一致する通貨がありません。",
-    currencySearchLabel: "通貨を検索",
-    currencySearchPlaceholder: "コード・通貨名・地域",
-    displayDescription: "Currency Lens の表示テーマを選びます。",
-    displayHeading: "外観",
-    displayTheme: "テーマ",
-    displayThemeDark: "ダーク",
-    displayThemeLight: "ライト",
-    displayThemeSystem: "システム",
-    editTargets: "換算後を編集",
-    extensionDescription:
-      "通貨換算コンバーター。Webページ上の金額を選択するだけで、最大5通貨へその場で換算します。最新の為替レート対応。",
-    finishTargetEditing: "換算後の編集を終了",
-    interfaceEyebrow: "インターフェース",
-    licensesCount: "{count} 件",
-    licensesDescription: "Currency Lens は次のオープンソースソフトウェアを利用しています。",
-    licensesHeading: "オープンソースライセンス",
-    licensesNoText:
-      "このパッケージにはライセンス本文のファイルが含まれていません。宣言されたライセンスは {license} です。",
-    loadingApp: "Currency Lens を読み込み中",
-    loadingConversion: "通貨を換算中",
-    openApp: "Currency Lens を開く",
-    openInNewTab: "（新しいタブで開きます）",
-    openSettings: "設定を開く",
-    popupBack: "戻る",
-    quickConversion: "{amount}（{currency}）。すべての換算先を表示",
-    ratesStale: "24時間以上前に取得したレートを表示しています。",
-    removeCurrency: "{currency} を削除",
-    reorderCurrency: "{currency} を並べ替え、{total}件中{position}番目",
-    reorderInstructions:
-      "並べ替えハンドルをドラッグするか、上下矢印キーで換算後の順序を変更します。",
-    reorderMoved: "{currency} を{total}件中{position}番目へ移動しました。",
-    sourceAmount: "金額",
-    storeChrome: "Chrome ウェブストア",
-    storeFirefox: "Firefox Add-ons",
-    sourceAmountInvalid: "0より大きい金額を入力してください。",
-    sourceCurrency: "通貨",
-    sourceHeading: "換算元",
-    settingsHeading: "設定",
-    supportedCurrenciesCount: "{count} 通貨",
-    supportedCurrenciesDescription:
-      "内蔵の通貨データに含まれるすべての通貨を表示しています。",
-    supportedCurrenciesHeading: "対応通貨一覧",
-    targetChoose: "通貨を選択…",
-    targetDescription: "選択した金額を、次の通貨へ上から順に換算します。",
-    targetsHeading: "換算後",
-  },
-} as const;
+/** Locales chosen by the primary language subtag alone. */
+const LOCALES_BY_LANGUAGE: Readonly<Record<string, UiLocale>> = {
+  de: "de",
+  en: "en",
+  es: "es",
+  fr: "fr",
+  ja: "ja",
+  ko: "ko",
+  pt: "pt-BR",
+};
 
-export type TranslationKey = keyof (typeof messages)["en"];
+/** Chinese regions that conventionally write Traditional Chinese. */
+const TRADITIONAL_CHINESE_REGIONS = new Set(["hk", "mo", "tw"]);
 
 /** Resolves the browser language to one of the UI locales shipped by the extension. */
 export function resolveUiLocale(language: string | undefined): UiLocale {
-  return language?.toLowerCase().startsWith("ja") === true ? "ja" : "en";
+  const [primary = "", ...subtags] = (language ?? "").toLowerCase().split(/[-_]/u);
+  if (primary === "zh") {
+    return isTraditionalChinese(subtags) ? "zh-TW" : "zh-CN";
+  }
+  return LOCALES_BY_LANGUAGE[primary] ?? "en";
+}
+
+/** Prefers an explicit script subtag, then falls back to the region's usual script. */
+function isTraditionalChinese(subtags: readonly string[]): boolean {
+  if (subtags.includes("hant")) {
+    return true;
+  }
+  if (subtags.includes("hans")) {
+    return false;
+  }
+  return subtags.some((subtag) => TRADITIONAL_CHINESE_REGIONS.has(subtag));
 }
 
 /** Returns the best available browser language without assuming extension globals exist. */
@@ -218,7 +89,7 @@ export function translate(
   key: TranslationKey,
   replacements: Readonly<Record<string, number | string>> = {},
 ): string {
-  let message: string = messages[locale][key];
+  let message: string = dictionaries[locale].messages[key];
   for (const [name, value] of Object.entries(replacements)) {
     message = message.replaceAll(`{${name}}`, String(value));
   }
@@ -227,7 +98,8 @@ export function translate(
 
 /** Returns a localized currency name while keeping private or unsupported codes readable. */
 export function getCurrencyDisplayName(currencyCode: string, locale: UiLocale): string {
-  const override = currencyDisplayNameOverrides[locale][currencyCode];
+  const overrides: Readonly<Record<string, string>> = dictionaries[locale].currencyNames;
+  const override = overrides[currencyCode];
   if (override !== undefined) {
     return override;
   }

@@ -22,7 +22,7 @@ Currency Lensは、Webページで選択した金額を、登録した通貨へ�
 - **曖昧な記号の解釈**: `$`のように複数の通貨で使われる記号は、ユーザー設定、ページの言語、ブラウザの言語の順に手がかりにして通貨を決めます。記号ごとの解釈はPopupの設定から変えられます。「¢」と「cents」は`$`の解釈に、「pence」は`£`の解釈に従います。「CAD 50 cents」「€50 cents」のように通貨コードや記号を前に書いた補助単位は、その通貨として読みます。
 - **Popupでの換算**: Popupのトップでは、金額と換算元の通貨を自由に入力して換算できます。換算後の通貨の追加、削除、並べ替えも同じ画面でできます。
 - **換算カードでの再換算**: ページ上の換算カードでも、換算元の金額と通貨を書き換えて換算し直せます。
-- **表示**: 選択範囲の近くの表示では、換算後の金額をその通貨の記号と通常の桁数で表します（円なら小数なし）。換算カードでは小数点以下2桁に丸め、表示幅に収まらない場合は指数表記にします。UIは日本語と英語に対応し、ブラウザの言語に合わせて切り替えます。
+- **表示**: 選択範囲の近くの表示では、換算後の金額をその通貨の記号と通常の桁数で表します（円なら小数なし）。換算カードでは小数点以下2桁に丸め、表示幅に収まらない場合は指数表記にします。UIは英語、日本語、中国語（簡体字・繁体字）、韓国語、スペイン語、フランス語、ドイツ語、ポルトガル語（ブラジル）に対応し、ブラウザの言語に合わせて切り替えます。
 - **ページとの分離**: 換算カードはShadow DOMの中に描画するため、閲覧中のページとCurrency Lensのスタイルは互いに影響しません。
 - **レートの出どころ**: 換算結果の下に、レートの提供時刻と、提供元であるOpen Exchange Ratesへのリンクを表示します。
 - **レートの保持**: レートの取得に失敗しても、最後に取得できたレートで換算を続けます。レートの提供時刻から24時間以上たった場合は、古いレートであることを画面に表示します。
@@ -83,15 +83,17 @@ mise exec -- pnpm install --frozen-lockfile
 
 ```dotenv
 API_ENDPOINT=http://localhost:8787
+RATE_SOURCE=mock
 OPEN_EXCHANGE_RATE_APP_ID=your-app-id
 ```
 
 | 変数                        | 用途                                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------------------- |
 | `API_ENDPOINT`              | 拡張機能が接続するレートAPIのベースURLです。拡張機能はこれに`/v1/latest`を付けて接続します。 |
-| `OPEN_EXCHANGE_RATE_APP_ID` | WorkerがOpen Exchange Ratesからレートを取得するためのApp IDです。                            |
+| `RATE_SOURCE`               | ローカルのWorkerがレートを取得する先です。`mock`（既定）か`live`を指定します。               |
+| `OPEN_EXCHANGE_RATE_APP_ID` | WorkerがOpen Exchange Ratesからレートを取得するためのApp IDです。`live`のときだけ使います。  |
 
-`.env`は必須ではありません。`.env`がない場合、開発サーバーは`API_ENDPOINT`をローカルWorkerの`http://localhost:8787`にして起動します。ただし、App IDがないためWorkerはレートを取得できず、ローカルのR2は空のままです。
+`.env`は必須ではありません。`.env`がない場合、開発サーバーは`API_ENDPOINT`をローカルWorkerの`http://localhost:8787`にして起動し、Workerはモックのレートを返します。モックとOpen Exchange Ratesの切り替えは[Workerのローカル開発](apps/server/README.md#ローカル開発)にあります。
 
 `pnpm build`と`pnpm validate`は`.env`を読みません。ローカルで実行するときは、`API_ENDPOINT=https://cl.dryk.net pnpm validate`のように値を直接渡します。GitHub Actionsでは、CIは本番のURL、ストア提出用のビルドはRepository variableの値を使います。
 
@@ -115,7 +117,7 @@ pnpm -C apps/browser-extension dev:firefox  # 拡張機能（Firefox）
 pnpm -C apps/server dev                     # Worker
 ```
 
-ローカルのWorkerは、R2に保存済みのレートを返します。レートを取得し直す手順は[Workerのローカル開発](apps/server/README.md#ローカル開発)にあります。
+ローカルのWorkerは、既定ではOpen Exchange Ratesへ接続せず、モックのレートを返します。API使用量を消費しないため、App IDがなくても換算を確かめられます。本物のレートを使う手順とレートを取得し直す手順は[Workerのローカル開発](apps/server/README.md#ローカル開発)にあります。
 
 ### コマンド
 

@@ -13,7 +13,7 @@ Features
 - Edit and re-convert: change the amount or the source currency right in the card.
 - Toolbar popup: type any amount and currency to convert it directly, and add, remove or reorder your currencies.
 - Latest exchange rates from Open Exchange Rates, with a warning if they are out of date.
-- English and Japanese interface, following your browser language.
+- Interface in English, Japanese, Simplified and Traditional Chinese, Korean, Spanish, French, German and Brazilian Portuguese, following your browser language.
 
 Privacy
 

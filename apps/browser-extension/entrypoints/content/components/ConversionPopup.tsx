@@ -102,6 +102,8 @@ export function ConversionPopup({
   return (
     <dialog
       aria-labelledby={titleId}
+      // The card sits in a host page of any language, so it declares its own for glyphs and speech.
+      lang={locale}
       className="inset-auto m-0 w-96 max-h-none max-w-[calc(100vw_-_--spacing(6))] overflow-visible border-0 bg-transparent p-0 text-inherit outline-none backdrop:bg-transparent"
       onCancel={(event) => {
         event.preventDefault();

@@ -10,8 +10,8 @@ export interface PromoCopy {
     /** Labels of the fiat, cryptocurrency, and precious metal rows. */
     readonly categories: readonly [string, string, string];
   };
-  readonly toolbarPopup: PromoPageCopy;
   readonly rateHistory: PromoPageCopy;
+  readonly toolbarPopup: PromoPageCopy;
 }
 
 interface PromoPageCopy {
@@ -33,11 +33,11 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
         headline: ["Works with", `${n} currencies`],
         categories: ["Fiat currencies", "Cryptocurrencies", "Precious metals"],
       },
-      toolbarPopup: {
-        headline: ["Convert anytime", "from the toolbar"],
-      },
       rateHistory: {
         headline: ["Track rates", "over time"],
+      },
+      toolbarPopup: {
+        headline: ["Convert anytime", "from the toolbar"],
       },
     },
     ja: {
@@ -49,11 +49,11 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
         headline: ["世界の", `${n}通貨に対応`],
         categories: ["各国通貨", "暗号資産", "貴金属"],
       },
-      toolbarPopup: {
-        headline: ["ツールバーから", "いつでも換算"],
-      },
       rateHistory: {
         headline: ["レートの推移を", "グラフで確認"],
+      },
+      toolbarPopup: {
+        headline: ["ツールバーから", "いつでも換算"],
       },
     },
     "zh-CN": {
@@ -65,11 +65,11 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
         headline: ["支持全球", `${n} 种货币`],
         categories: ["各国货币", "加密货币", "贵金属"],
       },
-      toolbarPopup: {
-        headline: ["在工具栏中", "随时换算"],
-      },
       rateHistory: {
         headline: ["汇率走势", "一目了然"],
+      },
+      toolbarPopup: {
+        headline: ["在工具栏中", "随时换算"],
       },
     },
     "zh-TW": {
@@ -81,11 +81,11 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
         headline: ["支援全球", `${n} 種貨幣`],
         categories: ["各國貨幣", "加密貨幣", "貴金屬"],
       },
-      toolbarPopup: {
-        headline: ["從工具列", "隨時換算"],
-      },
       rateHistory: {
         headline: ["匯率走勢", "一目了然"],
+      },
+      toolbarPopup: {
+        headline: ["從工具列", "隨時換算"],
       },
     },
     ko: {
@@ -97,11 +97,11 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
         headline: ["전 세계", `${n}개 통화 지원`],
         categories: ["각국 통화", "암호화폐", "귀금속"],
       },
-      toolbarPopup: {
-        headline: ["툴바에서", "언제든 환산"],
-      },
       rateHistory: {
         headline: ["환율 추이를", "차트로 확인"],
+      },
+      toolbarPopup: {
+        headline: ["툴바에서", "언제든 환산"],
       },
     },
     es: {
@@ -113,11 +113,11 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
         headline: ["Compatible con", `${n} divisas`],
         categories: ["Divisas", "Criptomonedas", "Metales preciosos"],
       },
-      toolbarPopup: {
-        headline: ["Convierte", "desde la barra"],
-      },
       rateHistory: {
         headline: ["Sigue los tipos", "en un gráfico"],
+      },
+      toolbarPopup: {
+        headline: ["Convierte", "desde la barra"],
       },
     },
     fr: {
@@ -129,11 +129,11 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
         headline: ["Compatible avec", `${n} devises`],
         categories: ["Devises", "Cryptomonnaies", "Métaux précieux"],
       },
-      toolbarPopup: {
-        headline: ["Convertissez", "depuis la barre"],
-      },
       rateHistory: {
         headline: ["Suivez les taux", "en graphique"],
+      },
+      toolbarPopup: {
+        headline: ["Convertissez", "depuis la barre"],
       },
     },
     de: {
@@ -145,11 +145,11 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
         headline: ["Unterstützt", `${n} Währungen`],
         categories: ["Landeswährungen", "Kryptowährungen", "Edelmetalle"],
       },
-      toolbarPopup: {
-        headline: ["Umrechnen", "per Symbolleiste"],
-      },
       rateHistory: {
         headline: ["Kursverlauf", "im Diagramm"],
+      },
+      toolbarPopup: {
+        headline: ["Umrechnen", "per Symbolleiste"],
       },
     },
     "pt-BR": {
@@ -161,11 +161,11 @@ export function promoCopy(currencyCount: number): Readonly<Record<UiLocale, Prom
         headline: ["Compatível com", `${n} moedas`],
         categories: ["Moedas", "Criptomoedas", "Metais preciosos"],
       },
-      toolbarPopup: {
-        headline: ["Converta", "pela barra"],
-      },
       rateHistory: {
         headline: ["Acompanhe", "as cotações"],
+      },
+      toolbarPopup: {
+        headline: ["Converta", "pela barra"],
       },
     },
   };

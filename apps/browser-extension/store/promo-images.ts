@@ -388,7 +388,20 @@ function localePromoPages(
       </div>
       <div class="catalog">${currencyCatalog(copy.currencyCatalog.categories)}</div>`,
 
-    "promo-3-toolbar-popup": `
+    // The E2E test saves the rates card at twice its size, so half of it is the popup's size.
+    "promo-3-rate-history": `
+      <style>
+        .copy{width:480px}
+        .chart{position:absolute;left:600px;top:50%;width:${pngWidth(rateChart) * 0.75}px;
+          transform:translateY(-50%);filter:drop-shadow(0 24px 40px rgba(15,23,42,.22))}
+        .chart img{display:block;width:100%}
+      </style>
+      <div class="copy">
+        ${copyBlock(copy.rateHistory)}
+      </div>
+      <div class="chart"><img src="${dataUri(rateChart, "image/png")}" alt=""></div>`,
+
+    "promo-4-toolbar-popup": `
       <style>
         .copy{width:460px}
         .window{position:absolute;left:600px;top:120px;width:640px;height:560px}
@@ -425,19 +438,6 @@ function localePromoPages(
         </div>
         <div class="popup">${crop("popup", 0, 0, 400, 452)}</div>
       </div>`,
-
-    // The E2E test saves the rates card at twice its size, so half of it is the popup's size.
-    "promo-4-rate-history": `
-      <style>
-        .copy{width:480px}
-        .chart{position:absolute;left:600px;top:50%;width:${pngWidth(rateChart) * 0.75}px;
-          transform:translateY(-50%);filter:drop-shadow(0 24px 40px rgba(15,23,42,.22))}
-        .chart img{display:block;width:100%}
-      </style>
-      <div class="copy">
-        ${copyBlock(copy.rateHistory)}
-      </div>
-      <div class="chart"><img src="${dataUri(rateChart, "image/png")}" alt=""></div>`,
   };
 }
 

@@ -407,9 +407,10 @@ describe("popup layout", () => {
       await expect.element(picker).toBeVisible();
       const cardBounds = card.element().getBoundingClientRect();
       const bounds = picker.element().getBoundingClientRect();
-      expectEdge(bounds.width, rem(14.375));
-      expectEdge(bounds.height, rem(10.1875));
-      expectEdge(bounds.top - cardBounds.bottom, 6);
+      // Six swatches one section apart plus a section of padding and the border, at 1:√2.
+      expectEdge(bounds.width, rem(16.125));
+      expectEdge(bounds.height, rem(16.125) / Math.SQRT2);
+      expectEdge(bounds.top - cardBounds.bottom, 8);
       expectEdge(bounds[edge], cardBounds[edge]);
       expect(bounds.left).toBeGreaterThanOrEqual(popup.left);
       expect(bounds.right).toBeLessThanOrEqual(popup.right);

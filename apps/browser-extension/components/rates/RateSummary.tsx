@@ -1,3 +1,4 @@
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { translate, type UiLocale } from "@/lib/i18n";
 import {
   formatRate,
@@ -13,21 +14,24 @@ interface RateSummaryProps {
   readonly change: RateChange;
   readonly colorScheme: TrendColorScheme;
   readonly currencyCode: string;
-  /** The period, or the date the change is measured from when the period starts empty. */
-  readonly periodLabel: string;
+  /** The date the change is measured from when the period starts without history. */
+  readonly sinceLabel: string | null;
   readonly locale: UiLocale;
 }
 
 const TREND_ARROWS = { down: "↓", flat: "→", up: "↑" } as const;
 
-/** States the latest cross rate and how far it moved over the period. */
+/**
+ * States the latest cross rate and how far it moved over the period. The numbers roll as the
+ * period, selection, or base changes, like converted amounts do.
+ */
 export function RateSummary({
   baseCurrency,
   change,
   colorScheme,
   currencyCode,
   locale,
-  periodLabel,
+  sinceLabel,
 }: RateSummaryProps) {
   const digits = getRateFractionDigits(change.last.value);
   const trend = getTrendColor(change.direction, colorScheme);
@@ -35,9 +39,11 @@ export function RateSummary({
     <div className="flex flex-col gap-0.5 tabular-nums" data-slot="rate-summary">
       <p className="leading-tight">
         <span className="text-sm text-muted-foreground">1 {baseCurrency} =</span>{" "}
-        <span className="text-[1.75rem] font-bold tracking-tight">
-          {formatRate(change.last.value, locale, digits)}
-        </span>{" "}
+        <AnimatedNumber
+          className="text-[1.75rem] font-bold tracking-tight"
+          text={formatRate(change.last.value, locale, digits)}
+          value={change.last.value}
+        />{" "}
         <span className="text-sm font-semibold text-muted-foreground">{currencyCode}</span>
       </p>
       <p className="text-xs text-muted-foreground">
@@ -45,10 +51,18 @@ export function RateSummary({
           {TREND_ARROWS[change.direction]}
         </span>{" "}
         <span className="font-semibold text-foreground">
-          {formatSignedRate(change.difference, locale, digits)} (
-          {formatSignedPercent(change.percent, locale)})
-        </span>{" "}
-        {periodLabel}
+          <AnimatedNumber
+            text={formatSignedRate(change.difference, locale, digits)}
+            value={change.difference}
+          />{" "}
+          (
+          <AnimatedNumber
+            text={formatSignedPercent(change.percent, locale)}
+            value={change.percent}
+          />
+          )
+        </span>
+        {sinceLabel === null ? null : ` ${sinceLabel}`}
       </p>
     </div>
   );
@@ -106,7 +120,10 @@ export function RateChangeLegend({
                 className="text-[0.9375rem] font-bold whitespace-nowrap tabular-nums"
                 style={{ color: getTrendColor(item.change.direction, colorScheme).text }}
               >
-                {formatSignedPercent(item.change.percent, locale)}
+                <AnimatedNumber
+                  text={formatSignedPercent(item.change.percent, locale)}
+                  value={item.change.percent}
+                />
               </span>
             )}
             {item.sinceLabel === null ? null : (

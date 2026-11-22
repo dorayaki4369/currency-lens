@@ -24,6 +24,7 @@ import {
   getTrendColorScheme,
   type TrendColorScheme,
 } from "@/lib/trend-colors";
+import { useHeldAmount } from "@/components/conversion/ConvertedAmount";
 import { RateTimestamp } from "@/components/conversion/RateTimestamp";
 import { CurrencyCombobox } from "@/components/currency/CurrencyCombobox";
 import { SectionHeader } from "@/components/layout/SectionHeader";
@@ -276,8 +277,9 @@ function RatePanel({
     return (
       <RatePanelLayout
         body={<RateChartSkeleton locale={locale} />}
+        loading
         periodSelector={periodSelector}
-        summary={<RateSummarySkeleton />}
+        summary={null}
       />
     );
   }
@@ -343,18 +345,27 @@ function RatePanel({
 
 interface RatePanelLayoutProps {
   readonly body: ReactNode;
+  /** History for the period is on its way; the last summary stays until it arrives. */
+  readonly loading?: boolean | undefined;
   readonly periodSelector: ReactNode;
   readonly summary: ReactNode;
 }
 
 /**
- * Places the period choice at the same position in every history state, so React keeps
- * one instance and its thumb slides while a new resolution loads.
+ * Places the summary and the period choice at the same positions in every history state, so
+ * React keeps their instances: the period thumb slides, and the summary's numbers roll from
+ * the last shown period to the new one even when a new resolution has to load first.
  */
-function RatePanelLayout({ body, periodSelector, summary }: RatePanelLayoutProps) {
+function RatePanelLayout({
+  body,
+  loading = false,
+  periodSelector,
+  summary,
+}: RatePanelLayoutProps) {
+  const heldSummary = useHeldAmount<ReactNode>(summary, loading ? "pending" : "settled");
   return (
     <>
-      {summary}
+      {heldSummary.amount ?? (loading ? <RateSummarySkeleton /> : null)}
       {periodSelector}
       {body}
     </>
@@ -429,7 +440,7 @@ function createRateView({
           colorScheme={colorScheme}
           currencyCode={selection}
           locale={locale}
-          periodLabel={describeStart(change) ?? periodText}
+          sinceLabel={describeStart(change)}
         />
       ),
     };
@@ -453,10 +464,7 @@ function createRateView({
     })),
     summary: (
       <RateChangeLegend
-        caption={translate(locale, "ratesAllCaption", {
-          base: baseCurrency,
-          period: periodText,
-        })}
+        caption={translate(locale, "ratesAllCaption", { base: baseCurrency })}
         colorScheme={colorScheme}
         items={seriesByCurrency.map((item) => {
           const change = getRateChange(item.rates);

@@ -327,6 +327,22 @@ export function dailyResponse(
   return { base: "USD", resolution: "daily", start: `${start}T00:00:00.000Z`, rates };
 }
 
+/** Formats a JSON header line and one `CODE<TAB>[values]` line per currency. */
+export function formatSeriesFile(
+  header: unknown,
+  rates: Record<string, RateSeries>,
+): string {
+  const lines = Object.entries(rates).map(
+    ([code, series]) => `${code}\t${JSON.stringify(series)}`,
+  );
+  return [JSON.stringify(header), ...lines].join("\n");
+}
+
+/** Returns the R2 key of one month of daily closes. */
+export function monthlyHistoryKey(month: string): string {
+  return `history/daily/${month}.tsv`;
+}
+
 /** Returns the newest hourly rate observed on the given UTC date. */
 function latestRateOnDate(
   hourly: HourlyHistory | null,
@@ -574,10 +590,7 @@ async function writeSeriesFile(
   header: unknown,
   rates: Record<string, RateSeries>,
 ): Promise<void> {
-  const lines = Object.entries(rates).map(
-    ([code, series]) => `${code}\t${JSON.stringify(series)}`,
-  );
-  await bucket.put(key, [JSON.stringify(header), ...lines].join("\n"), {
+  await bucket.put(key, formatSeriesFile(header, rates), {
     httpMetadata: { contentType: "text/plain; charset=utf-8" },
   });
 }
@@ -613,11 +626,6 @@ async function writeJson(bucket: R2Bucket, key: string, value: unknown): Promise
   await bucket.put(key, JSON.stringify(value), {
     httpMetadata: { contentType: "application/json" },
   });
-}
-
-/** Returns the R2 key of one month of daily closes. */
-function monthlyHistoryKey(month: string): string {
-  return `history/daily/${month}.tsv`;
 }
 
 /** Lists the `YYYY-MM` months that overlap the inclusive date range. */

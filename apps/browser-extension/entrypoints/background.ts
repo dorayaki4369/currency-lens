@@ -23,6 +23,7 @@ import {
   fetchExchangeRateCache,
   getRateSnapshot,
   isExchangeRateCacheStale,
+  type ExchangeRateCache,
 } from "@/lib/rates";
 import { createRateHistoryCache, fetchRateHistory } from "@/lib/rate-history";
 import { RATE_REFRESH_ALARM_NAME, ensureRateRefreshAlarm } from "@/lib/rate-refresh";
@@ -150,7 +151,7 @@ async function handleSetChartColor(
 async function handleConvertCurrencies(
   request: ConvertCurrenciesRequest,
 ): Promise<MessageResponse> {
-  const cache = await getExchangeRateCache();
+  const cache = await getUsableRateCache({ refreshStale: false });
   if (!cache) {
     return convertCurrenciesResponseSchema.parse({
       success: false,
@@ -172,15 +173,7 @@ async function handleConvertCurrencies(
 
 /** Returns the retained rates together with freshness metadata. */
 async function handleGetRates(): Promise<MessageResponse> {
-  let cache = await getExchangeRateCache();
-  if (cache && isExchangeRateCacheStale(cache)) {
-    try {
-      await refreshRates();
-      cache = (await getExchangeRateCache()) ?? cache;
-    } catch {
-      // The retained cache remains useful and carries an explicit stale warning.
-    }
-  }
+  const cache = await getUsableRateCache({ refreshStale: true });
   if (!cache) {
     return getRatesResponseSchema.parse({
       success: false,
@@ -192,6 +185,29 @@ async function handleGetRates(): Promise<MessageResponse> {
     success: true,
     data: { ...getRateSnapshot(cache), rates: cache.rates },
   });
+}
+
+/**
+ * Reads the retained rates, waiting for a refresh when none are stored yet, or when they are
+ * stale and `refreshStale` is set. A request made right after installation therefore joins the
+ * first refresh instead of reporting rates as unavailable while that refresh is in flight.
+ */
+async function getUsableRateCache({
+  refreshStale,
+}: {
+  readonly refreshStale: boolean;
+}): Promise<ExchangeRateCache | null> {
+  const cache = await getExchangeRateCache();
+  if (cache && !(refreshStale && isExchangeRateCacheStale(cache))) {
+    return cache;
+  }
+  try {
+    await refreshRates();
+  } catch {
+    // A retained stale cache remains useful and carries an explicit stale warning.
+    return cache;
+  }
+  return (await getExchangeRateCache()) ?? cache;
 }
 
 /** Returns validated rate history, reusing a recent response for the same query. */

@@ -15,6 +15,15 @@ const BROWSER_EXTENSION_ROOT_URL = new URL("./apps/browser-extension/", import.m
 const BROWSER_EXTENSION_ROOT = fileURLToPath(BROWSER_EXTENSION_ROOT_URL);
 const SECRET_FILE_PATTERNS = [".env", ".dev.vars"] as const;
 const E2E_TESTS = "apps/browser-extension/test/e2e/**";
+/**
+ * Layout checks that also run in Firefox, whose container queries, popover placement, and
+ * font metrics differ from Chromium's. The rest of integration runs in Chromium only.
+ */
+const FIREFOX_INTEGRATION_TESTS = [
+  "test/integration/content-placement.spec.tsx",
+  "test/integration/localized-layout.spec.ts",
+  "test/integration/popup-layout.spec.ts",
+];
 
 /**
  * Centralizes formatting, strict static analysis, type checking, and tests for
@@ -260,55 +269,80 @@ export default defineConfig({
           name: "unit",
         },
       },
-      {
-        // Runs in real Chromium with the extension's build plugins,
-        // so layout, motion, Shadow DOM, and axe checks see real CSS.
-        cacheDir: fileURLToPath(
-          new URL("./node_modules/.vite/integration", BROWSER_EXTENSION_ROOT_URL),
-        ),
-        envDir: false,
-        optimizeDeps: {
-          // Pre-bundling these up front prevents a mid-run reload from loading React twice.
-          include: [
-            "@testing-library/react",
-            "axe-core",
-            "react",
-            "react-dom",
-            "react-dom/client",
-            "react/jsx-dev-runtime",
-            "react/jsx-runtime",
-          ],
-        },
-        plugins: integrationVitePlugins,
-        publicDir: integrationPublicDir,
-        resolve: {
-          alias: {
-            "@": BROWSER_EXTENSION_ROOT,
-          },
-        },
-        root: BROWSER_EXTENSION_ROOT,
-        test: {
-          browser: {
-            commands: browserIntegrationCommands,
-            enabled: true,
-            headless: true,
-            instances: [{ browser: "chromium" }],
-            provider: playwright({
-              launchOptions: {
-                args: getHeadlessChromiumLaunchArguments(),
-                channel: "chromium-headless-shell",
-              },
-            }),
-            screenshotFailures: false,
-          },
-          fileParallelism: false,
-          include: ["test/integration/**/*.spec.{ts,tsx}"],
-          name: "integration",
-          restoreMocks: true,
-          testTimeout: 60_000,
-        },
-      },
+      createIntegrationProject({
+        browser: "chromium",
+        include: ["test/integration/**/*.spec.{ts,tsx}"],
+        name: "integration",
+      }),
+      createIntegrationProject({
+        browser: "firefox",
+        include: FIREFOX_INTEGRATION_TESTS,
+        name: "integration-firefox",
+      }),
     ],
     restoreMocks: true,
   },
 });
+
+interface IntegrationProjectOptions {
+  readonly browser: "chromium" | "firefox";
+  readonly include: readonly string[];
+  readonly name: string;
+}
+
+/**
+ * Runs integration tests in a real browser with the extension's build plugins,
+ * so layout, motion, Shadow DOM, and axe checks see real CSS.
+ */
+function createIntegrationProject({ browser, include, name }: IntegrationProjectOptions) {
+  return {
+    cacheDir: fileURLToPath(
+      new URL(`./node_modules/.vite/${name}`, BROWSER_EXTENSION_ROOT_URL),
+    ),
+    envDir: false as const,
+    optimizeDeps: {
+      // Pre-bundling these up front prevents a mid-run reload from loading React twice.
+      include: [
+        "@testing-library/react",
+        "axe-core",
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "react/jsx-dev-runtime",
+        "react/jsx-runtime",
+      ],
+    },
+    plugins: integrationVitePlugins,
+    publicDir: integrationPublicDir,
+    resolve: {
+      alias: {
+        "@": BROWSER_EXTENSION_ROOT,
+      },
+    },
+    root: BROWSER_EXTENSION_ROOT,
+    test: {
+      browser: {
+        commands: browserIntegrationCommands,
+        enabled: true,
+        headless: true,
+        instances: [{ browser }],
+        provider: playwright(
+          browser === "chromium"
+            ? {
+                launchOptions: {
+                  args: getHeadlessChromiumLaunchArguments(),
+                  channel: "chromium-headless-shell",
+                },
+              }
+            : {},
+        ),
+        screenshotFailures: false,
+      },
+      fileParallelism: false,
+      include: [...include],
+      name,
+      restoreMocks: true,
+      testTimeout: 60_000,
+    },
+  };
+}

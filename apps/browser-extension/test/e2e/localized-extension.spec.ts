@@ -2,13 +2,14 @@ import type { Locator, Page } from "@playwright/test";
 import { SUPPORTED_UI_LOCALES, translate, type UiLocale } from "@/lib/i18n";
 import {
   expect,
+  expectRateChartDrawn,
+  expectTrendLinesDrawn,
   HOST_PAGE_URL,
   saveReviewScreenshot,
   saveScaledReviewScreenshot,
   saveZoomedReviewScreenshot,
   test,
 } from "@/test/e2e/fixtures";
-import { serveRateHistory } from "@/test/e2e/rate-history";
 
 /**
  * The currency each locale's store images convert into first. English keeps the euro, because
@@ -46,7 +47,6 @@ for (const locale of SUPPORTED_UI_LOCALES) {
 
     test(`the built extension speaks ${locale}`, async ({ context, extensionId, page }) => {
       const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-      await serveRateHistory(context);
       const popup = await context.newPage();
       await popup.goto(`chrome-extension://${extensionId}/popup.html`);
       await expect(popup.locator("html")).toHaveAttribute("lang", locale);
@@ -79,8 +79,9 @@ for (const locale of SUPPORTED_UI_LOCALES) {
       ).toBeVisible();
       await popup.mouse.move(0, 0);
       await expect(popup.getByRole("tooltip")).toHaveCount(0);
+      // The store images show each target's trend drawn from the seeded history.
+      await expectTrendLinesDrawn(popup.locator("body"), 3);
       await waitForSettledAmounts(popup.locator("body"));
-      await waitForTrends(popup.locator("body"), 3);
       await saveReviewScreenshot(popup, `e2e-${locale}-popup`);
 
       // The store image shows the rates chart larger than the popup draws it.
@@ -91,6 +92,7 @@ for (const locale of SUPPORTED_UI_LOCALES) {
       const rateCard = popup
         .getByRole("region", { exact: true, name: t("ratesHeading") })
         .locator('[data-slot="rate-card"]');
+      await expectRateChartDrawn(rateCard);
       await waitForSettledAmounts(rateCard);
       await saveZoomedReviewScreenshot(popup, rateCard, `e2e-${locale}-rate-chart`, {
         margin: 8,
@@ -113,8 +115,8 @@ for (const locale of SUPPORTED_UI_LOCALES) {
       await expect(
         dialog.getByRole("heading", { exact: true, name: t("convertedHeading") }),
       ).toBeVisible();
+      await expectTrendLinesDrawn(dialog, 3);
       await waitForSettledAmounts(dialog);
-      await waitForTrends(dialog, 3);
       await saveReviewScreenshot(page, `e2e-${locale}-conversion-card`);
     });
   });
@@ -159,9 +161,4 @@ async function waitForSettledAmounts(scope: Locator): Promise<void> {
       .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
     await Promise.all(animations.map((animation) => animation.finished));
   });
-}
-
-/** Waits until every target row draws its trend line from the served history. */
-async function waitForTrends(scope: Locator, count: number): Promise<void> {
-  await expect(scope.locator('[data-slot="sparkline"] path')).toHaveCount(count * 2);
 }

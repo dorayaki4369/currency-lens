@@ -811,9 +811,14 @@ describe("ConversionPopup rates", () => {
 
     const toolbar = document.querySelector('[data-slot="conversion-card-toolbar"]');
     expect(toolbar?.querySelector("button")?.getAttribute("aria-label")).toBe("Close");
-    // The switch opens the row below the close button and spans the card.
+    // The switch takes the row below the close button and spans the card; both stay put
+    // above the body, which alone scrolls.
     const screenSwitch = screen.getByRole("radiogroup", { name: "Screen" });
-    expect(toolbar?.nextElementSibling?.firstElementChild).toBe(screenSwitch);
+    expect(toolbar?.nextElementSibling).toBe(screenSwitch);
+    const body = document.querySelector('[data-slot="conversion-card-body"]');
+    expect(screenSwitch.parentElement?.nextElementSibling).toBe(body);
+    expect(body?.className).toContain("overflow-y-auto");
+    expect(body?.querySelector('[data-slot="conversion-editor"]')).not.toBeNull();
     expect(screenSwitch.className).toContain("w-full");
     expect(
       screen.getByRole("radio", { name: "Convert" }).getAttribute("aria-checked"),

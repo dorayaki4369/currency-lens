@@ -45,6 +45,9 @@ export interface ConversionPopupData {
   readonly sourceTimestamp: number;
 }
 
+/** Carries the height the page leaves for the card, which the card caps itself to. */
+export const CONVERSION_CARD_MAX_HEIGHT_PROPERTY = "--conversion-card-max-height";
+
 export type ConversionDismissReason = "close-button" | "escape" | "outside-pointer";
 
 export type ConversionSource = DetectedCurrency;
@@ -112,7 +115,7 @@ export function ConversionPopup({
   return (
     <dialog
       aria-labelledby={titleId}
-      className="inset-auto m-0 w-96 max-h-none max-w-[calc(100vw_-_--spacing(6))] overflow-visible border-0 bg-transparent p-0 text-inherit outline-none backdrop:bg-transparent"
+      className="inset-auto m-0 w-96 max-h-(--conversion-card-max-height) max-w-[calc(100vw_-_--spacing(6))] flex-col overflow-visible open:flex border-0 bg-transparent p-0 text-inherit outline-none backdrop:bg-transparent"
       onCancel={(event) => {
         event.preventDefault();
         onClose("escape");
@@ -129,25 +132,24 @@ export function ConversionPopup({
       style={floatingStyles}
       tabIndex={-1}
     >
-      <Card className="relative w-full" layer="overlay">
+      <Card className="relative w-full" layer="overlay" spacing="flush">
         <h2 className="sr-only" id={titleId}>
           {translate(locale, "conversionResult")}
         </h2>
-        {/* The close button keeps a row of its own above the screen switch and the screens. */}
-        <div className="flex justify-end" data-slot="conversion-card-toolbar">
-          <IconButton
-            label={translate(locale, "closeApp")}
-            onClick={() => onClose("close-button")}
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <X aria-hidden="true" />
-          </IconButton>
-        </div>
         {/* Opening the card again starts the rates over at one month of every target. */}
         <RateHistoryProvider preview={historyPreview}>
           <ConversionCardBody
+            closeButton={
+              <IconButton
+                label={translate(locale, "closeApp")}
+                onClick={() => onClose("close-button")}
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+              >
+                <X aria-hidden="true" />
+              </IconButton>
+            }
             data={data}
             detection={detection}
             error={error}
@@ -165,7 +167,9 @@ export function ConversionPopup({
   );
 }
 
-type ConversionCardBodyProps = Pick<
+type ConversionCardBodyProps = {
+  readonly closeButton: ReactNode;
+} & Pick<
   ConversionPopupProps,
   | "data"
   | "detection"
@@ -181,6 +185,7 @@ type ConversionCardBodyProps = Pick<
 
 /** Selects exactly one mutually exclusive body state. */
 function ConversionCardBody({
+  closeButton,
   data,
   detection,
   error,
@@ -193,19 +198,23 @@ function ConversionCardBody({
   targetEditing,
 }: ConversionCardBodyProps) {
   if (detection === null) {
-    if (loading) {
-      return <ConversionSkeleton locale={locale} />;
-    }
-    return error === null ? (
-      <p className="text-center text-sm text-muted-foreground">
-        {translate(locale, "conversionEmpty")}
-      </p>
-    ) : (
-      <ErrorState locale={locale} />
+    return (
+      <ConversionCardFrame closeButton={closeButton}>
+        {loading ? (
+          <ConversionSkeleton locale={locale} />
+        ) : error === null ? (
+          <p className="text-center text-sm text-muted-foreground">
+            {translate(locale, "conversionEmpty")}
+          </p>
+        ) : (
+          <ErrorState locale={locale} />
+        )}
+      </ConversionCardFrame>
     );
   }
   return (
     <ConversionDetails
+      closeButton={closeButton}
       data={data}
       detection={detection}
       error={error}
@@ -221,6 +230,7 @@ function ConversionCardBody({
 }
 
 interface ConversionDetailsProps {
+  readonly closeButton: ReactNode;
   readonly data: ConversionPopupData | null;
   readonly detection: DetectedCurrency;
   readonly error: string | null;
@@ -241,6 +251,7 @@ type RatePresentation = Pick<ConversionPopupData, "isStale" | "sourceTimestamp">
  * so changing either changes both without touching the saved settings.
  */
 function ConversionDetails({
+  closeButton,
   data,
   detection,
   error,
@@ -366,13 +377,17 @@ function ConversionDetails({
   );
 
   return (
-    <Stack gap="section">
-      <RatesScreenSwitch
-        checkedItemRef={checkedViewReference}
-        locale={locale}
-        onValueChange={setView}
-        value={view}
-      />
+    <ConversionCardFrame
+      closeButton={closeButton}
+      screenSwitch={
+        <RatesScreenSwitch
+          checkedItemRef={checkedViewReference}
+          locale={locale}
+          onValueChange={setView}
+          value={view}
+        />
+      }
+    >
       {settingsSaveFailed ? (
         <Alert role="alert" variant="destructive">
           <CircleAlert aria-hidden="true" />
@@ -421,7 +436,44 @@ function ConversionDetails({
           targetTitle={translate(locale, "convertedHeading")}
         />
       )}
-    </Stack>
+    </ConversionCardFrame>
+  );
+}
+
+interface ConversionCardFrameProps {
+  readonly children: ReactNode;
+  readonly closeButton: ReactNode;
+  readonly screenSwitch?: ReactNode | undefined;
+}
+
+/**
+ * Keeps the close button on a row of its own with the screen switch below it, and scrolls only
+ * the screen beneath them, like the popup's frame. The dialog caps the card to the space the
+ * page leaves, so a tall screen scrolls inside the card instead of leaving the viewport. Both
+ * parts pad themselves by one inset, so content scrolls under the card's edges without clipping
+ * shadows or focus rings, and the switch sits one section above the screen.
+ */
+function ConversionCardFrame({
+  children,
+  closeButton,
+  screenSwitch,
+}: ConversionCardFrameProps) {
+  return (
+    <>
+      <Stack className="shrink-0 p-inset" data-slot="conversion-card-header" gap="inset">
+        <div className="flex justify-end" data-slot="conversion-card-toolbar">
+          {closeButton}
+        </div>
+        {screenSwitch}
+      </Stack>
+      <Stack
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-inset"
+        data-slot="conversion-card-body"
+        gap="section"
+      >
+        {children}
+      </Stack>
+    </>
   );
 }
 

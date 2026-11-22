@@ -189,7 +189,9 @@ async function openRates(locale: UiLocale): Promise<void> {
     page.getByRole("radio", { exact: true, name: translate(locale, "screenRates") }),
   );
   await expect
-    .element(page.getByRole("heading", { exact: true, name: translate(locale, "ratesHeading") }))
+    .element(
+      page.getByRole("heading", { exact: true, name: translate(locale, "ratesHeading") }),
+    )
     .toBeVisible();
 }
 

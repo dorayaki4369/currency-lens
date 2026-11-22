@@ -350,17 +350,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The runner has no Japanese font, so the copy and the popup would render with CJK fallbacks.
-      - name: Install Chromium and Japanese fonts
+      # The runner has no CJK font, so Chinese, Japanese, and Korean copy would render as boxes.
+      - name: Install Chromium and CJK fonts
         run: |
           pnpm exec playwright install --with-deps chromium
           sudo apt-get install --yes --no-install-recommends fonts-noto-cjk
 
       - name: Save the review screenshots the images crop
         run: |
-          pnpm test:integration apps/browser-extension/test/integration/screen-accessibility.spec.ts
+          pnpm test:integration apps/browser-extension/test/integration/localized-layout.spec.ts -t "store images"
           pnpm --dir apps/browser-extension build
-          pnpm exec playwright test extension-smoke
+          pnpm exec playwright test localized-extension
 
       - name: Render the promo images
         run: pnpm store:images
@@ -369,7 +369,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.2
         with:
           name: store-promo-images-${{ github.run_id }}
-          path: apps/browser-extension/.output/store-images/*.png
+          path: apps/browser-extension/.output/store-images/
           if-no-files-found: error
           retention-days: 30
 

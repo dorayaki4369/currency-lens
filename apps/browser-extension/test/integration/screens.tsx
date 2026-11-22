@@ -6,6 +6,7 @@ import shadowStyleText from "@/test/integration/style.css?inline";
 import { Stack } from "@/components/layout/Stack";
 import App, { createPopupRouter, type PopupPreviewData } from "@/entrypoints/popup/App";
 import { ConversionPopup } from "@/entrypoints/content/components/ConversionPopup";
+import type { UiLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
   FIXTURE_CONFIG,
@@ -20,6 +21,7 @@ import type { COMPONENT_FIXTURES } from "@/test/integration/component-fixtures/f
 export type ConversionCardState = "empty" | "error" | "loading" | "success";
 
 export interface ConversionScreenOptions {
+  readonly locale: UiLocale;
   readonly motion: "default" | "reduce";
   readonly root: "document" | "shadow";
   readonly state: ConversionCardState;
@@ -30,6 +32,7 @@ export type PopupHistoryState = "data" | "empty" | "error" | "loading";
 
 export interface PopupScreenOptions {
   readonly history: PopupHistoryState;
+  readonly locale: UiLocale;
   readonly theme: PopupPreviewData["config"]["theme"];
 }
 
@@ -66,7 +69,7 @@ export function mountPopupScreen(container: Element, options: PopupScreenOptions
   const preview: PopupPreviewData = {
     config: { ...FIXTURE_CONFIG, theme: options.theme },
     history: options.history === "data" ? FIXTURE_HISTORY : { kind: options.history },
-    locale: "ja",
+    locale: options.locale,
     rates: FIXTURE_RATES,
   };
   root.render(
@@ -126,7 +129,7 @@ export function mountConversionScreen(
               {...conversionStateProps[options.state]}
               floatingStyles={{ position: "relative" }}
               historyPreview={FIXTURE_HISTORY}
-              locale="ja"
+              locale={options.locale}
               onClose={() => undefined}
               onReorderTarget={() => undefined}
               setFloating={() => undefined}

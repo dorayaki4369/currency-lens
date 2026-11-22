@@ -1,4 +1,5 @@
-// Builds the 1280x800 store promo images from the integration and E2E review screenshots.
+// Builds the 1280x800 store promo images of every UI locale from the integration and E2E
+// review screenshots.
 // Usage: node apps/browser-extension/store/promo-images.ts <serve|render>
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -7,6 +8,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { currencies } from "@cl/currency";
 import { chromium } from "@playwright/test";
+import { promoCopy, type PromoCopy } from "./promo-copy.ts";
 
 const EXTENSION_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const REVIEW_SCREENSHOT_DIRECTORY = join(EXTENSION_ROOT, "test/__screenshots__/review");
@@ -14,20 +16,22 @@ const OUTPUT_DIRECTORY = join(EXTENSION_ROOT, ".output/store-images");
 const PREVIEW_PORT = 4310;
 const VIEWPORT = { width: 1280, height: 800 };
 
-/** Review screenshots the promo images crop, and the test that saves each of them. */
+const COPY = promoCopy(currencies.length);
+const LOCALE_COPIES = Object.entries(COPY);
+
+/** Review screenshots each locale's promo images crop, and the test that saves each of them. */
 const SOURCE_SCREENSHOTS = {
-  "e2e-conversion-card": "pnpm test:e2e",
-  "e2e-popup": "pnpm test:e2e",
-  "popup-light-target-picker": "pnpm test:integration",
+  "conversion-card": { file: "e2e-{locale}-conversion-card", test: "pnpm test:e2e" },
+  popup: { file: "e2e-{locale}-popup", test: "pnpm test:e2e" },
+  "target-picker": { file: "store-{locale}-target-picker", test: "pnpm test:integration" },
 } as const;
 
 type SourceScreenshot = keyof typeof SOURCE_SCREENSHOTS;
 
-// Hiragino covers macOS and Noto Sans CJK JP covers the Ubuntu runner, so CI keeps Japanese glyphs.
+// Each locale sets its own font-family, so Han characters keep their Chinese or Japanese forms.
 const BASE_STYLE = `
   *{box-sizing:border-box;margin:0}
   body{width:1280px;height:800px;overflow:hidden;color:#0f172a;
-    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans CJK JP",system-ui,sans-serif;
     background:radial-gradient(900px 600px at 0% 0%,#e3f1ff 0%,transparent 70%),radial-gradient(800px 600px at 100% 100%,#fff3d1 0%,transparent 70%),#f8fafc}
   .copy{position:absolute;left:80px;top:0;bottom:0;width:440px;display:flex;flex-direction:column;justify-content:center;gap:24px}
   .brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:22px;letter-spacing:.01em}
@@ -58,7 +62,7 @@ if (command === "serve") {
 function servePromoImages(): void {
   requireSourceScreenshots();
   createServer((request, response) => {
-    const name = request.url?.slice(1) ?? "";
+    const name = decodeURIComponent(request.url?.slice(1) ?? "");
     const pages = promoPages();
     const html = name === "" ? previewIndex(Object.keys(pages)) : pages[name];
     if (html === undefined) {
@@ -82,6 +86,7 @@ async function renderPromoImages(): Promise<void> {
         const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
         await page.setContent(html, { waitUntil: "load" });
         const path = join(OUTPUT_DIRECTORY, `${name}.png`);
+        mkdirSync(dirname(path), { recursive: true });
         await page.screenshot({ path });
         return path;
       }),
@@ -94,13 +99,13 @@ async function renderPromoImages(): Promise<void> {
 
 /** Fails with the test to run when a review screenshot has not been saved yet. */
 function requireSourceScreenshots(): void {
-  const missing = Object.entries(SOURCE_SCREENSHOTS).filter(
-    ([name]) => !existsSync(reviewScreenshotPath(name)),
+  const missing = LOCALE_COPIES.flatMap(([locale]) =>
+    Object.values(SOURCE_SCREENSHOTS)
+      .map(({ file, test }) => ({ file: file.replace("{locale}", locale), test }))
+      .filter(({ file }) => !existsSync(reviewScreenshotPath(file))),
   );
   if (missing.length > 0) {
-    const lines = missing.map(
-      ([name, testCommand]) => `  ${name}.png (run ${testCommand})`,
-    );
+    const lines = missing.map(({ file, test }) => `  ${file}.png (run ${test})`);
     throw new Error(`Missing review screenshots:\n${lines.join("\n")}`);
   }
 }
@@ -119,11 +124,34 @@ function previewIndex(names: string[]): string {
     <body>${frames}</body></html>`;
 }
 
-/** Builds the document of each promo image, keyed by its output file name. */
+/** Builds the document of each promo image, keyed by `<locale>/<output file name>`. */
 function promoPages(): Record<string, string> {
   const logo = dataUri(join(EXTENSION_ROOT, "assets/icon.svg"), "image/svg+xml");
+  return Object.fromEntries(
+    LOCALE_COPIES.flatMap(([locale, copy]) =>
+      Object.entries(localePromoPages(locale, copy, logo)).map(([name, body]) => [
+        `${locale}/${name}`,
+        `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><title>${locale}/${name}</title><style>${BASE_STYLE}body{font-family:${copy.fontFamily}}</style></head><body>${body}</body></html>`,
+      ]),
+    ),
+  );
+}
+
+/** Builds the body of one locale's promo images, keyed by output file name. */
+function localePromoPages(
+  locale: string,
+  copy: PromoCopy,
+  logo: string,
+): Record<string, string> {
   const brand = `<div class="brand"><img src="${logo}" alt="">Currency Lens</div>`;
-  const pages = {
+  const crop = (
+    name: SourceScreenshot,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) => cropScreenshot(locale, name, x, y, width, height);
+  return {
     "promo-1-select-and-convert": `
       <style>
         .copy{width:480px}
@@ -134,13 +162,11 @@ function promoPages(): Record<string, string> {
       </style>
       <div class="copy">
         ${brand}
-        <h1>選択した金額を、<br><em>その場で換算。</em></h1>
-        <p>海外サイトの価格を選択して、ボタンを押すだけ。<br>ページを離れずに、いつもの通貨で確かめられます。</p>
-        <ul><li>${currencies.length}の通貨に対応</li><li>1時間ごとに更新される最新レートで換算</li><li>最大5通貨へ一度に換算</li><li>「$」「USD」「円」のどの書き方の金額も検出</li></ul>
+        ${copyBlock(copy.selectAndConvert)}
       </div>
       <div class="stage">
         <div class="price"><mark>$249.00</mark></div>
-        <div class="card">${crop("e2e-conversion-card", 256, 219, 384, 400)}</div>
+        <div class="card">${crop("conversion-card", 256, 219, 384, 400)}</div>
       </div>`,
 
     "promo-2-currency-picker": `
@@ -150,11 +176,9 @@ function promoPages(): Record<string, string> {
       </style>
       <div class="copy">
         ${brand}
-        <h1>${currencies.length}の通貨から、<br><em>換算先を選べる。</em></h1>
-        <p>通貨コード、通貨名、地域名で検索して、換算先を最大5通貨まで登録できます。法定通貨のほか、暗号資産や貴金属にも換算できます。</p>
-        <ul><li>ビットコイン、イーサリアムなどの暗号資産にも対応</li><li>金・銀・プラチナ・パラジウムにも対応</li><li>「$」「¥」がどの通貨を指すかも設定可能</li></ul>
+        ${copyBlock(copy.currencyPicker)}
       </div>
-      <div class="stage">${crop("popup-light-target-picker", 0, 0, 321, 600)}</div>`,
+      <div class="stage">${crop("target-picker", 0, 0, 321, 600)}</div>`,
 
     "promo-3-toolbar-popup": `
       <style>
@@ -177,8 +201,7 @@ function promoPages(): Record<string, string> {
       </style>
       <div class="copy">
         ${brand}
-        <h1>ツールバーから、<br><em>いつでも換算。</em></h1>
-        <p>金額を入力するだけで、<br>登録した通貨へまとめて換算します。</p>
+        ${copyBlock({ ...copy.toolbarPopup, bullets: [] })}
       </div>
       <div class="window">
         <div class="chrome">
@@ -193,20 +216,40 @@ function promoPages(): Record<string, string> {
             <div class="line" style="width:75%"></div><div class="line" style="width:40%"></div>
           </div>
         </div>
-        <div class="popup">${crop("e2e-popup", 0, 0, 400, 440)}</div>
+        <div class="popup">${crop("popup", 0, 0, 400, 440)}</div>
       </div>`,
   };
-  return Object.fromEntries(
-    Object.entries(pages).map(([name, body]) => [
-      name,
-      `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>${name}</title><style>${BASE_STYLE}</style></head><body>${body}</body></html>`,
-    ]),
-  );
 }
 
-/** Shows a region of a review screenshot at its native pixel size. */
-function crop(name: SourceScreenshot, x: number, y: number, width: number, height: number) {
-  const image = dataUri(reviewScreenshotPath(name), "image/png");
+/** Renders the headline, body, and bullet list of one promo image. */
+function copyBlock(copy: {
+  readonly headline: readonly string[];
+  readonly body: readonly string[];
+  readonly bullets: readonly string[];
+}): string {
+  const lead = copy.headline
+    .slice(0, -1)
+    .map((line) => `${line}<br>`)
+    .join("");
+  const highlight = copy.headline.at(-1) ?? "";
+  const bullets =
+    copy.bullets.length === 0
+      ? ""
+      : `<ul>${copy.bullets.map((bullet) => `<li>${bullet}</li>`).join("")}</ul>`;
+  return `<h1>${lead}<em>${highlight}</em></h1><p>${copy.body.join("<br>")}</p>${bullets}`;
+}
+
+/** Shows a region of one locale's review screenshot at its native pixel size. */
+function cropScreenshot(
+  locale: string,
+  name: SourceScreenshot,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): string {
+  const file = SOURCE_SCREENSHOTS[name].file.replace("{locale}", locale);
+  const image = dataUri(reviewScreenshotPath(file), "image/png");
   return `<div class="shot" style="width:${width}px;height:${height}px;background:url('${image}') -${x}px -${y}px no-repeat"></div>`;
 }
 

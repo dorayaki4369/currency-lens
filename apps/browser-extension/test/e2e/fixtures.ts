@@ -40,7 +40,7 @@ export const test = base.extend<ExtensionFixtures>({
   apiRequests: async ({}, use) => {
     await use([]);
   },
-  context: async ({ apiRequests }, use) => {
+  context: async ({ apiRequests, locale }, use) => {
     const apiOrigin = await readBuiltApiOrigin();
     const context = await chromium.launchPersistentContext("", {
       args: [
@@ -55,7 +55,8 @@ export const test = base.extend<ExtensionFixtures>({
       ],
       channel: "chromium",
       headless: true,
-      locale: "ja-JP",
+      // Playwright's locale also sets the browser UI language that the extension follows.
+      locale: locale ?? "ja-JP",
       viewport: null,
     });
     await context.route(`${apiOrigin}/**`, (route) => forwardToWorker(route, apiRequests));

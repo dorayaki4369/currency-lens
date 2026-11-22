@@ -154,6 +154,11 @@ export default defineConfig({
         },
       },
       {
+        // The local development launcher runs under Node, not in the Worker runtime.
+        files: ["apps/server/scripts/**/*.{ts,mjs}"],
+        env: { node: true, worker: false },
+      },
+      {
         files: [
           "**/*.spec.{ts,tsx}",
           "**/*.test.{ts,tsx}",
@@ -225,6 +230,7 @@ export default defineConfig({
         "apps/browser-extension/stores/**/*.{ts,tsx}",
         "apps/browser-extension/web-ext.config.ts",
         "apps/browser-extension/wxt.config.ts",
+        "apps/server/scripts/**/*.{ts,mjs}",
         "apps/server/src/**/*.ts",
         "packages/*/src/**/*.ts",
       ],

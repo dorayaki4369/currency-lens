@@ -61,6 +61,7 @@ export async function openPopupScreen(
 ): Promise<void> {
   mountScreen((container) =>
     mountPopupScreen(container, {
+      locale: options.locale ?? "ja",
       history: options.history ?? "data",
       theme: options.theme ?? "light",
     }),
@@ -74,6 +75,7 @@ export async function openConversionScreen(
 ): Promise<Document | ShadowRoot> {
   const container = mountScreen((element) =>
     mountConversionScreen(element, {
+      locale: options.locale ?? "ja",
       motion: options.motion ?? "default",
       root: options.root ?? "document",
       state: options.state ?? "success",

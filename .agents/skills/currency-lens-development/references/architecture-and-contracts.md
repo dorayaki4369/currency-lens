@@ -29,6 +29,18 @@ Background Script は検証済みのベース URL に `/v1/latest` と `/v1/hist
 配布用ビルドは GitHub Actions の Repository variable から同じ環境変数名へ値を渡します。
 `pnpm dev` は `API_ENDPOINT` が未設定ならローカル Worker の `http://localhost:8787` を使いますが、配布用ビルドでは必須のままです。
 
+ローカル Worker は `apps/server/scripts/dev.ts` から起動し、`RATE_SOURCE` でレートの取得先を切り替えます。
+
+| `RATE_SOURCE`          | 取得先                                                                                              | ローカル R2             |
+| ---------------------- | --------------------------------------------------------------------------------------------------- | ----------------------- |
+| 未設定、空、`mock`     | ループバックで起動するモックの Open Exchange Rates。`.env` の App ID は渡さず、ダミーの値を渡します | `.wrangler/mock-state`  |
+| `live`                 | 本物の Open Exchange Rates。`.env` の `OPEN_EXCHANGE_RATE_APP_ID` を使います                         | `.wrangler/state`       |
+
+それ以外の値では、Worker を起動せずにエラーで止まります。
+モックは `apps/server/scripts/mock-rates.ts` の固定レートを、提供時刻を現在時刻にして返すため、拡張機能は fresh と判定します。
+モックを使う間も Worker と拡張機能は本番と同じコードで動き、Cron の代わりの `__scheduled` もモックから取得します。
+E2E はこの起動スクリプトを使わず、`apps/browser-extension/test/e2e/global-setup.ts` が独自のモックと Worker を起動します。
+
 ## 正本
 
 - 通貨コード、記号、minor unit: `packages/currency/src/index.ts`

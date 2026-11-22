@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  AMO_LOCALES,
   type AmoSettings,
   amoSettingsSchema,
   createAmoMetadata,
@@ -21,22 +22,60 @@ describe("createAmoMetadata", () => {
   it("keys each listing field by AMO locale and keeps the AMO settings", () => {
     const metadata = createAmoMetadata(
       {
-        en: {
-          description: "English body",
-          name: "English name",
-          summary: "English summary",
-        },
-        ja: { description: "日本語の本文", name: "日本語の名前", summary: "日本語の要約" },
+        de: labelledListing("de"),
+        en: labelledListing("en"),
+        es: labelledListing("es"),
+        fr: labelledListing("fr"),
+        ja: labelledListing("ja"),
+        ko: labelledListing("ko"),
+        pt_BR: labelledListing("pt_BR"),
+        zh_CN: labelledListing("zh_CN"),
+        zh_TW: labelledListing("zh_TW"),
       },
       SETTINGS,
     );
 
     expect(metadata).toEqual({
       ...SETTINGS,
-      description: { "en-US": "English body", ja: "日本語の本文" },
-      name: { "en-US": "English name", ja: "日本語の名前" },
-      summary: { "en-US": "English summary", ja: "日本語の要約" },
+      description: {
+        de: "de body",
+        "en-US": "en body",
+        "es-AR": "es body",
+        "es-CL": "es body",
+        "es-ES": "es body",
+        "es-MX": "es body",
+        fr: "fr body",
+        ja: "ja body",
+        ko: "ko body",
+        "pt-BR": "pt_BR body",
+        "zh-CN": "zh_CN body",
+        "zh-TW": "zh_TW body",
+      },
+      name: expect.objectContaining({ "en-US": "en name", "zh-TW": "zh_TW name" }),
+      summary: expect.objectContaining({ "es-MX": "es summary", ja: "ja summary" }),
     });
+  });
+
+  it("publishes a translation for every AMO locale it maps", () => {
+    const listing = { description: "body", name: "name", summary: "summary" };
+    const metadata = createAmoMetadata(
+      {
+        de: listing,
+        en: listing,
+        es: listing,
+        fr: listing,
+        ja: listing,
+        ko: listing,
+        pt_BR: listing,
+        zh_CN: listing,
+        zh_TW: listing,
+      },
+      SETTINGS,
+    );
+
+    expect(Object.keys(metadata.description).toSorted()).toEqual(
+      Object.values(AMO_LOCALES).flat().toSorted(),
+    );
   });
 });
 
@@ -48,7 +87,7 @@ describe("amoSettingsSchema", () => {
   });
 
   it("rejects a default locale that has no listing text", () => {
-    expect(amoSettingsSchema.safeParse({ ...SETTINGS, default_locale: "fr" }).success).toBe(
+    expect(amoSettingsSchema.safeParse({ ...SETTINGS, default_locale: "it" }).success).toBe(
       false,
     );
   });
@@ -95,3 +134,12 @@ describe("writeAmoMetadata", () => {
     await expect(writeAmoMetadata(undefined)).rejects.toThrow("Usage:");
   });
 });
+
+/** Builds listing text whose fields name the locale they came from. */
+function labelledListing(label: string) {
+  return {
+    description: `${label} body`,
+    name: `${label} name`,
+    summary: `${label} summary`,
+  };
+}

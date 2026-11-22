@@ -111,7 +111,7 @@ export function RatesScreen({
   const loadHistory = useRateHistoryStore((state) => state.loadHistory);
 
   return (
-    <Stack gap={4}>
+    <Stack gap={3}>
       <Stack aria-labelledby={baseHeadingId} as="section">
         <SectionHeader
           headingLevel={headingLevel}

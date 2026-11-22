@@ -511,7 +511,7 @@ async function openSettingsRoute(routeName: string): Promise<void> {
   await expect.element(page.getByRole("heading", { name: routeName })).toBeVisible();
 }
 
-/** Verifies sparklines share one column 8 px after the names and amounts end together. */
+/** Verifies sparklines share one column 12px after the names and amounts end together. */
 function expectTargetRowsAligned(rowCount: number): void {
   const list = requireElement('[data-slot="list"]');
   const listBounds = list.getBoundingClientRect();
@@ -540,7 +540,7 @@ function expectTargetRowsAligned(rowCount: number): void {
     ).getBoundingClientRect();
     expectEdge(identity.left - listBounds.left, rem(0.5));
     expectEdge(sparkline.left, sparklineLeft);
-    expectEdge(sparkline.left - identity.right, rem(0.5));
+    expectEdge(sparkline.left - identity.right, rem(0.75));
     expectEdge(sparkline.width, rem(5));
     expectEdge(listBounds.right - amount.right, rem(0.5));
     expect(amount.width).toBeGreaterThanOrEqual(rem(4.5) - 0.5);
@@ -548,10 +548,10 @@ function expectTargetRowsAligned(rowCount: number): void {
 }
 
 // The source currency and its amount sit close as one field pair (gap-1); sections keep
-// 16px apart (gap-4), and rows pad their content 8px (p-2).
+// 12px apart (gap-3), and rows pad their content 8px (p-2).
 const CONVERTER_SPACING: ConverterSpacing = {
   rowPadding: 8,
-  sectionGap: 16,
+  sectionGap: 12,
   sourceFieldGap: 4,
 };
 

@@ -450,8 +450,8 @@ interface ConversionCardFrameProps {
  * Keeps the close button on a row of its own with the screen switch below it, and scrolls only
  * the screen beneath them, like the popup's frame. The dialog caps the card to the space the
  * page leaves, so a tall screen scrolls inside the card instead of leaving the viewport. Both
- * parts pad themselves by one inset, so content scrolls under the card's edges without clipping
- * shadows or focus rings, and the switch sits one section above the screen.
+ * parts pad themselves by the card's 8px, so content scrolls under the card's edges without
+ * clipping shadows or focus rings.
  */
 function ConversionCardFrame({
   children,
@@ -469,7 +469,7 @@ function ConversionCardFrame({
       <Stack
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
         data-slot="conversion-card-body"
-        gap={4}
+        gap={3}
       >
         {children}
       </Stack>
@@ -595,7 +595,7 @@ function ConversionResultsSkeleton({ locale }: { readonly locale: UiLocale }) {
 /** Preserves the full conversion-card shape before a source is available. */
 function ConversionSkeleton({ locale }: { readonly locale: UiLocale }) {
   return (
-    <Stack aria-label={translate(locale, "loadingConversion")} gap={4} role="status">
+    <Stack aria-label={translate(locale, "loadingConversion")} gap={3} role="status">
       <Skeleton className="h-9 w-2/3" />
       <Skeleton className="h-12 w-full" />
       <Skeleton className="h-12 w-full" />

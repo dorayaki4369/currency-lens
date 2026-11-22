@@ -44,7 +44,7 @@ interface DisplaySettingsProps {
 function DisplaySettings({ config, locale, updateConfig }: DisplaySettingsProps) {
   const themeLabelId = useId();
   return (
-    <Stack as="section" aria-labelledby="display-settings-title" gap={2}>
+    <Stack as="section" aria-labelledby="display-settings-title" gap={3}>
       <p className="text-xs text-muted-foreground">
         {translate(locale, "displayDescription")}
       </p>

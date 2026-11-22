@@ -153,7 +153,7 @@ export function ConversionEditor({
   }, []);
 
   return (
-    <Stack gap={4} data-slot="conversion-editor">
+    <Stack gap={3} data-slot="conversion-editor">
       <Stack as="section" aria-labelledby={sourceHeadingId}>
         <SectionHeader
           action={sourceAction}
@@ -186,7 +186,7 @@ export function ConversionEditor({
                 />
               </Card>
               {sourceAmountIsInvalid ? (
-                <p className="px-2 pb-2 text-xs text-destructive" id={sourceErrorId}>
+                <p className="px-3 pb-2 text-xs text-destructive" id={sourceErrorId}>
                   {translate(locale, "sourceAmountInvalid")}
                 </p>
               ) : null}

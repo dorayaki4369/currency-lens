@@ -19,7 +19,7 @@ export function CurrencyIdentity({
 }: CurrencyIdentityProps) {
   return (
     <span
-      className={cn("flex min-w-0 flex-1 items-center gap-2 text-left text-sm", className)}
+      className={cn("flex min-w-0 flex-1 items-center gap-3 text-left text-sm", className)}
       data-slot="currency-identity-label"
     >
       <CurrencyIcon currencyCode={currencyCode} />

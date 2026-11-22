@@ -31,9 +31,9 @@ function SupportedCurrencies({ locale }: { readonly locale: UiLocale }) {
       as="section"
       aria-labelledby="currencies-title"
       className="min-h-0 flex-1"
-      gap={2}
+      gap={3}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           {translate(locale, "supportedCurrenciesDescription")}
         </p>

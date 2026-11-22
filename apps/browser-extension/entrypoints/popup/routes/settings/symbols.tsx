@@ -43,7 +43,7 @@ function SymbolSettings({ config, locale, updateConfig }: SymbolSettingsProps) {
       as="section"
       aria-labelledby="symbol-settings-title"
       className="min-h-0 flex-1"
-      gap={2}
+      gap={3}
     >
       <p className="text-xs text-muted-foreground">
         {translate(locale, "ambiguousDescription")}

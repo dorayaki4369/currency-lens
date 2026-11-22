@@ -233,7 +233,7 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
       />
 
       {isPeerScreen(screen) ? (
-        <div className="shrink-0 px-4 pt-3">
+        <div className="shrink-0 px-section pt-section">
           <SegmentedControl
             aria-label={translate(popup.locale, "screenSwitcher")}
             onValueChange={selectSegmentedOption(PEER_SCREENS, (peer) => {
@@ -263,12 +263,9 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
 
       {/* Only the body scrolls, so the header stays in place on long screens. */}
       <Stack
-        className={cn(
-          "min-h-0 flex-1 overflow-y-auto overscroll-contain p-4",
-          isPeerScreen(screen) && "pt-3",
-        )}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-section"
         data-slot="popup-route-body"
-        gap={4}
+        gap="section"
       >
         {alert}
         {popup.loading ? (
@@ -389,7 +386,7 @@ function PopupHeader({
   settingsButtonReference,
 }: PopupHeaderProps) {
   return (
-    <header className="flex shrink-0 items-center justify-between gap-4 border-b p-4">
+    <header className="flex shrink-0 items-center justify-between gap-section border-b p-section">
       {isPeerScreen(screen) ? (
         <>
           <Brand title={translate(locale, "appName")} />
@@ -522,7 +519,7 @@ function usePopupDocumentTheme(theme: Config["theme"]): void {
 /** Preserves the popup frame while synchronized configuration is loading. */
 function PopupSkeleton({ locale }: { readonly locale: UiLocale }) {
   return (
-    <Stack aria-label={translate(locale, "loadingApp")} gap={4} role="status">
+    <Stack aria-label={translate(locale, "loadingApp")} gap="section" role="status">
       <Skeleton className="h-48 w-full" />
       <Skeleton className="h-28 w-full" />
       <Skeleton className="h-40 w-full" />

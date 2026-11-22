@@ -21,10 +21,14 @@ beforeEach(async () => {
 });
 
 describe("popup layout", () => {
-  it("keeps every card's content 12px inside all four edges on every screen", async () => {
+  it("keeps every card's content one 8px inset inside its edges and spacing on the 8px grid", async () => {
     const failures: string[] = [];
     const check = (screenName: string, root: ParentNode = document) => {
       failures.push(...findCardInsetFailures(screenName, root));
+      const frame = root.querySelector('[data-slot="popup-root"], dialog');
+      if (frame !== null) {
+        failures.push(...findOffGridSpacing(screenName, frame));
+      }
     };
 
     await openPopupScreen();
@@ -136,7 +140,7 @@ describe("popup layout", () => {
       .toBeVisible();
   });
 
-  it("insets the theme row 12px on every side like other settings rows", async () => {
+  it("insets the theme row 8px on every side like other settings rows", async () => {
     await openPopupScreen();
     await userEvent.click(page.getByRole("button", { name: "設定を開く" }));
     const settingsRow = page.getByRole("button", { name: "外観" });
@@ -155,11 +159,11 @@ describe("popup layout", () => {
     ).getBoundingClientRect();
 
     expectEdge(settingsRowBounds.height, rem(2.75));
-    expectEdge(cardBounds.height, rem(3.5));
-    expectEdge(labelBounds.left - cardBounds.left, rem(0.75));
-    expectEdge(cardBounds.right - selectBounds.right, rem(0.75));
-    expectEdge(selectBounds.top - cardBounds.top, rem(0.75));
-    expectEdge(cardBounds.bottom - selectBounds.bottom, rem(0.75));
+    expectEdge(cardBounds.height, rem(3));
+    expectEdge(labelBounds.left - cardBounds.left, rem(0.5));
+    expectEdge(cardBounds.right - selectBounds.right, rem(0.5));
+    expectEdge(selectBounds.top - cardBounds.top, rem(0.5));
+    expectEdge(cardBounds.bottom - selectBounds.bottom, rem(0.5));
 
     const thumb = requireElement('[data-slot="segmented-control-thumb"]', card);
     await userEvent.click(page.getByRole("radio", { name: "ダーク" }));
@@ -306,7 +310,7 @@ describe("popup layout", () => {
     expectEdge(expectAlignedRightAxis(), rateAxis);
   });
 
-  it("ends every block of the rate card 12px inside both card edges", async () => {
+  it("ends every block of the rate card 8px inside both card edges", async () => {
     for (const history of ["data", "loading", "empty", "error"] as const) {
       for (const width of [420, 320]) {
         // Each state and width mounts a fresh popup, so the checks must run in order.
@@ -476,7 +480,7 @@ async function openSettingsRoute(routeName: string): Promise<void> {
   await expect.element(page.getByRole("heading", { name: routeName })).toBeVisible();
 }
 
-/** Verifies sparklines share one column 12 px after the names and amounts end together. */
+/** Verifies sparklines share one column 8 px after the names and amounts end together. */
 function expectTargetRowsAligned(rowCount: number): void {
   const list = requireElement('[data-slot="list"]');
   const listBounds = list.getBoundingClientRect();
@@ -503,11 +507,11 @@ function expectTargetRowsAligned(rowCount: number): void {
       '[data-slot="currency-amount"]',
       row,
     ).getBoundingClientRect();
-    expectEdge(identity.left - listBounds.left, rem(0.75));
+    expectEdge(identity.left - listBounds.left, rem(0.5));
     expectEdge(sparkline.left, sparklineLeft);
-    expectEdge(sparkline.left - identity.right, rem(0.75));
+    expectEdge(sparkline.left - identity.right, rem(0.5));
     expectEdge(sparkline.width, rem(5));
-    expectEdge(listBounds.right - amount.right, rem(0.75));
+    expectEdge(listBounds.right - amount.right, rem(0.5));
     expect(amount.width).toBeGreaterThanOrEqual(rem(4.5) - 0.5);
   }
 }
@@ -640,13 +644,13 @@ function readTextStart(element: Element): number {
   return range.getBoundingClientRect().left;
 }
 
-/** Checks that the rate card's blocks and axis tags keep a 12px inset on both sides. */
+/** Checks that the rate card's blocks and axis tags keep a 8px inset on both sides. */
 function expectRateCardInsetsEven(): void {
   const card = requireElement('[data-slot="rate-card"]');
   const style = getComputedStyle(card);
   const bounds = card.getBoundingClientRect();
-  const contentLeft = bounds.left + Number.parseFloat(style.borderLeftWidth) + 12;
-  const contentRight = bounds.right - Number.parseFloat(style.borderRightWidth) - 12;
+  const contentLeft = bounds.left + Number.parseFloat(style.borderLeftWidth) + 8;
+  const contentRight = bounds.right - Number.parseFloat(style.borderRightWidth) - 8;
   const blocks = [...card.children].filter(
     (child) => child.getBoundingClientRect().height > 0,
   );
@@ -661,7 +665,7 @@ function expectRateCardInsetsEven(): void {
   }
 }
 
-const CARD_INSET = 12;
+const CARD_INSET = 8;
 
 interface Bounds {
   bottom: number;
@@ -672,47 +676,99 @@ interface Bounds {
 
 /**
  * Measures each visible card from its inner border edge to the nearest visible content.
- * The first and last content sit exactly 12px from the top and bottom. Sideways, nothing
- * comes closer than 12px and content reaches the inset on at least one side, which allows
+ * The first and last content sit exactly 8px from the top and bottom. Sideways, nothing
+ * comes closer than 8px and content reaches the inset on at least one side, which allows
  * centered or left-aligned rows. A side whose content scrolls past the edge is skipped.
  */
 function findCardInsetFailures(screenName: string, root: ParentNode): string[] {
+  return [...root.querySelectorAll<HTMLElement>('[data-slot="card"]')].flatMap((card) =>
+    isVisible(card) && card.dataset["spacing"] !== "field"
+      ? findInsetFailuresOfCard(card).map(
+          (failure) => `${screenName}: card "${describeCard(card)}" ${failure}`,
+        )
+      : [],
+  );
+}
+
+/** Returns "side inset" descriptions for every side of one card that breaks the rule. */
+function findInsetFailuresOfCard(card: HTMLElement): string[] {
+  const content = collectContentBounds(card);
+  if (content.length === 0) {
+    return [];
+  }
+  const inner = readInnerBounds(card);
+  const insets = {
+    bottom: inner.bottom - Math.max(...content.map((bounds) => bounds.bottom)),
+    left: Math.min(...content.map((bounds) => bounds.left)) - inner.left,
+    right: inner.right - Math.max(...content.map((bounds) => bounds.right)),
+    top: Math.min(...content.map((bounds) => bounds.top)) - inner.top,
+  };
+  const scrolls = getComputedStyle(card).overflow !== "visible";
+  const scrolled = (inset: number) => scrolls && inset < -0.5;
+  const exact = (inset: number) => scrolled(inset) || Math.abs(inset - CARD_INSET) <= 1;
+  // A row held at the 44px touch target centers shorter content, so that side may be wider.
+  const heldRows = findTouchTargetRows(card);
+  const held = {
+    bottom: heldRows.some((row) => Math.abs(row.bottom - inner.bottom) <= 1),
+    top: heldRows.some((row) => Math.abs(row.top - inner.top) <= 1),
+  };
+  const failures = (["top", "bottom"] as const)
+    .filter(
+      (side) => !exact(insets[side]) && !(held[side] && insets[side] >= CARD_INSET - 1),
+    )
+    .map((side) => `${side} ${insets[side].toFixed(1)}px`);
+  for (const side of ["left", "right"] as const) {
+    if (!scrolled(insets[side]) && insets[side] < CARD_INSET - 1) {
+      failures.push(`${side} ${insets[side].toFixed(1)}px`);
+    }
+  }
+  if (!exact(insets.left) && !exact(insets.right)) {
+    failures.push(`nearer side ${Math.min(insets.left, insets.right).toFixed(1)}px`);
+  }
+  return failures;
+}
+
+/** Finds rows inside a card that the 44px touch-target minimum holds taller than content. */
+function findTouchTargetRows(card: HTMLElement): DOMRect[] {
+  return [...card.querySelectorAll("*")]
+    .filter((element) => getComputedStyle(element).minHeight === "44px")
+    .map((element) => element.getBoundingClientRect())
+    .filter((rect) => Math.abs(rect.height - 44) <= 0.5);
+}
+
+const SPACING_UNIT = 8;
+const SPACING_PROPERTIES = [
+  "paddingTop",
+  "paddingRight",
+  "paddingBottom",
+  "paddingLeft",
+  "rowGap",
+  "columnGap",
+] as const;
+// Controls, charts, and popovers own their inner spacing as part of their size.
+const SPACING_OWNERS =
+  "button, input, summary, svg, [data-slot='button'], [role='radio'], [role='slider'], [data-slot='segmented-control'], [data-slot='rate-chart'], [data-slot='popover-content'], [data-slot='skeleton']";
+
+/**
+ * Lists layout padding and gaps that are neither a multiple of the 8px unit nor a fine
+ * adjustment below it, such as the 2px between a heading and its description.
+ */
+function findOffGridSpacing(screenName: string, root: Element): string[] {
   const failures: string[] = [];
-  for (const card of root.querySelectorAll<HTMLElement>('[data-slot="card"]')) {
-    const content =
-      isVisible(card) && card.dataset["spacing"] !== "field"
-        ? collectContentBounds(card)
-        : [];
-    if (content.length === 0) {
+  for (const element of [root, ...root.querySelectorAll("*")]) {
+    if (element.closest(SPACING_OWNERS) !== null || !isVisible(element)) {
       continue;
     }
-    const inner = readInnerBounds(card);
-    const insets = {
-      bottom: inner.bottom - Math.max(...content.map((bounds) => bounds.bottom)),
-      left: Math.min(...content.map((bounds) => bounds.left)) - inner.left,
-      right: inner.right - Math.max(...content.map((bounds) => bounds.right)),
-      top: Math.min(...content.map((bounds) => bounds.top)) - inner.top,
-    };
-    const scrolled = (inset: number) =>
-      getComputedStyle(card).overflow !== "visible" && inset < -0.5;
-    const exact = (inset: number) => scrolled(inset) || Math.abs(inset - CARD_INSET) <= 1;
-    const report = (side: string, inset: number) => {
-      failures.push(
-        `${screenName}: card "${describeCard(card)}" ${side} ${inset.toFixed(1)}px`,
-      );
-    };
-    for (const side of ["top", "bottom"] as const) {
-      if (!exact(insets[side])) {
-        report(side, insets[side]);
+    const style = getComputedStyle(element);
+    for (const property of SPACING_PROPERTIES) {
+      const value = Number.parseFloat(style[property]);
+      const remainder = value % SPACING_UNIT;
+      if (value >= SPACING_UNIT && Math.min(remainder, SPACING_UNIT - remainder) > 0.5) {
+        const slot = element.getAttribute("data-slot") ?? element.tagName.toLowerCase();
+        failures.push(
+          `${screenName}: ${slot} ${property} ${value}px (${element.className})`,
+        );
       }
-    }
-    for (const side of ["left", "right"] as const) {
-      if (!scrolled(insets[side]) && insets[side] < CARD_INSET - 1) {
-        report(side, insets[side]);
-      }
-    }
-    if (!exact(insets.left) && !exact(insets.right)) {
-      report("nearer side", Math.min(insets.left, insets.right));
     }
   }
   return failures;

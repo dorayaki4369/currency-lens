@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { ROW_INSET_CLASS_NAME } from "@/components/ui/row-control";
 
 const LIST_DIVIDER_INSET_CLASS_NAMES = {
-  content: "before:inset-x-3",
+  content: "before:inset-x-inset",
   edge: "before:inset-x-0",
 } as const;
 const LIST_DIVIDER_VISIBILITY_CLASS_NAMES = {
@@ -73,7 +73,7 @@ export function ListItem({
   return <div className={itemClassName} data-slot="list-item" {...props} />;
 }
 
-/** Gives every list row the same 12px inset so rows differ only by their content. */
+/** Gives every list row the same inset so rows differ only by their content. */
 export function ListItemRow({ className, layout = "inline", ...props }: ListItemRowProps) {
   return (
     <div

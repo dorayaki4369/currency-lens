@@ -143,7 +143,7 @@ function RatesScreen({
   const loadHistory = usePopupRateHistory((state) => state.loadHistory);
 
   return (
-    <Stack gap={3}>
+    <Stack gap="section">
       <Stack aria-labelledby={baseHeadingId} as="section">
         <SectionHeader id={baseHeadingId} title={translate(locale, "ratesBaseHeading")} />
         <Card className="overflow-hidden" spacing="flush">

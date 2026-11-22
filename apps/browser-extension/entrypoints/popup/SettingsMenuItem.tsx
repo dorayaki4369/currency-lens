@@ -3,9 +3,12 @@ import { ChevronRight, ExternalLink, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ListItem } from "@/components/ui/list";
-import { ROW_INSET_CLASS_NAME } from "@/components/ui/row-control";
+import {
+  ROW_INSET_CLASS_NAME,
+  ROW_TOUCH_TARGET_CLASS_NAME,
+} from "@/components/ui/row-control";
 
-const MENU_ITEM_CLASS_NAME = `h-auto w-full justify-between bg-transparent font-normal focus-visible:ring-inset ${ROW_INSET_CLASS_NAME}`;
+const MENU_ITEM_CLASS_NAME = `h-auto w-full justify-between bg-transparent font-normal focus-visible:ring-inset ${ROW_INSET_CLASS_NAME} ${ROW_TOUCH_TARGET_CLASS_NAME}`;
 
 type SettingsMenuItemProps = {
   readonly icon: LucideIcon;

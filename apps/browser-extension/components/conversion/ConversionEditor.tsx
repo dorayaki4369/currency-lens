@@ -153,7 +153,7 @@ export function ConversionEditor({
   }, []);
 
   return (
-    <Stack gap={3} data-slot="conversion-editor">
+    <Stack gap="section" data-slot="conversion-editor">
       <Stack as="section" aria-labelledby={sourceHeadingId}>
         <SectionHeader
           action={sourceAction}
@@ -172,7 +172,7 @@ export function ConversionEditor({
                   aria-describedby={sourceAmountIsInvalid ? sourceErrorId : undefined}
                   aria-invalid={sourceAmountIsInvalid}
                   className={cn(
-                    "h-15 rounded-none border-0 bg-transparent text-right shadow-none [appearance:textfield] tabular-nums focus-visible:ring-0 dark:bg-transparent",
+                    "h-[calc(var(--spacing)*9+var(--spacing-inset)*2)] rounded-none border-0 px-inset bg-transparent text-right shadow-none [appearance:textfield] tabular-nums focus-visible:ring-0 dark:bg-transparent",
                     "[&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none",
                   )}
                   id={sourceAmountId}
@@ -186,7 +186,10 @@ export function ConversionEditor({
                 />
               </Card>
               {sourceAmountIsInvalid ? (
-                <p className="px-3 pb-2 text-xs text-destructive" id={sourceErrorId}>
+                <p
+                  className="px-inset pb-inset text-xs text-destructive"
+                  id={sourceErrorId}
+                >
                   {translate(locale, "sourceAmountInvalid")}
                 </p>
               ) : null}

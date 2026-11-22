@@ -84,9 +84,26 @@ export async function setChartColorSettings(settings: ChartColorSettings): Promi
 
 /**
  * Changes one direction's color, or clears it with null, keeping the stored choice for
- * the other direction, and returns the merged result.
+ * the other direction, and returns the merged result. Updates run one at a time, so
+ * saves arriving together from several popups do not read the same value and overwrite
+ * each other's direction.
  */
-export async function updateChartColor(
+export function updateChartColor(
+  direction: ChangeDirection,
+  color: string | null,
+): Promise<ChartColorSettings> {
+  const update = chartColorUpdateQueue.then(() => mergeChartColor(direction, color));
+  chartColorUpdateQueue = update.then(
+    () => undefined,
+    () => undefined,
+  );
+  return update;
+}
+
+let chartColorUpdateQueue: Promise<void> = Promise.resolve();
+
+/** Reads the stored choices, applies one direction's change, and writes them back. */
+async function mergeChartColor(
   direction: ChangeDirection,
   color: string | null,
 ): Promise<ChartColorSettings> {

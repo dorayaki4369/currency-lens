@@ -251,6 +251,29 @@ describe("chart color updates", () => {
     await expect(updateChartColor("down", null)).resolves.toEqual({ up: "#e3b63f" });
     expect(syncState).toEqual({ [CHART_COLORS_KEY]: { up: "#e3b63f" } });
   });
+
+  it("keeps both directions when two popups save at the same time", async () => {
+    const [up, down] = await Promise.all([
+      updateChartColor("up", "#e3b63f"),
+      updateChartColor("down", "#3b82f6"),
+    ]);
+
+    expect(up).toEqual({ up: "#e3b63f" });
+    expect(down).toEqual({ down: "#3b82f6", up: "#e3b63f" });
+    expect(syncState).toEqual({ [CHART_COLORS_KEY]: { down: "#3b82f6", up: "#e3b63f" } });
+  });
+
+  it("keeps applying later updates after one fails", async () => {
+    syncStorage.set.mockRejectedValueOnce(new Error("quota exceeded"));
+
+    const results = await Promise.allSettled([
+      updateChartColor("up", "#e3b63f"),
+      updateChartColor("down", "#3b82f6"),
+    ]);
+
+    expect(results.map((result) => result.status)).toEqual(["rejected", "fulfilled"]);
+    expect(syncState).toEqual({ [CHART_COLORS_KEY]: { down: "#3b82f6" } });
+  });
 });
 
 describe("rate storage", () => {

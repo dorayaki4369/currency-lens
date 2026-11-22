@@ -187,8 +187,8 @@ function NativeSelectFixture() {
 function SegmentedControlFixture() {
   const labelId = useId();
   return (
-    <Card spacing="flush">
-      <div className="flex items-center justify-between gap-4 px-3 py-2">
+    <Card>
+      <div className="flex items-center justify-between gap-4">
         <Label id={labelId}>テーマ</Label>
         <SegmentedControl aria-labelledby={labelId} defaultValue="light">
           <SegmentedControlItem value="system">システム</SegmentedControlItem>

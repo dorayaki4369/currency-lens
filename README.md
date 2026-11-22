@@ -83,15 +83,17 @@ mise exec -- pnpm install --frozen-lockfile
 
 ```dotenv
 API_ENDPOINT=http://localhost:8787
+RATE_SOURCE=mock
 OPEN_EXCHANGE_RATE_APP_ID=your-app-id
 ```
 
 | 変数                        | 用途                                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------------------- |
 | `API_ENDPOINT`              | 拡張機能が接続するレートAPIのベースURLです。拡張機能はこれに`/v1/latest`を付けて接続します。 |
-| `OPEN_EXCHANGE_RATE_APP_ID` | WorkerがOpen Exchange Ratesからレートを取得するためのApp IDです。                            |
+| `RATE_SOURCE`               | ローカルのWorkerがレートを取得する先です。`mock`（既定）か`live`を指定します。               |
+| `OPEN_EXCHANGE_RATE_APP_ID` | WorkerがOpen Exchange Ratesからレートを取得するためのApp IDです。`live`のときだけ使います。  |
 
-`.env`は必須ではありません。`.env`がない場合、開発サーバーは`API_ENDPOINT`をローカルWorkerの`http://localhost:8787`にして起動します。ただし、App IDがないためWorkerはレートを取得できず、ローカルのR2は空のままです。
+`.env`は必須ではありません。`.env`がない場合、開発サーバーは`API_ENDPOINT`をローカルWorkerの`http://localhost:8787`にして起動し、Workerはモックのレートを返します。モックとOpen Exchange Ratesの切り替えは[Workerのローカル開発](apps/server/README.md#ローカル開発)にあります。
 
 `pnpm build`と`pnpm validate`は`.env`を読みません。ローカルで実行するときは、`API_ENDPOINT=https://cl.dryk.net pnpm validate`のように値を直接渡します。GitHub Actionsでは、CIは本番のURL、ストア提出用のビルドはRepository variableの値を使います。
 
@@ -115,7 +117,7 @@ pnpm -C apps/browser-extension dev:firefox  # 拡張機能（Firefox）
 pnpm -C apps/server dev                     # Worker
 ```
 
-ローカルのWorkerは、R2に保存済みのレートを返します。レートを取得し直す手順は[Workerのローカル開発](apps/server/README.md#ローカル開発)にあります。
+ローカルのWorkerは、既定ではOpen Exchange Ratesへ接続せず、モックのレートを返します。API使用量を消費しないため、App IDがなくても換算を確かめられます。本物のレートを使う手順とレートを取得し直す手順は[Workerのローカル開発](apps/server/README.md#ローカル開発)にあります。
 
 ### コマンド
 

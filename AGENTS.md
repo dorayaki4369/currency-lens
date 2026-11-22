@@ -50,6 +50,8 @@ PDF、canvas、フォーム入力、ブラウザ内部ページ、クロスオ�
 
 `pnpm dev` は `.env` があれば読み込みます。
 `.env` がない場合や `API_ENDPOINT` が空の場合は、拡張機能の接続先をローカル Worker の `http://localhost:8787` にします。
+ローカル Worker は、`RATE_SOURCE=live` を指定しない限り、Open Exchange Rates ではなくローカルのモックからレートを取得します。
+動作確認のために本物の API へ接続する変更や手順を足すと API 使用量を消費するため、モックで確かめられることはモックで確かめます。
 `pnpm build` は環境ファイルを読まず、`API_ENDPOINT` が未設定ならエラーで止まります。
 
 環境ファイルを読むコマンドを追加するときは、`node --env-file-if-exists` のように読み込み先を明示します。

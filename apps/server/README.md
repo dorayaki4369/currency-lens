@@ -52,25 +52,28 @@ R2のデータが壊れている場合は、初回取得の処理で上書きし
 pnpm install --frozen-lockfile
 ```
 
-レートを取得するには、リポジトリ直下の`.env`にOpen Exchange RatesのApp IDを書きます。`pnpm -C apps/server dev`はこのファイルを読み込みます。
-
-```dotenv
-OPEN_EXCHANGE_RATE_APP_ID=your-app-id
-```
-
-`.env`がなくてもWorkerは起動しますが、App IDがないためレートを取得できず、ローカルのR2は空のままです。`apps/server`の中に`.env`や`.dev.vars`を置いても読み込みません。
-
 ```bash
 pnpm -C apps/server dev
 ```
 
-Workerは`http://localhost:8787`で起動し、本番と同じ処理でR2に保存済みのレートを返します。
+Workerは`http://localhost:8787`で起動し、本番と同じ処理でR2に保存済みのレートを返します。R2が空のときの初回取得と定期取得は、Open Exchange Ratesの代わりにローカルのモックへ接続します。モックは、拡張機能が対応する全通貨の固定レートを、提供時刻を現在時刻にして返します。レートは相場に近い概算値で、実際の相場には追従しません。
+
+モックで動かしている間は、Open Exchange RatesのAPI使用量を消費しません。`.env`に`OPEN_EXCHANGE_RATE_APP_ID`があってもWorkerへ渡さず、ダミーのApp IDを使います。モックのレートは`apps/server/scripts/mock-rates.ts`にあり、ローカルのR2も本物のレート用とは別の`.wrangler/mock-state`に保存します。
+
+本物のOpen Exchange Ratesへ接続するときは、リポジトリ直下の`.env`にApp IDと`RATE_SOURCE=live`を書きます。`pnpm dev`と`pnpm -C apps/server dev`はこのファイルを読み込みます。`apps/server`の中に`.env`や`.dev.vars`を置いても読み込みません。
+
+```dotenv
+RATE_SOURCE=live
+OPEN_EXCHANGE_RATE_APP_ID=your-app-id
+```
+
+一度だけ本物に接続する場合は、`RATE_SOURCE=live pnpm dev`のようにコマンドの前に付けます。`RATE_SOURCE`に`mock`と`live`以外の値を指定すると、Workerを起動せずにエラーで止まります。
 
 ```bash
 curl --fail-with-body http://localhost:8787/v1/latest
 ```
 
-ローカルではCronが自動で動かないため、レートを取得し直すときは次のリクエストで`scheduled`処理を手動で実行します。この入口は、開発コマンドに付けた`--test-scheduled`で有効になっています。
+ローカルではCronが自動で動かないため、レートを取得し直すときは次のリクエストで`scheduled`処理を手動で実行します。`RATE_SOURCE=live`のときは、このリクエストのたびにAPI使用量を消費します。この入口は、開発コマンドに付けた`--test-scheduled`で有効になっています。
 
 ```bash
 curl --fail-with-body "http://localhost:8787/__scheduled?cron=0+*+*+*+*"

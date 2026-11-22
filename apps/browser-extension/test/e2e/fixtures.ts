@@ -125,12 +125,12 @@ export async function saveScaledReviewScreenshot(
       format: "png",
     });
     await writeFile(`${reviewScreenshotDirectory}${name}.png`, Buffer.from(data, "base64"));
+  } finally {
     await devtools.send("Emulation.setDefaultBackgroundColorOverride", {});
     await page.evaluate(() => {
       document.documentElement.style.background = "";
       document.body.style.background = "";
     });
-  } finally {
     await devtools.detach();
   }
 }
@@ -138,6 +138,7 @@ export async function saveScaledReviewScreenshot(
 /**
  * Saves one element of an extension page enlarged with CSS zoom, on a transparent background.
  * The DevTools capture ignores the clip position on extension pages, so they are zoomed instead.
+ * The page keeps the zoom and the cleared backgrounds afterwards, so call this last on a page.
  */
 export async function saveZoomedReviewScreenshot(
   page: Page,

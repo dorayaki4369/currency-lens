@@ -1,5 +1,4 @@
-// Builds the 1280x800 store promo images of every UI locale from the integration and E2E
-// review screenshots.
+// Builds the 1280x800 store promo images of every UI locale from the E2E review screenshots.
 // Usage: node apps/browser-extension/store/promo-images.ts <serve|render>
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";

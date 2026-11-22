@@ -131,11 +131,11 @@ function createFakeBackground(initial: ChartColorSettings) {
   };
 }
 
-/** Renders the store with the palette it resolves for Japanese. */
+/** Renders the store with the palette it resolves. */
 function renderChartColors(preview?: ChartColorSettings) {
   return renderHook(
     () => ({
-      palette: useTrendPalette("ja"),
+      palette: useTrendPalette(),
       saveFailed: usePopupChartColors((state) => state.saveFailed),
       setColor: usePopupChartColors((state) => state.setColor),
       settings: usePopupChartColors((state) => state.settings),
@@ -160,7 +160,7 @@ describe("popup chart color store", () => {
       result.current.setColor("down", "#8b5cf6");
     });
     expect(result.current.settings).toEqual({ down: "#8b5cf6" });
-    expect(result.current.palette.up.line).toBe("var(--trend-red-line)");
+    expect(result.current.palette.up.line).toBe("var(--trend-green-line)");
     expect(sendMessage).not.toHaveBeenCalled();
   });
 

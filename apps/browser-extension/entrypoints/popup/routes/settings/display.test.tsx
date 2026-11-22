@@ -62,7 +62,7 @@ describe("popup display settings route", () => {
 });
 
 describe("chart color settings", () => {
-  it("changes each direction's color and returns it to the locale default", async () => {
+  it("changes each direction's color and returns it to the default", async () => {
     await renderPopup({ ...POPUP_PREVIEW, chartColors: { down: "#8b5cf6" }, locale: "ja" });
     await openDisplaySettings("設定を開く", "外観");
 
@@ -74,7 +74,7 @@ describe("chart color settings", () => {
     ).toBeDefined();
     const up = screen.getByRole("button", { name: "上昇の色を変える" });
     const down = screen.getByRole("button", { name: "下落の色を変える" });
-    expect(readDotColor(up)).toBe("var(--trend-red-line)");
+    expect(readDotColor(up)).toBe("var(--trend-green-line)");
     expect(readDotColor(down)).toBe("#8b5cf6");
 
     fireEvent.click(up);
@@ -93,10 +93,10 @@ describe("chart color settings", () => {
         .getAttribute("aria-pressed"),
     ).toBe("false");
     fireEvent.click(within(downPicker).getByRole("button", { name: "デフォルト" }));
-    await waitFor(() => expect(readDotColor(down)).toBe("var(--trend-blue-line)"));
+    await waitFor(() => expect(readDotColor(down)).toBe("var(--trend-red-line)"));
   });
 
-  it("uses green for rises and red for falls outside Japanese", async () => {
+  it("uses green for rises and red for falls in English as in Japanese", async () => {
     await renderPopup(POPUP_PREVIEW);
     await openDisplaySettings("Open settings", "Appearance");
 

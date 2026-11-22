@@ -15,6 +15,7 @@ import {
   resetPopupTestEnvironment,
   stubPopupBrowser,
 } from "@/test/popup";
+import { readAccessibleText } from "@/test/accessible-text";
 
 // Daily points carry their local date, so the dates below assume a fixed time zone.
 beforeEach(() => {
@@ -55,12 +56,10 @@ describe("popup rates route", () => {
         .getAllByRole("radio")
         .map((button) => button.textContent),
     ).toEqual(["1D", "5D", "1M", "6M", "YTD", "1Y"]);
-    expect(screen.getByText("Change against USD (past month)")).toBeDefined();
-    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-      "JPY+5.27%",
-      "EUR−3.37%",
-      "GBP+0.54%since 7/25",
-    ]);
+    expect(screen.getByText("Change against USD")).toBeDefined();
+    expect(screen.getAllByRole("listitem").map((item) => readAccessibleText(item))).toEqual(
+      ["JPY+5.27%", "EUR−3.37%", "GBP+0.54%since 7/25"],
+    );
     expect(
       screen.getByRole("slider", { name: "Change against USD chart, past month" }),
     ).toBeDefined();
@@ -84,11 +83,9 @@ describe("popup rates route", () => {
     fireEvent.click(screen.getByRole("radio", { name: "1D" }));
 
     await screen.findByRole("slider", { name: "Change against USD chart, past day" });
-    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-      "JPY−1.61%",
-      "EUR0.00%",
-      "GBPNo data",
-    ]);
+    expect(screen.getAllByRole("listitem").map((item) => readAccessibleText(item))).toEqual(
+      ["JPY−1.61%", "EUR0.00%", "GBPNo data"],
+    );
   });
 
   it("shows one cross rate with its change and switches to hourly history", async () => {
@@ -96,27 +93,29 @@ describe("popup rates route", () => {
     fireEvent.click(screen.getByRole("radio", { name: "JPY" }));
 
     const summary = document.querySelector('[data-slot="rate-summary"]');
-    expect(summary?.textContent).toContain("1 USD = 149.75 JPY");
-    expect(summary?.textContent).toContain("+7.50 (+5.27%) past month");
+    // The period pills already name the period, so the summary leaves it out.
+    expect(readAccessibleText(summary)).toBe("1 USD = 149.75 JPY +7.50 (+5.27%)");
     expect(
       screen.getByRole("slider", { name: "USD to JPY chart, past month" }),
     ).toBeDefined();
 
     fireEvent.click(screen.getByRole("radio", { name: "1D" }));
     expect(screen.getByRole("status", { name: "Loading rate history" })).toBeDefined();
+    // The last summary stays mounted while hourly history loads, so its numbers can roll on.
+    expect(document.querySelector('[data-slot="rate-summary"]')).toBe(summary);
+    expect(readAccessibleText(summary)).toContain("+7.50 (+5.27%)");
     await screen.findByRole("slider", { name: "USD to JPY chart, past day" });
-    expect(document.querySelector('[data-slot="rate-summary"]')?.textContent).toContain(
-      "−2.40 (−1.61%) past day",
-    );
+    expect(document.querySelector('[data-slot="rate-summary"]')).toBe(summary);
+    expect(readAccessibleText(summary)).toContain("−2.40 (−1.61%)");
 
     fireEvent.click(screen.getByRole("radio", { name: "GBP" }));
     expect(screen.getByText(/^Rate history isn’t available yet\./u)).toBeDefined();
     expect(document.querySelector('[data-slot="rate-summary"]')).toBeNull();
 
     fireEvent.click(screen.getByRole("radio", { name: "1M" }));
-    expect(document.querySelector('[data-slot="rate-summary"]')?.textContent).toContain(
-      "since 7/25",
-    );
+    expect(
+      readAccessibleText(document.querySelector('[data-slot="rate-summary"]')),
+    ).toMatch(/\) since 7\/25$/u);
   });
 
   it("keeps one period choice while a new resolution of history loads", async () => {
@@ -164,7 +163,7 @@ describe("popup rates route", () => {
     expect(
       screen.getByRole("radio", { name: "All currencies" }).getAttribute("aria-checked"),
     ).toBe("true");
-    expect(screen.getByText("Change against EUR (past month)")).toBeDefined();
+    expect(screen.getByText("Change against EUR")).toBeDefined();
 
     fireEvent.click(screen.getByRole("radio", { name: "Convert" }));
     expect(

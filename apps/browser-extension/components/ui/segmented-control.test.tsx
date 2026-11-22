@@ -112,7 +112,26 @@ describe("SegmentedControl", () => {
       </SegmentedControl>,
     );
     expect(group.className).toContain("h-7");
+    expect(group.className).toContain("inline-flex");
     expect(item.className).toContain("font-semibold");
+
+    rerender(
+      <SegmentedControl
+        aria-label="Screen"
+        defaultValue="a"
+        size="sm"
+        stretch
+        variant="pill"
+      >
+        <SegmentedControlItem value="a">A</SegmentedControlItem>
+      </SegmentedControl>,
+    );
+    // Pills keep a lighter type than the size's and share its 28px height.
+    expect(group.className).toContain("h-7");
+    expect(group.className).toContain("w-full");
+    expect(group.className).not.toContain("inline-flex");
+    expect(item.className).toContain("font-medium");
+    expect(item.className).not.toContain(" font-semibold");
 
     rerender(
       <SegmentedControl aria-label="Screen" defaultValue="a" size="lg" variant="pill">

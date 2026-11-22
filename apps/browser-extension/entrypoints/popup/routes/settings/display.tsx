@@ -17,11 +17,7 @@ import {
   usePopupChartColors,
   useTrendPalette,
 } from "@/entrypoints/popup/stores/chart-colors";
-import {
-  CHANGE_DIRECTIONS,
-  getDefaultTrendColor,
-  getTrendColorScheme,
-} from "@/lib/trend-colors";
+import { CHANGE_DIRECTIONS, getDefaultTrendColor } from "@/lib/trend-colors";
 
 export const Route = createFileRoute("/settings/display")({
   component: DisplaySettingsRoute,
@@ -99,8 +95,7 @@ function ChartColorSettingsRow({ locale }: { readonly locale: UiLocale }) {
   const settings = usePopupChartColors((state) => state.settings);
   const saveFailed = usePopupChartColors((state) => state.saveFailed);
   const setColor = usePopupChartColors((state) => state.setColor);
-  const palette = useTrendPalette(locale);
-  const scheme = getTrendColorScheme(locale);
+  const palette = useTrendPalette();
 
   return (
     <Stack className="px-3 py-3.5" gap={2}>
@@ -112,7 +107,7 @@ function ChartColorSettingsRow({ locale }: { readonly locale: UiLocale }) {
       </Stack>
       <div className="grid grid-cols-2 gap-2">
         {CHANGE_DIRECTIONS.map((direction) => {
-          const fallback = getDefaultTrendColor(direction, scheme);
+          const fallback = getDefaultTrendColor(direction);
           return (
             <TrendColorPicker
               color={palette[direction].line}

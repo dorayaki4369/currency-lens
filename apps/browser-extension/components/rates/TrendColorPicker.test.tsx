@@ -146,9 +146,9 @@ describe("TrendColorPicker", () => {
   it("anchors the fall picker to the card's end", async () => {
     render(
       <TrendColorPicker
-        color="var(--trend-blue-line)"
-        defaultColor="var(--trend-blue-line)"
-        defaultHex="#3b82f6"
+        color="var(--trend-red-line)"
+        defaultColor="var(--trend-red-line)"
+        defaultHex="#ef4444"
         direction="down"
         locale="ja"
         onColorChange={() => undefined}

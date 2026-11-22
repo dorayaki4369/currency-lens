@@ -90,6 +90,23 @@ describe("popup route motion", () => {
     await nextFrames(2);
     expect(screenTransitions).toEqual([]);
   });
+
+  it("rolls the rate summary's numbers when the period changes, also across a load", async () => {
+    await openPopupScreen();
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await userEvent.click(page.getByRole("radio", { name: "EUR", exact: true }));
+    const summary = await waitForElement('[data-slot="rate-summary"]');
+
+    // Six months still reads daily history, so the numbers roll at once.
+    await userEvent.click(page.getByRole("radio", { name: "6か月", exact: true }));
+    await expect.poll(() => readRollingGlyphAnimations(summary)).toBeGreaterThan(0);
+
+    // One day needs hourly history; the summary waits for it and then rolls.
+    await userEvent.click(page.getByRole("radio", { name: "1日", exact: true }));
+    await expect.element(page.getByRole("slider")).toHaveAccessibleName(/過去1日/u);
+    expect(requireElement('[data-slot="rate-summary"]')).toBe(summary);
+    await expect.poll(() => readRollingGlyphAnimations(summary)).toBeGreaterThan(0);
+  });
 });
 
 describe("conversion layout", () => {
@@ -1012,4 +1029,11 @@ function recordTransitionProperties(element: Element): string[] {
     }
   });
   return properties;
+}
+
+/** Counts the running roll animations of a subtree's incoming number glyphs. */
+function readRollingGlyphAnimations(root: Element): number {
+  return [...root.querySelectorAll('[data-slot="animated-number-incoming"]')].flatMap(
+    (glyph) => glyph.getAnimations(),
+  ).length;
 }

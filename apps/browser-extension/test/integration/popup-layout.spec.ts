@@ -210,6 +210,51 @@ describe("popup layout", () => {
     expectEdge(periodChoice.thumb.top - periodChoice.group.top, 2);
   });
 
+  it("keeps the right axis one left-aligned column of fixed width per chart mode", async () => {
+    await openPopupScreen();
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(3);
+    const percentAxis = expectAlignedRightAxis();
+
+    // Periods change how many digits the changes have; the column must not follow them.
+    for (const period of ["1日", "5日", "6か月", "YTD", "1年"]) {
+      /* eslint-disable no-await-in-loop */
+      await userEvent.click(page.getByRole("radio", { name: period, exact: true }));
+      await expect
+        .element(page.getByRole("slider"))
+        .toHaveAccessibleName(new RegExp(`過去${period}|${period}`, "u"));
+      /* eslint-enable no-await-in-loop */
+      expectEdge(expectAlignedRightAxis(), percentAxis);
+    }
+
+    await userEvent.click(page.getByRole("radio", { name: "JPY", exact: true }));
+    await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(1);
+    const rateAxis = expectAlignedRightAxis();
+    await userEvent.click(page.getByRole("radio", { name: "EUR", exact: true }));
+    await expect.element(page.getByRole("slider")).toHaveAccessibleName(/EUR/u);
+    expectEdge(expectAlignedRightAxis(), rateAxis);
+  });
+
+  it("ends every block of the rate card 12px inside both card edges", async () => {
+    for (const history of ["data", "loading", "empty", "error"] as const) {
+      for (const width of [420, 320]) {
+        // Each state and width mounts a fresh popup, so the checks must run in order.
+        /* eslint-disable no-await-in-loop */
+        await setViewport({ height: 600, width });
+        await openPopupScreen({ history });
+        await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+        await expect.poll(() => queryAll('[data-slot="rate-card"]').length).toBe(1);
+        if (history === "data") {
+          await expect.poll(() => queryAll('[data-slot="rate-chart-tag"]').length).toBe(3);
+        }
+        /* eslint-enable no-await-in-loop */
+        expectRateCardInsetsEven();
+      }
+    }
+    await userEvent.click(page.getByRole("radio", { name: "JPY", exact: true }));
+    expectRateCardInsetsEven();
+  });
+
   it("keeps the rate chart, its axis tags, and the legend inside the card", async () => {
     for (const width of [420, 320]) {
       // Each width mounts a fresh popup, so the checks must run in order.
@@ -495,4 +540,52 @@ function requireSegmentedBounds(groupName: string): { group: DOMRect; thumb: DOM
       group,
     ).getBoundingClientRect(),
   };
+}
+
+/**
+ * Checks that every axis tag spans the same width and that tag and tick text start at one x,
+ * then returns the axis column's width.
+ */
+function expectAlignedRightAxis(): number {
+  const axis = requireElement('[data-slot="rate-chart-y-axis"]');
+  const tags = queryAll('[data-slot="rate-chart-tag"]');
+  const ticks = [...axis.querySelectorAll<HTMLElement>(":scope > span:not([data-slot])")];
+  expect(ticks.length).toBeGreaterThan(0);
+  const tagWidths = tags.map((tag) => tag.getBoundingClientRect().width);
+  for (const width of tagWidths) {
+    expectEdge(width, tagWidths[0]!);
+  }
+  const tickStart = readTextStart(ticks[0]!);
+  for (const label of [...tags, ...ticks]) {
+    expectEdge(readTextStart(label), tickStart);
+  }
+  return axis.getBoundingClientRect().width;
+}
+
+/** Measures where an element's text begins, inside any padding. */
+function readTextStart(element: Element): number {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return range.getBoundingClientRect().left;
+}
+
+/** Checks that the rate card's blocks and axis tags keep a 12px inset on both sides. */
+function expectRateCardInsetsEven(): void {
+  const card = requireElement('[data-slot="rate-card"]');
+  const style = getComputedStyle(card);
+  const bounds = card.getBoundingClientRect();
+  const contentLeft = bounds.left + Number.parseFloat(style.borderLeftWidth) + 12;
+  const contentRight = bounds.right - Number.parseFloat(style.borderRightWidth) - 12;
+  const blocks = [...card.children].filter(
+    (child) => child.getBoundingClientRect().height > 0,
+  );
+  expect(blocks.length).toBeGreaterThan(1);
+  for (const block of blocks) {
+    const blockBounds = block.getBoundingClientRect();
+    expectEdge(blockBounds.left, contentLeft);
+    expectEdge(blockBounds.right, contentRight);
+  }
+  for (const tag of queryAll('[data-slot="rate-chart-tag"]')) {
+    expectEdge(tag.getBoundingClientRect().right, contentRight);
+  }
 }

@@ -1,8 +1,7 @@
 import { z } from "zod/v4";
-import type { TranslationKey, UiLocale } from "@/lib/i18n";
+import type { TranslationKey } from "@/lib/i18n";
 import type { TrendDirection } from "@/lib/rate-series";
 
-export type TrendColorScheme = "green-up" | "red-up";
 export type ChangeDirection = Exclude<TrendDirection, "flat">;
 
 export const CHANGE_DIRECTIONS = [
@@ -31,7 +30,7 @@ export const hexColorSchema = z
   .regex(/^#[\da-f]{6}$/iu)
   .transform((value) => value.toLowerCase());
 
-/** User choices per direction; a missing direction keeps the locale default. */
+/** User choices per direction; a missing direction keeps the default. */
 export const chartColorSettingsSchema = z.object({
   down: hexColorSchema.optional(),
   up: hexColorSchema.optional(),
@@ -70,7 +69,6 @@ const BLACK = "#000000";
 
 // Default values reference theme tokens in assets/style.css so both themes apply.
 const RED = createThemeTrendColor("red", "#ef4444");
-const BLUE = createThemeTrendColor("blue", "#3b82f6");
 const GREEN = createThemeTrendColor("green", "#22c55e");
 const FLAT: TrendColor = {
   accent: "var(--trend-flat-text)",
@@ -78,48 +76,35 @@ const FLAT: TrendColor = {
   tag: "var(--trend-flat-tag)",
   tagText: WHITE,
 };
+// Rises are green and falls red in every language until the user picks other colors.
 const DEFAULT_COLORS = {
-  "green-up": { down: RED, up: GREEN },
-  "red-up": { down: BLUE, up: RED },
-} as const satisfies Record<TrendColorScheme, Record<ChangeDirection, DefaultTrendColor>>;
+  down: RED,
+  up: GREEN,
+} as const satisfies Record<ChangeDirection, DefaultTrendColor>;
 
 interface DefaultTrendColor extends TrendColor {
   /** The light-theme line color, used to match a default against the swatches. */
   readonly hex: string;
 }
 
-/** Series colors for the ALL view, kept clear of the red, blue, and green trend colors. */
+/** Series colors for the ALL view, kept clear of the green and red trend colors. */
 export const RATE_SERIES_COLORS: readonly ChartColor[] = [1, 2, 3, 4, 5].map((slot) => ({
   line: `var(--rate-series-${String(slot)}-line)`,
   tag: `var(--rate-series-${String(slot)}-tag)`,
   tagText: WHITE,
 }));
 
-/**
- * Chooses the reader's convention for rises and falls: red up and blue down in Japan,
- * green up and red down elsewhere.
- */
-export function getTrendColorScheme(locale: UiLocale): TrendColorScheme {
-  return locale === "ja" ? "red-up" : "green-up";
-}
-
-/** Returns the locale default for one direction, before any user choice. */
-export function getDefaultTrendColor(
-  direction: ChangeDirection,
-  scheme: TrendColorScheme,
-): DefaultTrendColor {
-  return DEFAULT_COLORS[scheme][direction];
+/** Returns the default for one direction, before any user choice. */
+export function getDefaultTrendColor(direction: ChangeDirection): DefaultTrendColor {
+  return DEFAULT_COLORS[direction];
 }
 
 /** Resolves the colors for every direction, applying the user's choices over the defaults. */
-export function getTrendPalette(
-  scheme: TrendColorScheme,
-  settings: ChartColorSettings = {},
-): TrendPalette {
+export function getTrendPalette(settings: ChartColorSettings = {}): TrendPalette {
   return {
-    down: resolveTrendColor(settings.down, getDefaultTrendColor("down", scheme)),
+    down: resolveTrendColor(settings.down, getDefaultTrendColor("down")),
     flat: FLAT,
-    up: resolveTrendColor(settings.up, getDefaultTrendColor("up", scheme)),
+    up: resolveTrendColor(settings.up, getDefaultTrendColor("up")),
   };
 }
 

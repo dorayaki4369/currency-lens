@@ -20,6 +20,7 @@ import {
 } from "@/lib/chart-geometry";
 import { translate, type UiLocale } from "@/lib/i18n";
 import {
+  formatAxisWidthSample,
   formatChartTick,
   formatChartTime,
   formatRate,
@@ -67,6 +68,8 @@ interface CursorDetails {
 
 interface ChartModel {
   readonly axis: AxisLayout;
+  /** The widest label the axis reserves room for in this mode. */
+  readonly axisWidthSample: string;
   readonly describe: (index: number) => CursorDetails;
   readonly emptyRanges: readonly { readonly left: number; readonly width: number }[];
   readonly scale: ChartScale;
@@ -163,7 +166,7 @@ export function RateChart({ area, label, locale, mode, period, series }: RateCha
           </svg>
           {cursorIndex === null ? null : <ChartCursor details={current} width={width} />}
         </div>
-        <AxisLabels axis={model.axis} />
+        <AxisLabels axis={model.axis} widthSample={model.axisWidthSample} />
       </div>
       <div
         aria-hidden="true"
@@ -257,6 +260,7 @@ function createChartModel({
     ),
     valueLists,
     zeroY: mode === "percent" && scale.min < 0 && scale.max > 0 ? scale.y(0) : null,
+    axisWidthSample: formatAxisWidthSample(mode, locale),
   };
 }
 
@@ -427,8 +431,18 @@ function ChartCursor({
   );
 }
 
-/** Renders tick labels and latest-value tags; hidden copies size the column to fit. */
-function AxisLabels({ axis }: { readonly axis: AxisLayout }) {
+/**
+ * Renders tick labels and latest-value tags in one left-aligned column. Hidden copies size
+ * the column: the mode's width sample keeps it constant, and a longer label widens it.
+ * Every tag spans the column, so tags share one width and their text starts where ticks do.
+ */
+function AxisLabels({
+  axis,
+  widthSample,
+}: {
+  readonly axis: AxisLayout;
+  readonly widthSample: string;
+}) {
   return (
     <div
       aria-hidden="true"
@@ -436,6 +450,7 @@ function AxisLabels({ axis }: { readonly axis: AxisLayout }) {
       data-slot="rate-chart-y-axis"
     >
       <div className="invisible flex h-0 flex-col overflow-hidden pr-1 pl-2 font-semibold">
+        <span className="whitespace-nowrap">{widthSample}</span>
         {[...axis.ticks, ...axis.tags].map((item) => (
           <span className="whitespace-nowrap" key={`${item.text}-${String(item.top)}`}>
             {item.text}
@@ -453,7 +468,7 @@ function AxisLabels({ axis }: { readonly axis: AxisLayout }) {
       ))}
       {axis.tags.map((tag) => (
         <span
-          className="absolute left-0.5 flex h-4.5 items-center rounded-[0.1875rem] px-1 font-semibold whitespace-nowrap"
+          className="absolute right-0 left-0.5 flex h-4.5 items-center rounded-[0.1875rem] px-1 font-semibold whitespace-nowrap"
           data-slot="rate-chart-tag"
           key={`${tag.text}-${String(tag.top)}`}
           style={{ backgroundColor: tag.color, color: tag.textColor, top: tag.top }}

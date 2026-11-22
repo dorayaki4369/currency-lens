@@ -19,6 +19,7 @@ import {
   type RatePeriod,
 } from "@/lib/rate-series";
 import { getRateSeriesColor, type TrendPalette } from "@/lib/trend-colors";
+import { useHeldAmount } from "@/components/conversion/ConvertedAmount";
 import { RateTimestamp } from "@/components/conversion/RateTimestamp";
 import { CurrencyCombobox } from "@/components/currency/CurrencyCombobox";
 import { SectionHeader } from "@/components/layout/SectionHeader";
@@ -170,16 +171,16 @@ function RatesScreen({
           reserveActionHeight
           title={translate(locale, "ratesHeading")}
         />
-        <Card className="gap-3 py-3 pr-1.5 pl-3" data-slot="rate-card" spacing="none">
+        <Card data-slot="rate-card" spacing="panel">
           {lineCurrencies.length === 0 ? (
-            <p className="pr-1.5 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {translate(locale, "rateHistoryNoTargets", { base: baseCurrency })}
             </p>
           ) : (
             <>
               <SegmentedControl
                 aria-label={translate(locale, "ratesCurrencyGroup")}
-                className="mr-1.5 flex"
+                stretch
                 onValueChange={selectSegmentedOption<RateChartSelection>(
                   [ALL_SELECTION, ...lineCurrencies],
                   onSelectionChange,
@@ -251,14 +252,14 @@ function RatePanel({
   period,
   selection,
 }: RatePanelProps) {
-  const palette = useTrendPalette(locale);
+  const palette = useTrendPalette();
   const periodSelector = (
     <SegmentedControl
       aria-label={translate(locale, "ratesPeriodGroup")}
-      // As tall as the currency choice above it, while keeping the period labels' type.
-      className="mr-1.5 flex h-7"
       onValueChange={selectSegmentedOption(RATE_PERIODS, onPeriodChange)}
       value={period}
+      size="sm"
+      stretch
       variant="pill"
     >
       {RATE_PERIODS.map((value) => (
@@ -272,8 +273,9 @@ function RatePanel({
     return (
       <RatePanelLayout
         body={<RateChartSkeleton locale={locale} />}
+        loading
         periodSelector={periodSelector}
-        summary={<RateSummarySkeleton />}
+        summary={null}
       />
     );
   }
@@ -281,7 +283,7 @@ function RatePanel({
     return (
       <RatePanelLayout
         body={
-          <Alert className="mr-1.5" variant="destructive">
+          <Alert variant="destructive">
             <AlertDescription>
               <p>{translate(locale, "rateHistoryError")}</p>
               <Button
@@ -339,18 +341,27 @@ function RatePanel({
 
 interface RatePanelLayoutProps {
   readonly body: ReactNode;
+  /** History for the period is on its way; the last summary stays until it arrives. */
+  readonly loading?: boolean | undefined;
   readonly periodSelector: ReactNode;
   readonly summary: ReactNode;
 }
 
 /**
- * Places the period choice at the same position in every history state, so React keeps
- * one instance and its thumb slides while a new resolution loads.
+ * Places the summary and the period choice at the same positions in every history state, so
+ * React keeps their instances: the period thumb slides, and the summary's numbers roll from
+ * the last shown period to the new one even when a new resolution has to load first.
  */
-function RatePanelLayout({ body, periodSelector, summary }: RatePanelLayoutProps) {
+function RatePanelLayout({
+  body,
+  loading = false,
+  periodSelector,
+  summary,
+}: RatePanelLayoutProps) {
+  const heldSummary = useHeldAmount<ReactNode>(summary, loading ? "pending" : "settled");
   return (
     <>
-      {summary}
+      {heldSummary.amount ?? (loading ? <RateSummarySkeleton /> : null)}
       {periodSelector}
       {body}
     </>
@@ -425,7 +436,7 @@ function createRateView({
           palette={palette}
           currencyCode={selection}
           locale={locale}
-          periodLabel={describeStart(change) ?? periodText}
+          sinceLabel={describeStart(change)}
         />
       ),
     };
@@ -449,10 +460,7 @@ function createRateView({
     })),
     summary: (
       <RateChangeLegend
-        caption={translate(locale, "ratesAllCaption", {
-          base: baseCurrency,
-          period: periodText,
-        })}
+        caption={translate(locale, "ratesAllCaption", { base: baseCurrency })}
         palette={palette}
         items={seriesByCurrency.map((item) => {
           const change = getRateChange(item.rates);
@@ -473,7 +481,7 @@ function createRateView({
 function RateHistoryEmpty({ locale }: { readonly locale: UiLocale }) {
   return (
     <p
-      className="mr-1.5 flex h-31 items-center justify-center rounded-lg border border-dashed px-4 text-center text-sm text-muted-foreground"
+      className="flex h-31 items-center justify-center rounded-lg border border-dashed px-4 text-center text-sm text-muted-foreground"
       data-slot="rate-history-empty"
     >
       {translate(locale, "rateHistoryEmpty")}
@@ -484,7 +492,7 @@ function RateHistoryEmpty({ locale }: { readonly locale: UiLocale }) {
 /** Keeps the summary's footprint while history loads. */
 function RateSummarySkeleton() {
   return (
-    <Stack aria-hidden="true" className="mr-1.5" gap={1.5}>
+    <Stack aria-hidden="true" gap={1.5}>
       <Skeleton className="h-7 w-40" />
       <Skeleton className="h-4 w-48" />
     </Stack>
@@ -494,11 +502,7 @@ function RateSummarySkeleton() {
 /** Keeps the chart's footprint while history loads. */
 function RateChartSkeleton({ locale }: { readonly locale: UiLocale }) {
   return (
-    <div
-      aria-label={translate(locale, "rateHistoryLoading")}
-      className="mr-1.5"
-      role="status"
-    >
+    <div aria-label={translate(locale, "rateHistoryLoading")} role="status">
       <Skeleton className="h-31 w-full" />
     </div>
   );

@@ -187,7 +187,7 @@ function TargetSparkline({
   sourceCurrency,
 }: TargetTrendProps & { readonly sourceCurrency: CurrencyCode }) {
   const popup = usePopupApplicationContext();
-  const palette = useTrendPalette(popup.locale);
+  const palette = useTrendPalette();
   const setRateSelection = usePopupRateHistory((state) => state.setSelection);
   const navigate = useNavigate();
   const symbols = useMemo(

@@ -18,4 +18,12 @@ describe("Card", () => {
 
     expect(screen.getByLabelText("Settings card").textContent).toContain("Theme controls");
   });
+
+  it("insets a panel's blocks on every side", () => {
+    render(<Card aria-label="Rates card" spacing="panel" />);
+
+    expect(screen.getByLabelText("Rates card").className).toContain(
+      "px-(--card-padding-x)",
+    );
+  });
 });

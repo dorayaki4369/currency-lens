@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  formatAxisWidthSample,
   formatChangeStart,
   formatChartTick,
   formatChartTime,
@@ -27,6 +28,15 @@ describe("rate numbers", () => {
     expect(formatSignedRate(-0.001, "en", 2)).toBe("0.00");
     expect(formatSignedPercent(3.714, "ja")).toBe("+3.71%");
     expect(formatSignedPercent(-2.34, "en", 1)).toBe("−2.3%");
+  });
+});
+
+describe("axis width samples", () => {
+  it("reserves two-digit changes for percent charts and rates below 100,000", () => {
+    expect(formatAxisWidthSample("percent", "en")).toBe("−88.88%");
+    expect(formatAxisWidthSample("percent", "ja")).toBe("−88.88%");
+    expect(formatAxisWidthSample("rate", "en")).toBe("88,888.88");
+    expect(formatAxisWidthSample("rate", "ja")).toBe("88,888.88");
   });
 });
 

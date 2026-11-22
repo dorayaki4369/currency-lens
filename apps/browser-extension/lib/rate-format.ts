@@ -55,6 +55,19 @@ export function formatSignedPercent(
   return `${formatSignedRate(value, locale, fractionDigits)}%`;
 }
 
+/**
+ * Returns the widest right-axis label a chart mode reserves room for, so the axis and its
+ * tags keep one width while values, periods, and selections change. Percent charts fit
+ * two-digit changes such as −12.34%; rate charts fit rates below 100,000 with two decimals,
+ * such as 42,050.00. Wider labels widen only the chart that has them.
+ */
+export function formatAxisWidthSample(mode: "percent" | "rate", locale: UiLocale): string {
+  // With tabular numerals every digit is as wide as 8, so the sample is the widest such label.
+  return mode === "percent"
+    ? formatSignedPercent(-88.88, locale)
+    : formatRate(88_888.88, locale, 2);
+}
+
 /** Formats an x-axis label at the granularity that suits the period. */
 export function formatChartTick(
   time: number,

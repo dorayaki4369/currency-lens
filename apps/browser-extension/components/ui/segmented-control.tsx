@@ -19,16 +19,19 @@ interface SegmentedControlAppearance {
 
 // "track" sits the choices on a filled track; "pill" floats them, for a quieter choice
 // such as a period. Sizes set the height and type: "sm" inside cards, "lg" for screens.
+// Both variants inset the choices and the thumb 2px from the top and bottom, so a size
+// gives every variant the same height.
 const ROOT_CLASS_NAMES = {
-  pill: "gap-1 py-0.5",
-  track: "gap-0.5 rounded-md bg-muted p-0.5 dark:bg-background",
+  pill: "gap-1",
+  track: "gap-0.5 rounded-md bg-muted px-0.5 dark:bg-background",
 } as const satisfies Record<SegmentedControlVariant, string>;
 const THUMB_CLASS_NAMES = {
-  pill: "top-0.5 bottom-0.5 rounded-full border border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-700",
-  track: "top-0.5 bottom-0.5 rounded-sm bg-card shadow-sm dark:bg-muted",
+  pill: "rounded-full border border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-700",
+  track: "rounded-sm bg-card shadow-sm dark:bg-muted",
 } as const satisfies Record<SegmentedControlVariant, string>;
+// Pills read lighter than the size's type and only bolden the checked choice.
 const ITEM_CLASS_NAMES = {
-  pill: "rounded-full px-1 data-[state=checked]:font-semibold",
+  pill: "rounded-full px-1 font-medium data-[state=checked]:font-semibold",
   track: "rounded-sm",
 } as const satisfies Record<SegmentedControlVariant, string>;
 const HEIGHT_CLASS_NAMES = {
@@ -51,13 +54,17 @@ type SegmentedControlProps = Omit<
   ComponentProps<typeof RadioGroupPrimitive.Root>,
   "orientation" | "ref"
 > &
-  Partial<SegmentedControlAppearance>;
+  Partial<SegmentedControlAppearance> & {
+    /** Spans the available width and shares it among the choices. */
+    readonly stretch?: boolean | undefined;
+  };
 
 /** Lays out a single-choice radio group as one track with a thumb that slides to the choice. */
 function SegmentedControl({
   children,
   className,
   size = "default",
+  stretch = false,
   variant = "track",
   ...props
 }: SegmentedControlProps) {
@@ -71,7 +78,8 @@ function SegmentedControl({
       data-slot="segmented-control"
       data-variant={variant}
       className={cn(
-        "relative inline-flex items-stretch text-muted-foreground",
+        "relative items-stretch py-0.5 text-muted-foreground",
+        stretch ? "flex w-full" : "inline-flex",
         HEIGHT_CLASS_NAMES[size],
         ROOT_CLASS_NAMES[variant],
         className,
@@ -83,7 +91,7 @@ function SegmentedControl({
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute left-0 motion-safe:transition-[translate,width] motion-safe:duration-200 motion-safe:ease-out",
+          "pointer-events-none absolute top-0.5 bottom-0.5 left-0 motion-safe:transition-[translate,width] motion-safe:duration-200 motion-safe:ease-out",
           THUMB_CLASS_NAMES[variant],
         )}
         data-slot="segmented-control-thumb"

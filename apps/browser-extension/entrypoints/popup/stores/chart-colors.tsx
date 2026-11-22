@@ -8,11 +8,9 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
-import type { UiLocale } from "@/lib/i18n";
 import { messageTypes, sendMessage } from "@/lib/messages";
 import { CHART_COLORS_KEY, parseStoredChartColorSettings } from "@/lib/storage";
 import {
-  getTrendColorScheme,
   getTrendPalette,
   type ChangeDirection,
   type ChartColorSettings,
@@ -65,13 +63,10 @@ export function usePopupChartColors<Selected>(
   return useStore(store, selector);
 }
 
-/** Resolves the rise, fall, and flat colors for the UI locale and the user's choices. */
-export function useTrendPalette(locale: UiLocale): TrendPalette {
+/** Resolves the rise, fall, and flat colors from the defaults and the user's choices. */
+export function useTrendPalette(): TrendPalette {
   const settings = usePopupChartColors((state) => state.settings);
-  return useMemo(
-    () => getTrendPalette(getTrendColorScheme(locale), settings),
-    [locale, settings],
-  );
+  return useMemo(() => getTrendPalette(settings), [settings]);
 }
 
 /** Creates one popup's chart color store and its storage synchronization. */

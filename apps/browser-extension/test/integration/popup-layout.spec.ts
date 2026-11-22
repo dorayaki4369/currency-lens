@@ -343,6 +343,8 @@ describe("popup layout", () => {
     const popup = requireElement('[data-slot="popup-root"]');
     expect(popup.scrollWidth > popup.clientWidth).toBe(false);
     expectTargetIdentitiesReadable(5);
+    // The container query drops the trend column once a row is narrower than its em width.
+    expect(queryAll('[data-slot="sparkline"]').filter(isRendered)).toHaveLength(0);
     await saveReviewScreenshot("popup-narrow-target-editing");
   });
 
@@ -467,52 +469,69 @@ describe("popup layout", () => {
       .toHaveFocus();
   });
 
-  it("anchors the chart color picker below each card inside the popup", async () => {
-    await openPopupScreen();
-    await userEvent.click(page.getByRole("button", { name: "設定を開く" }));
-    await userEvent.click(page.getByRole("button", { name: "外観" }));
-    const popup = requireElement('[data-slot="popup-root"]').getBoundingClientRect();
+  it.each([420, 320])(
+    "anchors the chart color picker below each card inside a %ipx-wide popup",
+    async (width) => {
+      await setViewport({ height: 600, width });
+      await openPopupScreen();
+      await userEvent.click(page.getByRole("button", { name: "設定を開く" }));
+      await userEvent.click(page.getByRole("button", { name: "外観" }));
+      await expect
+        .element(page.getByRole("button", { name: "下落の色を変える" }))
+        .toBeVisible();
+      const popupRoot = requireElement('[data-slot="popup-root"]');
+      const popup = popupRoot.getBoundingClientRect();
+      expect(popupRoot.scrollWidth > popupRoot.clientWidth).toBe(false);
+      expectChartColorCardsSideBySide();
 
-    for (const [name, edge] of [
-      ["上昇", "left"],
-      ["下落", "right"],
-    ] as const) {
-      // Each picker closes before the next opens, so the checks run in order.
-      /* eslint-disable no-await-in-loop */
-      const card = page.getByRole("button", { name: `${name}の色を変える` });
-      await userEvent.click(card);
-      const picker = page.getByRole("dialog", { name: `${name}の色` });
-      await expect.element(picker).toBeVisible();
-      const cardBounds = card.element().getBoundingClientRect();
-      const bounds = picker.element().getBoundingClientRect();
-      // Six swatches 0.75rem apart plus 0.875rem of padding and the border, at 1:√2.
-      expectEdge(bounds.width, rem(14.625));
-      expectEdge(bounds.height, rem(14.625) / Math.SQRT2);
-      expectEdge(bounds.top - cardBounds.bottom, 6);
-      expectEdge(bounds[edge], cardBounds[edge]);
-      expect(bounds.left).toBeGreaterThanOrEqual(popup.left);
-      expect(bounds.right).toBeLessThanOrEqual(popup.right);
-      const swatchTops = new Set(
-        queryAll('[data-slot="trend-color-swatch"]').map((swatch) =>
-          Math.round(swatch.getBoundingClientRect().top),
-        ),
-      );
-      expect(swatchTops.size).toBe(3);
-      await userEvent.keyboard("{Escape}");
-      await expect.element(picker).not.toBeInTheDocument();
-      await expect.element(card).toHaveFocus();
+      for (const [name, edge] of [
+        ["上昇", "left"],
+        ["下落", "right"],
+      ] as const) {
+        // Each picker closes before the next opens, so the checks run in order.
+        /* eslint-disable no-await-in-loop */
+        const card = page.getByRole("button", { name: `${name}の色を変える` });
+        await userEvent.click(card);
+        const picker = page.getByRole("dialog", { name: `${name}の色` });
+        await expect.element(picker).toBeVisible();
+        const cardBounds = card.element().getBoundingClientRect();
+        const bounds = picker.element().getBoundingClientRect();
+        // Six swatches 0.75rem apart plus 0.875rem of padding and the border, at 1:√2.
+        expectEdge(bounds.width, rem(14.625));
+        expectEdge(bounds.height, rem(14.625) / Math.SQRT2);
+        expectEdge(bounds.top - cardBounds.bottom, 6);
+        expectEdge(bounds[edge], cardBounds[edge]);
+        expect(bounds.left).toBeGreaterThanOrEqual(popup.left);
+        expect(bounds.right).toBeLessThanOrEqual(popup.right);
+        const swatchTops = new Set(
+          queryAll('[data-slot="trend-color-swatch"]').map((swatch) =>
+            Math.round(swatch.getBoundingClientRect().top),
+          ),
+        );
+        expect(swatchTops.size).toBe(3);
+        const defaultButton = picker.getByRole("button", { name: "デフォルト" }).element();
+        expect(defaultButton.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+          bounds.bottom,
+        );
+        if (width === 320) {
+          await saveReviewScreenshot(`popup-narrow-chart-color-picker-${edge}`);
+        }
+        await userEvent.keyboard("{Escape}");
+        await expect.element(picker).not.toBeInTheDocument();
+        await expect.element(card).toHaveFocus();
 
-      // A click outside also closes it, and focus returns to the card, not the click target.
-      await userEvent.click(card);
-      await expect.element(picker).toBeVisible();
-      await userEvent.click(
-        page.getByText("Currency Lens の表示テーマとチャートの色を選びます。"),
-      );
-      await expect.element(picker).not.toBeInTheDocument();
-      await expect.element(card).toHaveFocus();
-      /* eslint-enable no-await-in-loop */
-    }
-  });
+        // A click outside also closes it, and focus returns to the card, not the click target.
+        await userEvent.click(card);
+        await expect.element(picker).toBeVisible();
+        await userEvent.click(
+          page.getByText("Currency Lens の表示テーマとチャートの色を選びます。"),
+        );
+        await expect.element(picker).not.toBeInTheDocument();
+        await expect.element(card).toHaveFocus();
+        /* eslint-enable no-await-in-loop */
+      }
+    },
+  );
 
   it("scales with enlarged text and stays usable on a narrow screen", async () => {
     await setViewport({ height: 700, width: 520 });
@@ -675,6 +694,24 @@ function expectTargetIdentitiesReadable(rowCount: number): void {
 /** Tells whether an element takes part in the layout rather than being hidden. */
 function isRendered(element: HTMLElement): boolean {
   return element.checkVisibility();
+}
+
+/** Verifies the up and down color cards share one row without overlapping or clipping. */
+function expectChartColorCardsSideBySide(): void {
+  const cards = queryAll('[data-slot="trend-color-card"]');
+  expect(cards).toHaveLength(2);
+  const [up, down] = cards.map((card) => card.getBoundingClientRect());
+  expectEdge(up!.top, down!.top);
+  expect(up!.right).toBeLessThanOrEqual(down!.left);
+  for (const card of cards) {
+    const bounds = card.getBoundingClientRect();
+    for (const part of card.children) {
+      const partBounds = part.getBoundingClientRect();
+      expect(partBounds.left).toBeGreaterThanOrEqual(bounds.left);
+      expect(partBounds.right).toBeLessThanOrEqual(bounds.right);
+    }
+    expect(card.scrollWidth > card.clientWidth).toBe(false);
+  }
 }
 
 /** Verifies the rate card's chart parts stay inside it and its axis tags never overlap. */

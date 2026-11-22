@@ -1,7 +1,7 @@
 import axe, { type ElementContext, type Result } from "axe-core";
 import type { Root } from "react-dom/client";
 import { afterEach, expect } from "vitest";
-import { commands, page } from "vitest/browser";
+import { commands, page, server } from "vitest/browser";
 import {
   mountComponentFixture,
   mountConversionScreen,
@@ -100,11 +100,16 @@ export async function openComponentFixture(fixtureId: ComponentFixtureId): Promi
     .toBe("true");
 }
 
-/** Saves the painted page as an uncompared image for manual design review. */
+/**
+ * Saves the painted page as an uncompared image for manual design review. Images from browsers
+ * other than Chromium carry the browser's name, so they never replace the Chromium images that
+ * the store images are cropped from.
+ */
 export async function saveReviewScreenshot(name: string): Promise<void> {
   await settleFiniteAnimations();
   await nextFrames();
-  await page.screenshot({ path: `${REVIEW_SCREENSHOT_DIRECTORY}/${name}.png` });
+  const prefix = server.browser === "chromium" ? "" : `${server.browser}-`;
+  await page.screenshot({ path: `${REVIEW_SCREENSHOT_DIRECTORY}/${prefix}${name}.png` });
 }
 
 /** Adds host-page CSS that is removed after the current test. */

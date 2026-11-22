@@ -18,6 +18,7 @@
     "test": "pnpm test:unit",
     "test:unit": "vp test --run --project unit",
     "test:integration": "vp test --run --project integration",
+    "test:integration:firefox": "vp test --run --project integration-firefox",
     "test:coverage": "vp test --run --coverage --project unit",
     "test:e2e": "pnpm -C apps/browser-extension build && pnpm -C apps/browser-extension zip:firefox && playwright test",
     "validate": "vp check && pnpm test:coverage && pnpm test:integration && vp run -r build"

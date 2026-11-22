@@ -97,13 +97,15 @@ describe("hourly aggregation", () => {
     const history = createHourly({ JPY: seriesWith(HOURLY_SLOT_COUNT, { 120: 150 }) });
 
     const first = missingHourlySlots(history, 4, 0);
-    const rotated = missingHourlySlots(history, 4, 5);
+    const next = missingHourlySlots(history, 4, 1);
+    const rotated = missingHourlySlots(history, 4, 3);
 
     expect(first.slice(0, 2)).toEqual([NOW_SLOT_MS - HOUR_MS, NOW_SLOT_MS - 2 * HOUR_MS]);
     expect(first.slice(2)).toEqual([NOW_SLOT_MS - 3 * HOUR_MS, NOW_SLOT_MS - 4 * HOUR_MS]);
+    expect(next.slice(2)).toEqual([NOW_SLOT_MS - 5 * HOUR_MS, NOW_SLOT_MS - 6 * HOUR_MS]);
     expect(rotated.slice(2)).toEqual([
-      NOW_SLOT_MS - 8 * HOUR_MS,
       NOW_SLOT_MS - 9 * HOUR_MS,
+      NOW_SLOT_MS - 10 * HOUR_MS,
     ]);
   });
 
@@ -331,18 +333,28 @@ describe("updateHistory", () => {
     expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-09-28" });
   });
 
-  it("stops backfilling at the oldest served day without rewriting the cursor", async () => {
+  it("cycles the backfill back to the newest day after passing the oldest served day", async () => {
     const bucket = createMemoryBucket();
+    // The previous cycle ended; aggregation then missed days older than the recent check.
     bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2025-11-20" });
-    const put = vi.spyOn(bucket, "put");
-
-    await updateHistory(
-      bucket,
-      { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
-      HISTORY_NOW_MS,
+    bucket.seed(
+      "2026-11-12T23:00:00.000Z.json",
+      createSnapshotBody(Date.UTC(2026, 10, 12, 23), { JPY: 147 }),
     );
 
-    expect(put.mock.calls.map(([key]) => key)).toEqual([HOURLY_HISTORY_KEY]);
+    for (let run = 0; run < 2; run += 1) {
+      // Scheduled runs are sequential; each run reads what the previous one wrote.
+      // eslint-disable-next-line no-await-in-loop
+      await updateHistory(
+        bucket,
+        { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
+        HISTORY_NOW_MS,
+      );
+    }
+
+    const november = bucket.read("history/daily/2026-11.tsv") as MonthlyHistory;
+    expect(november.rates["JPY"]?.[11]).toBe(147);
+    expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-09" });
   });
 
   it("skips archived snapshots that are missing or invalid", async () => {
@@ -399,6 +411,102 @@ describe("updateHistory", () => {
       (bucket.read("history/daily/2026-11.tsv") as MonthlyHistory).rates["JPY"]?.[16],
     ).toBe(148);
     expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-13" });
+  });
+
+  it("restarts the backfill when it finds a month invalid that it had already partly filled", async () => {
+    const bucket = createMemoryBucket();
+    bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2026-10-19" });
+    bucket.seed("history/daily/2026-10.tsv", "{");
+    bucket.seed(
+      "2026-10-25T23:00:00.000Z.json",
+      createSnapshotBody(Date.UTC(2026, 9, 25, 23), { JPY: 147 }),
+    );
+
+    const first = await updateHistory(
+      bucket,
+      { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
+      HISTORY_NOW_MS,
+    );
+
+    expect(first.rebuiltKeys).toEqual(["history/daily/2026-10.tsv"]);
+    expect(bucket.read(BACKFILL_STATE_KEY)).toEqual({ version: 1, nextDate: "2026-11-17" });
+
+    for (let run = 0; run < 6; run += 1) {
+      // Scheduled runs are sequential; each run reads what the previous one wrote.
+      // eslint-disable-next-line no-await-in-loop
+      await updateHistory(
+        bucket,
+        { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
+        HISTORY_NOW_MS,
+      );
+    }
+
+    const october = bucket.read("history/daily/2026-10.tsv") as MonthlyHistory;
+    expect(october.rates["JPY"]?.[24]).toBe(147);
+  });
+
+  it("replaces an invalid month with a valid file even when no close can be recovered", async () => {
+    const bucket = createMemoryBucket();
+    bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2026-11-13" });
+    bucket.seed("history/daily/2026-11.tsv", "{");
+
+    const result = await updateHistory(
+      bucket,
+      { timestampMs: NOW_SLOT_MS, rates: { USD: 1, JPY: 150 } },
+      HISTORY_NOW_MS,
+    );
+
+    expect(result.rebuiltKeys).toEqual(["history/daily/2026-11.tsv"]);
+    expect(bucket.read("history/daily/2026-11.tsv")).toEqual({
+      version: 1,
+      month: "2026-11",
+      rates: {},
+    });
+    await expect(
+      readHistory(bucket, { resolution: "daily", symbols: ["JPY"] }, HISTORY_NOW_MS),
+    ).resolves.toMatchObject({ resolution: "daily" });
+  });
+
+  it("rotates the hourly repairs over successive runs so that older gaps are retried", async () => {
+    const bucket = createMemoryBucket();
+    bucket.seed(BACKFILL_STATE_KEY, { version: 1, nextDate: "2025-11-20" });
+    // Six newest gaps have no archive; the three oldest gaps can be recovered.
+    const unrecoverable = [1, 2, 3, 4, 5, 6];
+    const recoverable = [50, 51, 52];
+    const gaps = new Set([0, ...unrecoverable, ...recoverable]);
+    bucket.seed(HOURLY_HISTORY_KEY, {
+      ...createHourly(),
+      rates: {
+        JPY: Array.from({ length: HOURLY_SLOT_COUNT }, (_, index) =>
+          gaps.has(HOURLY_SLOT_COUNT - 1 - index) ? null : 150,
+        ),
+      },
+    });
+    for (const hoursAgo of recoverable) {
+      const slotMs = NOW_SLOT_MS - hoursAgo * HOUR_MS;
+      bucket.seed(
+        `${new Date(slotMs).toISOString()}.json`,
+        createSnapshotBody(slotMs, { JPY: 140 + hoursAgo }),
+      );
+    }
+
+    for (const elapsedHours of [0, 1]) {
+      // Scheduled runs are sequential; each run reads what the previous one wrote.
+      // eslint-disable-next-line no-await-in-loop
+      await updateHistory(
+        bucket,
+        {
+          timestampMs: NOW_SLOT_MS + elapsedHours * HOUR_MS,
+          rates: { USD: 1, JPY: 150 },
+        },
+        HISTORY_NOW_MS + elapsedHours * HOUR_MS,
+      );
+    }
+
+    const series = (bucket.read(HOURLY_HISTORY_KEY) as HourlyHistory).rates["JPY"];
+    expect(recoverable.map((hoursAgo) => series?.at(-2 - hoursAgo))).toEqual([
+      190, 191, 192,
+    ]);
   });
 
   it.each([

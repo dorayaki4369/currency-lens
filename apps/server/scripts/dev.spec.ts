@@ -88,12 +88,13 @@ describe("createWorkerCommand", () => {
       ".wrangler/mock-state",
       "--var",
       `OPEN_EXCHANGE_RATE_API_URL:${MOCK_URL}`,
-      "--var",
-      "OPEN_EXCHANGE_RATE_APP_ID:currency-lens-mock",
       "--port",
       "8788",
     ]);
-    expect(command.environment).toEqual({ PATH: "/bin" });
+    expect(command.environment).toEqual({
+      OPEN_EXCHANGE_RATE_APP_ID: "currency-lens-mock",
+      PATH: "/bin",
+    });
   });
 
   it("keeps the configured App ID and default local R2 for the real API", () => {
@@ -174,7 +175,7 @@ describe("runServerDev", () => {
     await expect(exitCode).resolves.toBe(0);
     expect(harness.startMockUpstream).toHaveBeenCalledOnce();
     expect(args).toContain(`OPEN_EXCHANGE_RATE_API_URL:${MOCK_URL}`);
-    expect(options.env).not.toHaveProperty("OPEN_EXCHANGE_RATE_APP_ID");
+    expect(options.env["OPEN_EXCHANGE_RATE_APP_ID"]).toBe("currency-lens-mock");
     expect(options.stdio).toBe("inherit");
     expect(harness.close).toHaveBeenCalledOnce();
   });

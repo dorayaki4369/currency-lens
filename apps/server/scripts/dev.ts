@@ -108,8 +108,9 @@ export function parseUserArguments(rawUserArguments: readonly string[]): readonl
 }
 
 /**
- * Builds the Wrangler invocation. With a mock upstream, the Worker points at it with a dummy
- * App ID, and the real App ID is kept out of the child process.
+ * Builds the Wrangler invocation. With a mock upstream, the Worker points at it, and a dummy
+ * App ID replaces the real one in the child environment. The dummy goes through the
+ * environment rather than `--var` because Wrangler checks required secrets only there.
  */
 export function createWorkerCommand(
   userArguments: readonly string[],
@@ -123,7 +124,6 @@ export function createWorkerCommand(
     };
   }
 
-  const { [APP_ID_VARIABLE]: _realAppId, ...mockEnvironment } = environment;
   return {
     arguments: [
       ...BASE_WRANGLER_ARGUMENTS,
@@ -131,11 +131,9 @@ export function createWorkerCommand(
       MOCK_STATE_DIRECTORY,
       "--var",
       `OPEN_EXCHANGE_RATE_API_URL:${mockUpstreamUrl}`,
-      "--var",
-      `${APP_ID_VARIABLE}:${MOCK_APP_ID}`,
       ...userArguments,
     ],
-    environment: mockEnvironment,
+    environment: { ...environment, [APP_ID_VARIABLE]: MOCK_APP_ID },
   };
 }
 

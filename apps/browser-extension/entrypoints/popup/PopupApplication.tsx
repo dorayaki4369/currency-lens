@@ -236,8 +236,6 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
         <div className="shrink-0 px-4 pt-3">
           <SegmentedControl
             aria-label={translate(popup.locale, "screenSwitcher")}
-            // The page background is already muted, so the screen switch uses a deeper track.
-            className="bg-zinc-200 dark:bg-zinc-800"
             onValueChange={selectSegmentedOption(PEER_SCREENS, (peer) => {
               if (peer === "rates") {
                 setRateSelection(ALL_CURRENCIES_SELECTION);
@@ -247,6 +245,7 @@ export function PopupRouteFrame({ children, screen }: PopupRouteFrameProps) {
             })}
             size="lg"
             stretch
+            surface="page"
             value={screen}
           >
             {PEER_SCREENS.map((peer) => (

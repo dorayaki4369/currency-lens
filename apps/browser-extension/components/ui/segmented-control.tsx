@@ -11,6 +11,7 @@ import { FOCUS_RING_CLASS_NAME } from "@/components/ui/focus-ring";
 
 type SegmentedControlSize = "default" | "lg" | "sm";
 type SegmentedControlVariant = "pill" | "track";
+type SegmentedControlSurface = "card" | "page";
 
 interface SegmentedControlAppearance {
   readonly size: SegmentedControlSize;
@@ -23,8 +24,14 @@ interface SegmentedControlAppearance {
 // gives every variant the same height.
 const ROOT_CLASS_NAMES = {
   pill: "gap-1",
-  track: "gap-0.5 rounded-md bg-muted px-0.5 dark:bg-background",
+  track: "gap-0.5 rounded-md px-0.5",
 } as const satisfies Record<SegmentedControlVariant, string>;
+// A track sits on a card by default; on the already muted page background it needs a deeper
+// fill to read as a track. Pills have no fill, so the surface does not change them.
+const TRACK_SURFACE_CLASS_NAMES = {
+  card: "bg-muted dark:bg-background",
+  page: "bg-zinc-200 dark:bg-zinc-800",
+} as const satisfies Record<SegmentedControlSurface, string>;
 const THUMB_CLASS_NAMES = {
   pill: "rounded-full border border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-700",
   track: "rounded-sm bg-card shadow-sm dark:bg-muted",
@@ -57,6 +64,8 @@ type SegmentedControlProps = Omit<
   Partial<SegmentedControlAppearance> & {
     /** Spans the available width and shares it among the choices. */
     readonly stretch?: boolean | undefined;
+    /** What the control sits on, which sets the track's fill. */
+    readonly surface?: SegmentedControlSurface | undefined;
   };
 
 /** Lays out a single-choice radio group as one track with a thumb that slides to the choice. */
@@ -65,6 +74,7 @@ function SegmentedControl({
   className,
   size = "default",
   stretch = false,
+  surface = "card",
   variant = "track",
   ...props
 }: SegmentedControlProps) {
@@ -82,6 +92,7 @@ function SegmentedControl({
         stretch ? "flex w-full" : "inline-flex",
         HEIGHT_CLASS_NAMES[size],
         ROOT_CLASS_NAMES[variant],
+        variant === "track" && TRACK_SURFACE_CLASS_NAMES[surface],
         className,
       )}
       {...props}

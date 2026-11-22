@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import type { CurrencyCode } from "@cl/currency";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DetectedCurrency } from "@/lib/currency-detection";
 import type { CurrencyDropPlacement } from "@/lib/currency-order";
@@ -892,6 +892,39 @@ describe("ConversionPopup rates", () => {
     expect(screen.getByRole("radio", { name: "1M" }).getAttribute("aria-checked")).toBe(
       "true",
     );
+  });
+
+  it("draws with the saved chart colors and follows changes while open", async () => {
+    let storageListener: ((changes: Record<string, unknown>, area: string) => void) | null =
+      null;
+    vi.stubGlobal("browser", {
+      runtime: {
+        sendMessage: (message: unknown) =>
+          Promise.resolve(
+            (message as { readonly type: string }).type === "GET_CHART_COLORS"
+              ? { data: { up: "#eab308" }, success: true }
+              : { error: "Unexpected message", success: false },
+          ),
+      },
+      storage: {
+        onChanged: {
+          addListener: (listener: typeof storageListener) => {
+            storageListener = listener;
+          },
+          removeListener: () => undefined,
+        },
+      },
+    });
+    renderRatesCard({ chartColorsPreview: undefined });
+
+    const trend = screen.getByRole("button", { name: "Open JPY rates" });
+    const readLineColor = () => trend.querySelectorAll("path")[1]?.style.stroke;
+    await waitFor(() => expect(readLineColor()).toBe("#eab308"));
+
+    act(() => {
+      storageListener?.({ chartColors: { newValue: { up: "#0ea5e9" } } }, "sync");
+    });
+    expect(readLineColor()).toBe("#0ea5e9");
   });
 
   it("requests history from the background without a preview", async () => {

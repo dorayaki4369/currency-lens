@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import "@/test/integration/style.css";
 import { messageTypes, type Message } from "@/lib/messages";
+import type { ChartColorSettings } from "@/lib/trend-colors";
 import App from "@/entrypoints/content/App";
 import {
   FIXTURE_CONFIG,
@@ -29,20 +30,7 @@ afterEach(() => {
 
 it("keeps the conversion card inside a short viewport and scrolls only its body", async () => {
   installContentBrowser();
-  // A selection in the middle leaves less room above and below than the rates need.
-  let currentSelection: Selection | null = null;
-  vi.spyOn(window, "getSelection").mockImplementation(() => currentSelection);
-  render(<App />);
-  await act(async () => {});
-  currentSelection = selectionWith("$249.00", new DOMRect(320, 290, 64, 20));
-  vi.useFakeTimers();
-  act(() => {
-    document.dispatchEvent(new Event("selectionchange"));
-    vi.advanceTimersByTime(180);
-  });
-  vi.useRealTimers();
-  fireEvent.click(await screen.findByRole("button", { name: /Show all conversions$/u }));
-  await screen.findByRole("dialog", { name: "Conversion result" });
+  await openCardFromSelection();
 
   await userEvent.click(page.getByRole("radio", { name: "Rates", exact: true }));
   await expect.element(page.getByRole("slider")).toBeInTheDocument();
@@ -59,6 +47,42 @@ it("keeps the conversion card inside a short viewport and scrolls only its body"
   expect(timestamp.getBoundingClientRect().bottom).toBeLessThanOrEqual(bodyBottom);
   await saveReviewScreenshot("conversion-short-viewport-rates");
 });
+
+it("draws the conversion card's trends in the saved chart colors and follows changes", async () => {
+  const notifyStorage = installContentBrowser({ down: "#eab308" });
+  await openCardFromSelection();
+
+  const trend = page.getByRole("button", { name: "Open JPY rates" }).element();
+  const readLineColor = () =>
+    trend.querySelectorAll("path")[1] === undefined
+      ? null
+      : getComputedStyle(trend.querySelectorAll("path")[1]!).stroke;
+  await expect.poll(readLineColor).toBe("rgb(234, 179, 8)");
+  await saveReviewScreenshot("conversion-light-custom-colors");
+
+  // JPY falls in the fixture. A choice made in the popup reaches the open card through
+  // synchronized storage.
+  act(() => notifyStorage({ chartColors: { newValue: { down: "#0ea5e9" } } }));
+  await expect.poll(readLineColor).toBe("rgb(14, 165, 233)");
+});
+
+/** Selects a price in the middle of the page and opens its conversion card. */
+async function openCardFromSelection(): Promise<void> {
+  // A selection in the middle leaves less room above and below than the rates need.
+  let currentSelection: Selection | null = null;
+  vi.spyOn(window, "getSelection").mockImplementation(() => currentSelection);
+  render(<App />);
+  await act(async () => {});
+  currentSelection = selectionWith("$249.00", new DOMRect(320, 290, 64, 20));
+  vi.useFakeTimers();
+  act(() => {
+    document.dispatchEvent(new Event("selectionchange"));
+    vi.advanceTimersByTime(180);
+  });
+  vi.useRealTimers();
+  fireEvent.click(await screen.findByRole("button", { name: /Show all conversions$/u }));
+  await screen.findByRole("dialog", { name: "Conversion result" });
+}
 
 interface CardParts {
   readonly body: HTMLElement;
@@ -89,8 +113,15 @@ function fitsViewport(bounds: DOMRect): boolean {
   );
 }
 
-/** Answers the content script's messages with fixed configuration, rates, and history. */
-function installContentBrowser(): void {
+/**
+ * Answers the content script's messages with fixed configuration, rates, history, and chart
+ * colors, and returns a way to report a synchronized storage change to every subscriber.
+ */
+function installContentBrowser(
+  chartColors: ChartColorSettings = {},
+): (changes: Record<string, unknown>) => void {
+  type StorageListener = (changes: Record<string, unknown>, areaName: string) => void;
+  const storageListeners = new Set<StorageListener>();
   const sendMessage = vi.fn<(message: Message) => Promise<unknown>>((message) => {
     if (message.type === messageTypes.GET_CONFIG) {
       return Promise.resolve({ data: FIXTURE_CONFIG, success: true });
@@ -107,15 +138,26 @@ function installContentBrowser(): void {
         success: true,
       });
     }
+    if (message.type === messageTypes.GET_CHART_COLORS) {
+      return Promise.resolve({ data: chartColors, success: true });
+    }
     return Promise.resolve({ error: "Unexpected message", success: false });
   });
   vi.stubGlobal("browser", {
     i18n: { getUILanguage: () => "en-US" },
     runtime: { sendMessage },
     storage: {
-      onChanged: { addListener: () => undefined, removeListener: () => undefined },
+      onChanged: {
+        addListener: (listener: StorageListener) => storageListeners.add(listener),
+        removeListener: (listener: StorageListener) => storageListeners.delete(listener),
+      },
     },
   });
+  return (changes) => {
+    for (const listener of storageListeners) {
+      listener(changes, "sync");
+    }
+  };
 }
 
 /** Builds the DOM selection that the content script reads. */

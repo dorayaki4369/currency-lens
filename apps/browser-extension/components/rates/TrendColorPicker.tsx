@@ -29,13 +29,11 @@ const DIRECTION_KEYS = {
   up: { card: "chartColorUpLabel", name: "chartColorUp" },
 } as const;
 
-// The picker is as wide as its swatch grid (six 1.5rem swatches, one section apart) plus
-// padding, and as tall as the silver ratio (1:√2) of that width; the default button sits at
-// the bottom. Its spacing comes from the layout units, like the popup frame it floats over.
-const SWATCH_GRID_CLASS_NAME =
-  "grid grid-cols-[repeat(6,1.5rem)] gap-x-section gap-y-inset";
+// The picker is as wide as its swatch grid (six 1.5rem swatches, 0.75rem apart) plus padding,
+// and as tall as the silver ratio (1:√2) of that width; the default button sits at the bottom.
+const SWATCH_GRID_CLASS_NAME = "grid grid-cols-[repeat(6,1.5rem)] gap-x-3 gap-y-2.5";
 const PICKER_CLASS_NAME =
-  "flex aspect-[1.4142] w-fit flex-col justify-between rounded-xl p-section";
+  "flex aspect-[1.4142] w-fit flex-col justify-between rounded-xl p-3.5";
 
 /** Shows one direction's sample trend; pressing it opens the swatches for that direction. */
 export function TrendColorPicker({
@@ -113,8 +111,7 @@ export function TrendColorPicker({
             event.preventDefault();
             cardReference.current?.focus();
           }}
-          // One 8px layout unit below the card.
-          sideOffset={8}
+          sideOffset={6}
         >
           <div className={SWATCH_GRID_CLASS_NAME}>
             {CHART_COLOR_PALETTE.map((swatch) => {

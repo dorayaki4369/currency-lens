@@ -29,6 +29,12 @@ const DIRECTION_KEYS = {
   up: { card: "chartColorUpLabel", name: "chartColorUp" },
 } as const;
 
+// The picker is as wide as its swatch grid (six 1.5rem swatches, 0.7rem apart) plus padding,
+// and as tall as the silver ratio (1:√2) of that width; the default button sits at the bottom.
+const SWATCH_GRID_CLASS_NAME = "grid grid-cols-[repeat(6,1.5rem)] gap-x-[0.7rem] gap-y-2.5";
+const PICKER_CLASS_NAME =
+  "flex aspect-[1.4142] w-fit flex-col justify-between rounded-xl p-3.5";
+
 /** Shows one direction's sample trend; pressing it opens the swatches for that direction. */
 export function TrendColorPicker({
   color,
@@ -98,7 +104,7 @@ export function TrendColorPicker({
         <PopoverContent
           align={direction === "up" ? "start" : "end"}
           aria-label={translate(locale, "chartColorPicker", { direction: directionName })}
-          className="flex h-[10.1875rem] w-[14.375rem] flex-col justify-between rounded-xl p-3.5"
+          className={PICKER_CLASS_NAME}
           data-slot="trend-color-picker"
           onCloseAutoFocus={(event) => {
             // Radix leaves focus where an outside click landed; the card keeps it instead.
@@ -107,7 +113,7 @@ export function TrendColorPicker({
           }}
           sideOffset={6}
         >
-          <div className="grid grid-cols-[repeat(6,1.5rem)] justify-between gap-y-2.5">
+          <div className={SWATCH_GRID_CLASS_NAME}>
             {CHART_COLOR_PALETTE.map((swatch) => {
               // While the default applies, only the default button reads as selected.
               const pressed = swatch.hex === selectedHex;

@@ -98,7 +98,7 @@ function ChartColorSettingsRow({ locale }: { readonly locale: UiLocale }) {
   const palette = useTrendPalette();
 
   return (
-    <Stack className="px-3 py-3.5" gap={2}>
+    <ListItemRow layout="stacked">
       <Stack gap={0}>
         <h2 className="text-sm font-medium">{translate(locale, "chartColorsHeading")}</h2>
         <p className="text-xs text-muted-foreground">
@@ -127,6 +127,6 @@ function ChartColorSettingsRow({ locale }: { readonly locale: UiLocale }) {
           {translate(locale, "autoSaveError")}
         </p>
       ) : null}
-    </Stack>
+    </ListItemRow>
   );
 }

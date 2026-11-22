@@ -20,7 +20,17 @@ type ListProps =
   | ({ readonly as: "ol" } & ComponentProps<"ol">)
   | ({ readonly as: "ul" } & ComponentProps<"ul">);
 
-type ListItemRowProps = HTMLAttributes<HTMLDivElement>;
+type ListItemRowLayout = "inline" | "stacked";
+
+type ListItemRowProps = HTMLAttributes<HTMLDivElement> & {
+  /** "inline" sets a label and its control side by side; "stacked" puts a block below its heading. */
+  readonly layout?: ListItemRowLayout | undefined;
+};
+
+const LIST_ITEM_ROW_LAYOUT_CLASS_NAMES = {
+  inline: "items-center py-1.5",
+  stacked: "flex-col py-3.5",
+} as const satisfies Record<ListItemRowLayout, string>;
 
 type ListItemProps = {
   readonly as?: ListItemElement | undefined;
@@ -63,10 +73,14 @@ export function ListItem({
 }
 
 /** Gives every list row the same padding so rows differ only by their content. */
-export function ListItemRow({ className, ...props }: ListItemRowProps) {
+export function ListItemRow({ className, layout = "inline", ...props }: ListItemRowProps) {
   return (
     <div
-      className={cn("flex min-h-12 items-center gap-2 px-3 py-1.5", className)}
+      className={cn(
+        "flex min-h-12 gap-2 px-3",
+        LIST_ITEM_ROW_LAYOUT_CLASS_NAMES[layout],
+        className,
+      )}
       data-slot="list-item-row"
       {...props}
     />

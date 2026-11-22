@@ -15,6 +15,7 @@
     "check": "vp check",
     "store:dev": "node --watch apps/browser-extension/store/promo-images.ts serve",
     "store:images": "node apps/browser-extension/store/promo-images.ts render",
+    "store:video": "node apps/browser-extension/store/video/record.mjs video apps/browser-extension/store/video/index.html --out apps/browser-extension/store/video/currency-lens-intro-ja.mp4",
     "test": "pnpm test:unit",
     "test:unit": "vp test --run --project unit",
     "test:integration": "vp test --run --project integration",

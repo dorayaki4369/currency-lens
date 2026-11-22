@@ -49,6 +49,10 @@ Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必�
 
 画像の構成は`apps/browser-extension/store/promo-images.ts`、言語ごとの文言は`apps/browser-extension/store/promo-copy.ts`にあります。変えるときは、`pnpm test:integration`と`pnpm test:e2e`でレビュー用画像を作ってから`pnpm store:dev`でプレビューし、`pnpm store:images`で書き出した画像を確認します。ローカルとCIではフォントが異なり、macOSではヒラギノやPingFangなどのシステムフォント、CIではNoto Sans CJKで描画されます。
 
+`pnpm store:images`は、言語に依存しないプロモーションタイル（小タイル440×280とマーキー1400×560）も`promo-tiles/`へ書き出します。Chrome Web Storeのプロモーション画像は言語ごとに登録できないため、タイルには文字を入れず、数字と記号だけで伝えます。
+
+ストア掲載用の説明動画（日本語、24秒）は`apps/browser-extension/store/video/currency-lens-intro-ja.mp4`にあります。撮影元は同じフォルダの`index.html`と`scene.js`で、`index.html`をブラウザで開くと再生バーで時刻を動かして確かめられます。撮り直すときは`pnpm store:video`を実行します。Chrome系ブラウザ、libx264付きのffmpeg、Tailwind CSSを読み込むための`cdn.jsdelivr.net`への接続が要ります。動画はChrome Web StoreへYouTubeのURLとして登録します。
+
 ストアの掲載文の正本と反映手順は[ストア掲載文](../apps/browser-extension/store/listing/README.md)にあります。
 
 ChromeとFirefoxへの提出は一つのトランザクションではなく、一方だけ成功することがあります。提出かGitHub Releaseの作成が失敗すると、tagは作られません。tagがない間は、`main`へpushするたびに同じversionの提出を試み、ストアが同じversionを拒否して失敗します。

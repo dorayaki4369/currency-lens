@@ -24,4 +24,4 @@ Datenschutzerklärung: https://cl.dryk.net/privacy
 
 Wo es funktioniert
 
-Auf normalen Websites in Chrome für den Desktop und Firefox ab Version 140. Nicht auf PDFs, Formularfeldern, Canvas-Elementen, Einstellungsseiten des Browsers oder in Erweiterungs-Stores.
+Auf normalen Websites in Chrome und Microsoft Edge für den Desktop sowie in Firefox ab Version 140. Nicht auf PDFs, Formularfeldern, Canvas-Elementen, Einstellungsseiten des Browsers oder in Erweiterungs-Stores.

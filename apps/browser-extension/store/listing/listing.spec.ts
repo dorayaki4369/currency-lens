@@ -132,6 +132,21 @@ describe("store listing", async () => {
   it("publishes listing text for the default locale", () => {
     expect(locales).toContain(metadata.default_locale);
   });
+
+  // AMO rejects the whole listing update when a translated field it already holds has no value in
+  // the default locale, and the rejection stops a release after Chrome has already been submitted.
+  it("publishes the support email and URL for the default locale", () => {
+    const defaultLocale: string = metadata.default_locale;
+
+    expect(Object.entries(metadata.support_email)).toContainEqual([
+      defaultLocale,
+      expect.stringContaining("@"),
+    ]);
+    expect(Object.entries(metadata.support_url)).toContainEqual([
+      defaultLocale,
+      expect.stringMatching(/^https:\/\//),
+    ]);
+  });
 });
 
 /** Counts user-perceived characters, not UTF-16 code units, so Japanese text is not over-counted. */

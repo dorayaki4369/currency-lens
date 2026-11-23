@@ -8,10 +8,12 @@ Chrome Web Store、Firefox Add-ons（AMO）、Microsoft Edge Add-onsに載せる
 | 短い説明（要約）              | `public/_locales/<言語>/messages.json`の`extensionDescription` | リリース時の提出でmanifestから反映します | リリース時の提出で反映します | リリース時の提出でmanifestから反映します |
 | 詳細説明                      | `description.<言語>.txt`                                       | dashboardへ手で貼り付けます              | リリース時の提出で反映します | Partner Centerへ手で貼り付けます         |
 | AMOの既定言語、カテゴリ、タグ | `amo.json`                                                     | 対象外                                   | リリース時の提出で反映します | 対象外                                   |
+| AMOのサポート用URL            | `amo.json`の`support_url`                                      | 対象外                                   | リリース時の提出で反映します | 対象外                                   |
+| AMOのサポート用メールアドレス | `apps/server/public/privacy.html`の`mailto:`リンク             | 対象外                                   | リリース時の提出で反映します | 対象外                                   |
 
-AMOへは、`Publish browser extension`が`../amo-metadata.ts`でこれらの正本からAMOの掲載情報のJSONを作り、`wxt submit --firefox-amo-metadata-file`で新しいversionと一緒に送ります。言語は`_locales`のディレクトリ名（`en`、`ja`、`zh_CN`、`zh_TW`、`ko`、`es`、`fr`、`de`、`pt_BR`）で揃え、`../amo-metadata.ts`の`AMO_LOCALES`がAMOの言語コードへ対応させます。英語は`en-US`に入ります。AMOには地域を持たないスペイン語がないため、スペイン語の文言は`es-ES`、`es-MX`、`es-AR`、`es-CL`のすべてに入ります。
+AMOへは、`Publish browser extension`が`../amo-metadata.ts`でこれらの正本からAMOの掲載情報のJSONを作り、`wxt submit --firefox-amo-metadata-file`で新しいversionと一緒に送ります。言語は`_locales`のディレクトリ名（`en`、`ja`、`zh_CN`、`zh_TW`、`ko`、`es`、`fr`、`de`、`pt_BR`）で揃え、`../amo-metadata.ts`の`AMO_LOCALES`がAMOの言語コードへ対応させます。英語は`en-US`に入ります。AMOには地域を持たないスペイン語がないため、スペイン語の文言は`es-ES`、`es-MX`、`es-AR`、`es-CL`のすべてに入ります。サポート用のメールアドレスとURLは言語によらず同じなので、`en-US`と`ja`にだけ同じ値を入れます。AMOは、送った値と登録済みの値を合わせても既定言語の値がない翻訳項目があると、掲載情報の更新全体を拒否します。そのため、既定言語は`../amo-metadata.ts`の`SUPPORT_LOCALES`に含めます。メールアドレスはプライバシーポリシーの連絡先と食い違わないよう、プライバシーポリシーの`mailto:`リンクから読み取ります。
 
-`listing.spec.ts`が、名前と短い説明の文字数、要約にURLがないこと、詳細説明のプライバシーポリシーへのリンクとEdgeの文字数の範囲、`_locales`のすべての言語に掲載文があること、`amo.json`のカテゴリとタグがAMOの受け付ける値であることを検査します。Edgeは拡張機能のパッケージに含まれる言語ごとに詳細説明を求めるため、言語を追加したら掲載文も同時に追加します。
+`listing.spec.ts`が、名前と短い説明の文字数、要約にURLがないこと、詳細説明のプライバシーポリシーへのリンクとEdgeの文字数の範囲、`_locales`のすべての言語に掲載文があること、`amo.json`のカテゴリとタグがAMOの受け付ける値であること、既定言語にサポート用のメールアドレスとURLがあることを検査します。Edgeは拡張機能のパッケージに含まれる言語ごとに詳細説明を求めるため、言語を追加したら掲載文も同時に追加します。
 
 ## 文言を書くときの決まり
 

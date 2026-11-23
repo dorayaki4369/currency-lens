@@ -1,17 +1,19 @@
 # ストア掲載文
 
-Chrome Web StoreとFirefox Add-ons（AMO）に載せる文言と掲載設定の正本です。AMOの掲載はリリースのたびにここから上書きされるため、AMOのdashboardで掲載文を直接書き換えません。
+Chrome Web Store、Firefox Add-ons（AMO）、Microsoft Edge Add-onsに載せる文言と掲載設定の正本です。AMOの掲載はリリースのたびにここから上書きされるため、AMOのdashboardで掲載文を直接書き換えません。
 
-| 掲載項目                      | 正本                                                           | Chrome Web Storeへの反映                 | AMOへの反映                  |
-| ----------------------------- | -------------------------------------------------------------- | ---------------------------------------- | ---------------------------- |
-| 名前                          | `public/_locales/<言語>/messages.json`の`extensionName`        | リリース時の提出でmanifestから反映します | リリース時の提出で反映します |
-| 短い説明（要約）              | `public/_locales/<言語>/messages.json`の`extensionDescription` | リリース時の提出でmanifestから反映します | リリース時の提出で反映します |
-| 詳細説明                      | `description.<言語>.txt`                                       | dashboardへ手で貼り付けます              | リリース時の提出で反映します |
-| AMOの既定言語、カテゴリ、タグ | `amo.json`                                                     | 対象外                                   | リリース時の提出で反映します |
+| 掲載項目                      | 正本                                                           | Chrome Web Storeへの反映                 | AMOへの反映                  | Edge Add-onsへの反映                     |
+| ----------------------------- | -------------------------------------------------------------- | ---------------------------------------- | ---------------------------- | ---------------------------------------- |
+| 名前                          | `public/_locales/<言語>/messages.json`の`extensionName`        | リリース時の提出でmanifestから反映します | リリース時の提出で反映します | リリース時の提出でmanifestから反映します |
+| 短い説明（要約）              | `public/_locales/<言語>/messages.json`の`extensionDescription` | リリース時の提出でmanifestから反映します | リリース時の提出で反映します | リリース時の提出でmanifestから反映します |
+| 詳細説明                      | `description.<言語>.txt`                                       | dashboardへ手で貼り付けます              | リリース時の提出で反映します | Partner Centerへ手で貼り付けます         |
+| AMOの既定言語、カテゴリ、タグ | `amo.json`                                                     | 対象外                                   | リリース時の提出で反映します | 対象外                                   |
+| AMOのサポート用URL            | `amo.json`の`support_url`                                      | 対象外                                   | リリース時の提出で反映します | 対象外                                   |
+| AMOのサポート用メールアドレス | `apps/server/public/privacy.html`の`mailto:`リンク             | 対象外                                   | リリース時の提出で反映します | 対象外                                   |
 
-AMOへは、`Publish browser extension`が`../amo-metadata.ts`でこれらの正本からAMOの掲載情報のJSONを作り、`wxt submit --firefox-amo-metadata-file`で新しいversionと一緒に送ります。言語は`_locales`のディレクトリ名（`en`、`ja`、`zh_CN`、`zh_TW`、`ko`、`es`、`fr`、`de`、`pt_BR`）で揃え、`../amo-metadata.ts`の`AMO_LOCALES`がAMOの言語コードへ対応させます。英語は`en-US`に入ります。AMOには地域を持たないスペイン語がないため、スペイン語の文言は`es-ES`、`es-MX`、`es-AR`、`es-CL`のすべてに入ります。
+AMOへは、`Publish browser extension`が`../amo-metadata.ts`でこれらの正本からAMOの掲載情報のJSONを作り、`wxt submit --firefox-amo-metadata-file`で新しいversionと一緒に送ります。言語は`_locales`のディレクトリ名（`en`、`ja`、`zh_CN`、`zh_TW`、`ko`、`es`、`fr`、`de`、`pt_BR`）で揃え、`../amo-metadata.ts`の`AMO_LOCALES`がAMOの言語コードへ対応させます。英語は`en-US`に入ります。AMOには地域を持たないスペイン語がないため、スペイン語の文言は`es-ES`、`es-MX`、`es-AR`、`es-CL`のすべてに入ります。サポート用のメールアドレスとURLは言語によらず同じなので、`en-US`と`ja`にだけ同じ値を入れます。AMOは、送った値と登録済みの値を合わせても既定言語の値がない翻訳項目があると、掲載情報の更新全体を拒否します。そのため、既定言語は`../amo-metadata.ts`の`SUPPORT_LOCALES`に含めます。メールアドレスはプライバシーポリシーの連絡先と食い違わないよう、プライバシーポリシーの`mailto:`リンクから読み取ります。
 
-`listing.spec.ts`が、名前と短い説明の文字数、要約にURLがないこと、詳細説明のプライバシーポリシーへのリンク、`amo.json`のカテゴリとタグがAMOの受け付ける値であることを検査します。
+`listing.spec.ts`が、名前と短い説明の文字数、要約にURLがないこと、詳細説明のプライバシーポリシーへのリンクとEdgeの文字数の範囲、`_locales`のすべての言語に掲載文があること、`amo.json`のカテゴリとタグがAMOの受け付ける値であること、既定言語にサポート用のメールアドレスとURLがあることを検査します。Edgeは拡張機能のパッケージに含まれる言語ごとに詳細説明を求めるため、言語を追加したら掲載文も同時に追加します。
 
 ## 文言を書くときの決まり
 
@@ -21,17 +23,20 @@ AMOへは、`Publish browser extension`が`../amo-metadata.ts`でこれらの正
 
 ## 文字数とポリシー
 
-| 項目     | Chrome Web Store                   | AMO                           |
-| -------- | ---------------------------------- | ----------------------------- |
-| 名前     | 75文字（manifestの`name`）         | 50文字                        |
-| 短い説明 | 132文字（manifestの`description`） | 250文字、URLは不可            |
-| カテゴリ | dashboardで選択                    | 2つまで（1つで足りれば1つ）   |
-| タグ     | なし                               | 10個まで、AMOが用意した語だけ |
+| 項目     | Chrome Web Store                   | AMO                           | Edge Add-ons                                        |
+| -------- | ---------------------------------- | ----------------------------- | --------------------------------------------------- |
+| 名前     | 75文字（manifestの`name`）         | 50文字                        | manifestの`name`（上限の記載なし）                  |
+| 短い説明 | 132文字（manifestの`description`） | 250文字、URLは不可            | manifestの`description`（上限の記載なし）           |
+| 詳細説明 | 検査していません                   | 検査していません              | 250文字以上10,000文字以下                           |
+| カテゴリ | dashboardで選択                    | 2つまで（1つで足りれば1つ）   | Partner Centerで1つ選択                             |
+| タグ     | なし                               | 10個まで、AMOが用意した語だけ | 検索語（任意）として7個まで、各30文字、合計21語まで |
 
-出典は、Chromeが[Manifest - name](https://developer.chrome.com/docs/extensions/reference/manifest/name)、[Manifest - Description](https://developer.chrome.com/docs/extensions/reference/manifest/description)、[Creating a great listing page](https://developer.chrome.com/docs/webstore/best-listing)、AMOが[Creating an appealing add-on listing](https://extensionworkshop.com/documentation/develop/create-an-appealing-listing/)（カテゴリの数もこのガイドに従います）、[Add-ons API の Edit](https://mozilla.github.io/addons-server/topics/api/addons.html#edit)、[Tags API](https://mozilla.github.io/addons-server/topics/api/tags.html)、[Categories API](https://mozilla.github.io/addons-server/topics/api/categories.html)、[addons-serverの`MAX_TAGS`](https://github.com/mozilla/addons-server/blob/master/src/olympia/constants/base.py)です。AMOのタグは`https://addons.mozilla.org/api/v5/addons/tags/`が返す一覧から選び、一覧が変わったら`listing.spec.ts`の写しも更新します。
+Edge Add-onsのカテゴリは、Chrome・AMOと同じく検索ツール系の「Search tools」を選びます。Edgeの拡張機能のカテゴリは、Accessibility、Blogging、Communication、Developer tools、Entertainment、News & weather、Photos、Productivity、Search tools、Shopping、Social、Sportsの12個です。公式文書には一覧がないため、[Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/Microsoft-Edge-Extensions-Home)のカテゴリの一覧（2026-11-23時点）から写しています。
+
+出典は、Chromeが[Manifest - name](https://developer.chrome.com/docs/extensions/reference/manifest/name)、[Manifest - Description](https://developer.chrome.com/docs/extensions/reference/manifest/description)、[Creating a great listing page](https://developer.chrome.com/docs/webstore/best-listing)、AMOが[Creating an appealing add-on listing](https://extensionworkshop.com/documentation/develop/create-an-appealing-listing/)（カテゴリの数もこのガイドに従います）、[Add-ons API の Edit](https://mozilla.github.io/addons-server/topics/api/addons.html#edit)、[Tags API](https://mozilla.github.io/addons-server/topics/api/tags.html)、[Categories API](https://mozilla.github.io/addons-server/topics/api/categories.html)、[addons-serverの`MAX_TAGS`](https://github.com/mozilla/addons-server/blob/master/src/olympia/constants/base.py)、Edgeが[Publish a Microsoft Edge extension](https://learn.microsoft.com/microsoft-edge/extensions/publish/publish-extension)です。AMOのタグは`https://addons.mozilla.org/api/v5/addons/tags/`が返す一覧から選び、一覧が変わったら`listing.spec.ts`の写しも更新します。
 
 ## 反映手順
 
-掲載文を変えるときは、Pull Requestで正本を変えます。両ストアへ届くのは次のリリースの提出時で、詳細説明や`amo.json`だけの変更はchangesetの対象外なので、それだけではリリースは作られません。Chrome Web Storeの詳細説明は提出処理が送らないため、リリース後にdeveloper dashboardのStore listingで、言語ごとの詳細説明へ`description.<言語>.txt`を貼り付けます。
+掲載文を変えるときは、Pull Requestで正本を変えます。各ストアへ届くのは次のリリースの提出時で、詳細説明や`amo.json`だけの変更はchangesetの対象外なので、それだけではリリースは作られません。Chrome Web StoreとEdge Add-onsの詳細説明は提出処理が送らないため、リリース後にChromeはdeveloper dashboardのStore listing、EdgeはPartner CenterのStore listingsで、言語ごとの詳細説明へ`description.<言語>.txt`を貼り付けます。
 
 AMOへの掲載情報の送信は、Firefoxの新しいversionのアップロードと検証が済んだ後、versionを作る直前に行われます。送信が失敗すると、Chromeへの提出が済んだままFirefoxの提出が止まるため、`docs/deployment.md`の提出失敗時の手順で復旧します。

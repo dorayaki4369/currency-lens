@@ -26,11 +26,28 @@
 
 ## ストアの初期設定
 
-WXTは既存listingの更新を自動化しますが、最初のlistingは作成しません。Chrome Web Storeとaddons.mozilla.orgで初回登録、説明、画像、プライバシー情報を手動で設定してください。掲載文と掲載設定の正本は[apps/browser-extension/store/listing/README.md](../apps/browser-extension/store/listing/README.md)にあります。AMOの名前、要約、詳細説明、既定言語、カテゴリ、タグは、提出のたびにこの正本で上書きされるため、AMOのdashboardでは変更しません。プライバシーポリシーのURLには、Workerが配信する`https://cl.dryk.net/privacy`を指定します。このページは`main`へのmerge後の`deploy Worker`で公開されます。
+WXTは既存listingの更新を自動化しますが、最初のlistingは作成しません。Chrome Web Store、addons.mozilla.org、Microsoft Edge Add-onsで初回登録、説明、画像、プライバシー情報を手動で設定してください。掲載文と掲載設定の正本は[apps/browser-extension/store/listing/README.md](../apps/browser-extension/store/listing/README.md)にあります。AMOの名前、要約、詳細説明、サポート用のメールアドレスとURL、既定言語、カテゴリ、タグは、提出のたびにこの正本で上書きされるため、AMOのdashboardでは変更しません。プライバシーポリシーのURLには、Workerが配信する`https://cl.dryk.net/privacy`を指定します。このページは`main`へのmerge後の`deploy Worker`で公開されます。
 
 ChromeではChrome Web Store APIを有効にしたGoogle Cloud projectを用意し、listing所有者のGoogle accountでOAuth refresh tokenを発行します。Firefoxではaddons.mozilla.orgのAPI credentialsからJWT issuerとJWT secretを発行します。
 
 Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必要です。初回登録でIDが決まった後、`apps/browser-extension/wxt.config.ts`の`browser_specific_settings.gecko.id`へ同じ値を設定してから自動公開を有効にしてください。
+
+### Microsoft Edge Add-ons
+
+Edge Add-onsのAPIは公開済みの拡張機能の更新だけを受け付け、新しい拡張機能の登録はPartner Centerで行います。そのため、次の手順を終えてsecretを登録するまで、`Publish browser extension`はEdgeへの提出を飛ばし、Chrome・Firefoxだけに提出します。
+
+1. Microsoft accountで[Partner Center](https://partner.microsoft.com/dashboard/microsoftedge/public/login?ref=dd)のMicrosoft Edge programに登録します。登録料はかかりません。個人として公開するなら、account typeはIndividualを選びます。
+2. 公開中のversionのGitHub Releaseから`*-edge.zip`を取り出し、Partner Centerの「Create new extension」でアップロードします。Chrome用のZIPではなく、このZIPを使います。Edge用のビルドは、「このアプリについて」からChrome Web Storeのレビューページへ誘導しないためです。
+3. 次の項目を入力して提出します。
+   - Availability：Visibilityは`Public`、Marketsは既定のすべての市場のままにします。
+   - Properties：Categoryに`Search tools`を選びます。Websiteには`https://github.com/dorayaki4369/currency-lens`を入れます。
+   - Privacy：Privacy Policy URLに`https://cl.dryk.net/privacy`を入れ、収集するデータは選ばずにdisclosureを認証します。
+   - Store listings：言語ごとに`apps/browser-extension/store/listing/description.<言語>.txt`を詳細説明へ貼り付け、ロゴ（300×300推奨）と、Actions artifactの宣伝画像やタイルを登録します。
+4. 審査は最大7営業日かかります。待っている間に、Partner Centerの拡張機能の「Extension overview」にある「Extension identity」からProduct IDを控えます。
+5. Partner Centerの「Publish API」で「enable the new experience」の「Enable」を押してから、「Create API credentials」でClient IDとAPI keyを発行します。API keyには有効期限があり、Publish APIのページに表示されます。
+6. Repository secretsに`EDGE_PRODUCT_ID`、`EDGE_CLIENT_ID`、`EDGE_API_KEY`を登録し、`main`で`Publish browser extension`を手動実行して、dry-runの`publish Edge package`が成功することを確かめます。dry-runは3つが登録されていることだけを確かめ、値が正しいかは本番の提出まで分かりません。
+
+API keyの期限が切れると、`publish Edge package`が401で失敗します。期限が近づいたらPublish APIのページで新しいAPI keyを発行し、`EDGE_API_KEY`を更新します。
 
 ## 公開手順
 
@@ -39,7 +56,8 @@ Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必�
 1. 利用者に見える変更を含むPull Requestには、`pnpm changeset`で`.changeset/*.md`を追加します。書き方は[.changeset/README.md](../.changeset/README.md)にあります。`develop`へのPull RequestのCIは、拡張機能のコードを変えたのにchangesetがない場合に失敗します。
 2. リリースするときは、`develop`から作ったブランチで`pnpm changeset version`を実行します。溜まったchangesetから拡張機能のversionと`apps/browser-extension/CHANGELOG.md`が更新されるので、そのcommitを`develop`へのPull Requestにします。
 3. `develop`から`main`へ昇格させます。
-4. `main`へのpushで`Publish browser extension`が動きます。`v{version}`のtagがまだなければ、`deploy Worker`の成功と公開中のAPIを確かめてから両ストアへ提出し、成功後に`v{version}`のtagとGitHub Releaseを作ります。Releaseの本文はCHANGELOGの該当version、添付は提出したZIPです。tagがすでにあれば何もしません。
+4. `main`へのpushで`Publish browser extension`が動きます。`v{version}`のtagがまだなければ、`deploy Worker`の成功と公開中のAPIを確かめてからChromeとFirefoxへ提出し、成功後に`v{version}`のtagとGitHub Releaseを作ります。Releaseの本文はCHANGELOGの該当version、添付は提出したZIPとEdge用のZIPです。tagがすでにあれば何もしません。
+5. Edgeのsecretが登録されていれば、ChromeとFirefoxへの提出が成功した後に、`publish Edge package`がEdge用のZIPをアップロードして審査へ出します。審査を通ると自動で公開されます。
 
 `Publish browser extension`を`main`から手動で実行すると、提出せずにWorkerとの互換性、credentialの登録漏れ、成果物を確かめるdry-runになります。
 
@@ -57,10 +75,12 @@ Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必�
 
 ChromeとFirefoxへの提出は一つのトランザクションではなく、一方だけ成功することがあります。提出かGitHub Releaseの作成が失敗すると、tagは作られません。tagがない間は、`main`へpushするたびに同じversionの提出を試み、ストアが同じversionを拒否して失敗します。
 
-この状態になったら、Actions artifactと両ストアのdashboardを確認し、次のどちらかで解消します。
+この状態になったら、Actions artifactとChrome・Firefoxのdashboardを確認し、次のどちらかで解消します。
 
 - まだ提出できていないストアがあれば、ストアのdashboardから同じZIPを手で提出します。
-- 両ストアに提出済みと確認できたら、そのcommitへ`gh release create v{version} --target <commit> --notes-file <CHANGELOGの該当節>`でtagとReleaseを作ります。tagを手で作るのは、この復旧のときだけです。
+- ChromeとFirefoxに提出済みと確認できたら、そのcommitへ`gh release create v{version} --target <commit> --notes-file <CHANGELOGの該当節>`でtagとReleaseを作ります。tagを手で作るのは、この復旧のときだけです。
+
+Edgeへの提出は、ChromeとFirefoxへの提出、tagの作成とは別のjobで行います。`publish Edge package`だけが失敗した場合は、tagとReleaseは作られているため、次のpushで同じversionが再提出されることはありません。API keyの期限切れなどの原因を直してから、同じrunの「Re-run failed jobs」で`publish Edge package`を再実行します。前のversionがまだ審査中だと、Edgeは新しい提出を受け付けないため、審査が終わってから再実行します。再実行できない古いrunなら、GitHub Releaseの`*-edge.zip`をPartner Centerから手で提出します。
 
 Repository variable `API_ENDPOINT`の値を変えると、配布する拡張機能の接続先も変わります。変えるときは、WorkerのCustom Domain、Firefox審査用の`SOURCE_CODE_REVIEW.md`もあわせて確認します。
 
@@ -72,5 +92,7 @@ Repository variable `API_ENDPOINT`の値を変えると、配布する拡張機�
 
 - [WXT: Publishing](https://wxt.dev/guide/essentials/publishing.html)
 - [Chrome Web Store API](https://developer.chrome.com/docs/webstore/using-api)
+- [Publish a Microsoft Edge extension](https://learn.microsoft.com/microsoft-edge/extensions/publish/publish-extension)
+- [Use the REST API to update an extension (Edge Add-ons API)](https://learn.microsoft.com/microsoft-edge/extensions/update/api/using-addons-api)
 - [Cloudflare Workers: GitHub Actions](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)
 - [Cloudflare API token templates](https://developers.cloudflare.com/fundamentals/api/reference/template/)

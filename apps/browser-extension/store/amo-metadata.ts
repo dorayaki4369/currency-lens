@@ -20,12 +20,21 @@ export const AMO_LOCALES = {
   zh_TW: ["zh-TW"],
 } as const;
 
+/**
+ * The AMO locales that carry the support email and URL. They are the same in every language, so
+ * they are published only for English, which is the default locale, and for Japanese.
+ */
+export const SUPPORT_LOCALES = ["en-US", "ja"] as const;
+
 type ExtensionLocale = keyof typeof AMO_LOCALES;
 type AmoLocale = (typeof AMO_LOCALES)[ExtensionLocale][number];
 type Translations = Record<AmoLocale, string>;
+type SupportTranslations = Record<(typeof SUPPORT_LOCALES)[number], string>;
 
 const LISTING_ROOT = new URL("./listing/", import.meta.url);
 const LOCALES_ROOT = new URL("../public/_locales/", import.meta.url);
+// The support email is the contact address of the privacy policy that the Worker serves.
+const PRIVACY_POLICY_PATH = new URL("../../server/public/privacy.html", import.meta.url);
 
 const messagesSchema = z.object({
   extensionDescription: z.object({ message: z.string().min(1) }),
@@ -36,10 +45,13 @@ const messagesSchema = z.object({
 export const amoSettingsSchema = z.strictObject({
   categories: z.strictObject({ firefox: z.array(z.string().min(1)).min(1) }),
   default_locale: z.enum(Object.values(AMO_LOCALES).flat()),
+  support_url: z.url({ protocol: /^https$/ }),
   tags: z.array(z.string().min(1)),
 });
 
 export type AmoSettings = z.infer<typeof amoSettingsSchema>;
+
+const supportEmailSchema = z.email();
 
 /** The listing sources for one extension locale. */
 export interface LocalizedListing {
@@ -49,43 +61,65 @@ export interface LocalizedListing {
 }
 
 /** The body of AMO's add-on edit request, as publish-browser-extension sends it. */
-export interface AmoMetadata extends AmoSettings {
+export interface AmoMetadata extends Omit<AmoSettings, "support_url"> {
   readonly description: Translations;
   readonly name: Translations;
   readonly summary: Translations;
+  readonly support_email: SupportTranslations;
+  readonly support_url: SupportTranslations;
 }
 
-/** Combines the per-locale listing text with the AMO-only settings. */
+/** Combines the per-locale listing text with the AMO-only settings and the support contact. */
 export function createAmoMetadata(
   listings: Readonly<Record<ExtensionLocale, LocalizedListing>>,
   settings: AmoSettings,
+  supportEmail: string,
 ): AmoMetadata {
+  const { support_url: supportUrl, ...rest } = settings;
   return {
-    ...settings,
+    ...rest,
     description: translate(listings, (listing) => listing.description),
     name: translate(listings, (listing) => listing.name),
     summary: translate(listings, (listing) => listing.summary),
+    support_email: translateSupport(supportEmail),
+    support_url: translateSupport(supportUrl),
   };
+}
+
+/** Reads the one contact address that the privacy policy links with `mailto:`. */
+export function parseSupportEmail(privacyPolicyHtml: string): string {
+  const addresses = new Set(
+    Array.from(privacyPolicyHtml.matchAll(/href="mailto:([^"?]+)"/g), (match) => match[1]),
+  );
+  if (addresses.size !== 1) {
+    throw new Error(
+      `The privacy policy must link exactly one contact address, but it links ${addresses.size}.`,
+    );
+  }
+  return supportEmailSchema.parse([...addresses][0]);
 }
 
 /** Reads the repository's listing sources and builds the AMO metadata from them. */
 export async function readAmoMetadata(): Promise<AmoMetadata> {
-  const [de, en, es, fr, ja, ko, ptBR, zhCN, zhTW, settingsText] = await Promise.all([
-    readListing("de"),
-    readListing("en"),
-    readListing("es"),
-    readListing("fr"),
-    readListing("ja"),
-    readListing("ko"),
-    readListing("pt_BR"),
-    readListing("zh_CN"),
-    readListing("zh_TW"),
-    readText(LISTING_ROOT, "amo.json"),
-  ]);
+  const [de, en, es, fr, ja, ko, ptBR, zhCN, zhTW, settingsText, privacyPolicyHtml] =
+    await Promise.all([
+      readListing("de"),
+      readListing("en"),
+      readListing("es"),
+      readListing("fr"),
+      readListing("ja"),
+      readListing("ko"),
+      readListing("pt_BR"),
+      readListing("zh_CN"),
+      readListing("zh_TW"),
+      readText(LISTING_ROOT, "amo.json"),
+      readFile(PRIVACY_POLICY_PATH, "utf8"),
+    ]);
 
   return createAmoMetadata(
     { de, en, es, fr, ja, ko, pt_BR: ptBR, zh_CN: zhCN, zh_TW: zhTW },
     amoSettingsSchema.parse(JSON.parse(settingsText)),
+    parseSupportEmail(privacyPolicyHtml),
   );
 }
 
@@ -132,6 +166,11 @@ function translate(
     "zh-CN": text("zh_CN"),
     "zh-TW": text("zh_TW"),
   };
+}
+
+/** Keys a language-independent support value by every AMO locale in `SUPPORT_LOCALES`. */
+function translateSupport(value: string): SupportTranslations {
+  return { "en-US": value, ja: value };
 }
 
 /** Reads a UTF-8 listing source relative to a directory URL. */

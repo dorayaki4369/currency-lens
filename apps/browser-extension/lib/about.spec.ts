@@ -13,7 +13,9 @@ describe("store review link", () => {
     });
   });
 
+  // The Edge build must not send Edge users to the Chrome Web Store before its own listing exists.
   it("hides the link for targets without a store listing", () => {
+    expect(getStoreReviewLink("edge")).toBeNull();
     expect(getStoreReviewLink(undefined)).toBeNull();
     expect(getStoreReviewLink("safari")).toBeNull();
   });

@@ -116,13 +116,17 @@ pnpm -C apps/browser-extension routes:generate
 ```bash
 API_ENDPOINT=https://cl.dryk.net pnpm -C apps/browser-extension build          # Chrome
 API_ENDPOINT=https://cl.dryk.net pnpm -C apps/browser-extension build:firefox  # Firefox
+API_ENDPOINT=https://cl.dryk.net pnpm -C apps/browser-extension build:edge     # Microsoft Edge
 ```
+
+Edge用のビルドは、manifestと機能がChrome用と同じで、「このアプリについて」にストアのレビューページへのリンクを出さないところだけが違います。Edge Add-onsの掲載ページができるまで、EdgeのユーザーをChrome Web Storeへ誘導しないためです。
 
 ストア提出用のZIPと、Firefox向けのソースコードZIPは次のコマンドで作ります。
 
 ```bash
 API_ENDPOINT=https://cl.dryk.net pnpm -C apps/browser-extension zip
 API_ENDPOINT=https://cl.dryk.net pnpm -C apps/browser-extension zip:firefox
+API_ENDPOINT=https://cl.dryk.net pnpm -C apps/browser-extension zip:edge
 ```
 
 ストアへの提出は、GitHub Releaseを起点にGitHub Actionsが行います。初回登録と認証情報の設定を含む手順は[デプロイとストア公開](../../docs/deployment.md)にあります。

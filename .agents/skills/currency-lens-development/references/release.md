@@ -32,7 +32,8 @@ version は Changesets が決め、`publish-extension.yml` が `main` への pus
 ストアの掲載文と AMO の掲載設定の正本は `apps/browser-extension/store/listing/` です。
 名前と短い説明は `public/_locales` の manifest 文言が正本です。
 AMO の掲載情報は、`publish-extension.yml` が `store/amo-metadata.ts` で正本から作り、`--firefox-amo-metadata-file` で提出のたびに上書きします。
-Chrome Web Store の詳細説明だけは、人間が dashboard へ反映します。
+Chrome Web Store と Edge Add-ons の詳細説明だけは、人間が dashboard へ反映します。
+Edge への提出は `publish Edge package` job が Chrome・Firefox の提出の後に行い、tag の作成を待たせません。Edge の secret がない間は提出を飛ばします。
 UI の文言や機能を変えたときは、掲載文と `store/promo-copy.ts` の宣伝画像の文言も同じ変更に合わせます。
 UI の言語を追加するときは、`lib/locales/`、`public/_locales/`、`store/listing/`、`store/amo-metadata.ts` の対応表、`store/promo-copy.ts` をそろえて追加します。
 

@@ -185,12 +185,15 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Build Chrome and Firefox packages
+      # The Edge package is built here so that the GitHub Release keeps the exact ZIP that the
+      # publish-edge job submits.
+      - name: Build Chrome, Firefox, and Edge packages
         run: |
           pnpm --dir apps/browser-extension build
           pnpm --dir apps/browser-extension build:firefox
           pnpm --dir apps/browser-extension zip
           pnpm --dir apps/browser-extension zip:firefox
+          pnpm --dir apps/browser-extension zip:edge
 
       - name: Validate release archives
         working-directory: apps/browser-extension
@@ -199,13 +202,14 @@ jobs:
           chrome_archives=(.output/*-chrome.zip)
           firefox_archives=(.output/*-firefox.zip)
           source_archives=(.output/*-sources.zip)
+          edge_archives=(.output/*-edge.zip)
 
-          if (( ${#chrome_archives[@]} != 1 || ${#firefox_archives[@]} != 1 || ${#source_archives[@]} != 1 )); then
-            echo "::error title=Unexpected release artifacts::Expected one Chrome ZIP, one Firefox ZIP, and one Firefox sources ZIP."
+          if (( ${#chrome_archives[@]} != 1 || ${#firefox_archives[@]} != 1 || ${#source_archives[@]} != 1 || ${#edge_archives[@]} != 1 )); then
+            echo "::error title=Unexpected release artifacts::Expected one Chrome ZIP, one Firefox ZIP, one Firefox sources ZIP, and one Edge ZIP."
             exit 1
           fi
 
-          for archive in "${chrome_archives[@]}" "${firefox_archives[@]}" "${source_archives[@]}"; do
+          for archive in "${chrome_archives[@]}" "${firefox_archives[@]}" "${source_archives[@]}" "${edge_archives[@]}"; do
             if unzip -Z1 "$archive" | grep -E '(^|/)(\.env|\.dev\.vars)($|\.|/)' >/dev/null; then
               echo "::error title=Secret file in archive::$archive contains an environment file."
               exit 1
@@ -302,6 +306,120 @@ jobs:
             --firefox-amo-metadata-file "$RUNNER_TEMP/amo-metadata.json"
           )
 
+          if [[ "$DRY_RUN" == "true" ]]; then
+            submit_arguments+=(--dry-run)
+          fi
+
+          if [[ -e .env.submit ]]; then
+            echo "::error title=Environment file before submission::.env.submit must not be present when WXT runs."
+            exit 1
+          fi
+
+          pnpm run wxt -- "${submit_arguments[@]}"
+
+  # Edge goes after Chrome and Firefox and outside the record job's needs, so an Edge failure never
+  # blocks the tag that stops the next push from resubmitting the same version to the other stores.
+  # After fixing the cause, rerun this job; it submits the ZIP preserved by the publish job.
+  publish-edge:
+    name: publish Edge package
+    if: needs.preflight.outputs.mode == 'release' || needs.preflight.outputs.mode == 'dry-run'
+    needs:
+      - preflight
+      - publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      API_ENDPOINT: ${{ vars.API_ENDPOINT }}
+      DRY_RUN: ${{ needs.preflight.outputs.mode == 'dry-run' }}
+    steps:
+      # Edge accepts only updates through its API, so submission starts after the owner has
+      # listed the extension by hand and registered all three secrets.
+      - name: Check the Edge publishing secrets
+        id: edge-credentials
+        env:
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+        run: |
+          required_credentials=(EDGE_PRODUCT_ID EDGE_CLIENT_ID EDGE_API_KEY)
+          missing_credentials=()
+          for credential_name in "${required_credentials[@]}"; do
+            if [[ -z "${!credential_name:-}" ]]; then
+              missing_credentials+=("$credential_name")
+            fi
+          done
+
+          if (( ${#missing_credentials[@]} == ${#required_credentials[@]} )); then
+            echo "::notice title=Edge publishing not configured::No Edge secrets are registered, so this run skips Microsoft Edge Add-ons."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if (( ${#missing_credentials[@]} != 0 )); then
+            for credential_name in "${missing_credentials[@]}"; do
+              echo "::error title=Missing repository secret::Configure the repository Actions secret $credential_name."
+            done
+            exit 1
+          fi
+
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the release
+        if: steps.edge-credentials.outputs.configured == 'true'
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.preflight.outputs.source_sha }}
+
+      - name: Reject environment files
+        if: steps.edge-credentials.outputs.configured == 'true'
+        run: |
+          blocked_path="$(find . -path './.git' -prune -o \( -name '.env' -o -name '.env.*' -o -name '.dev.vars' -o -name '.dev.vars.*' \) ! -name '*.example' -print -quit)"
+          if [[ -n "$blocked_path" ]]; then
+            echo "::error title=Environment file in checkout::$blocked_path must not be present in the repository."
+            exit 1
+          fi
+
+      - name: Install pnpm
+        if: steps.edge-credentials.outputs.configured == 'true'
+        uses: pnpm/action-setup@v6.1.1
+
+      - name: Set up Node.js
+        if: steps.edge-credentials.outputs.configured == 'true'
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        if: steps.edge-credentials.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Download the release archives
+        if: steps.edge-credentials.outputs.configured == 'true'
+        uses: actions/download-artifact@v8.0.2
+        with:
+          name: browser-extension-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-archives
+
+      - name: Submit the Edge package with WXT
+        if: steps.edge-credentials.outputs.configured == 'true'
+        working-directory: apps/browser-extension
+        env:
+          ARCHIVE_DIRECTORY: ${{ runner.temp }}/release-archives
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+        run: |
+          shopt -s nullglob
+          edge_archives=("$ARCHIVE_DIRECTORY"/*-edge.zip)
+          if (( ${#edge_archives[@]} != 1 )); then
+            echo "::error title=Unexpected release artifacts::Expected one Edge ZIP in the preserved archives."
+            exit 1
+          fi
+
+          submit_arguments=(submit --edge-zip "${edge_archives[0]}")
           if [[ "$DRY_RUN" == "true" ]]; then
             submit_arguments+=(--dry-run)
           fi

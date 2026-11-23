@@ -25,7 +25,7 @@ const LOCAL_HTTP_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1",
 
 export default defineConfig({
   manifestVersion: 3,
-  targetBrowsers: ["chrome", "firefox"],
+  targetBrowsers: ["chrome", "firefox", "edge"],
   modules: ["@wxt-dev/module-react", "@wxt-dev/auto-icons"],
   react: {
     vitePluginsBefore: [

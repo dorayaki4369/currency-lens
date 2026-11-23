@@ -1,6 +1,6 @@
 import type { CurrencyCode } from "@cl/currency";
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useMemo } from "react";
 import { MAX_FAVORITE_CURRENCIES, type Config } from "@/lib/currency";
 import {
   CURRENCY_CODES_BY_ISO_CODE,
@@ -8,6 +8,7 @@ import {
 } from "@/lib/currency-order";
 import { translate, type UiLocale } from "@/lib/i18n";
 import { convertCurrencyBatch } from "@/lib/rates";
+import { TargetTrend } from "@/components/rates/TargetTrend";
 import {
   ConversionEditor,
   parseConversionSourceAmount,
@@ -15,7 +16,7 @@ import {
 import { createConversionTargetAmounts } from "@/components/conversion/conversion-target-amounts";
 import { RateTimestamp } from "@/components/conversion/RateTimestamp";
 import {
-  PopupRouteFrame,
+  requireLoadedConfig,
   usePopupApplicationContext,
 } from "@/entrypoints/popup/PopupApplication";
 import {
@@ -24,7 +25,7 @@ import {
 } from "@/entrypoints/popup/stores/conversion";
 import { useConfigStore } from "@/stores/config";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_peer/")({
   component: ConverterRoute,
 });
 
@@ -41,24 +42,20 @@ function ConverterRoute() {
   const reorderFavorite = useConfigStore((state) => state.reorderFavorite);
 
   return (
-    <PopupRouteFrame screen="converter">
-      {popup.config === null ? null : (
-        <Converter
-          config={popup.config}
-          locale={popup.locale}
-          onAddFavorite={addFavorite}
-          onRemoveFavorite={removeFavorite}
-          onReorderFavorite={reorderFavorite}
-          onSourceAmountChange={setSourceAmount}
-          onSourceCurrencyChange={setSourceCurrency}
-          rates={rates.data}
-          ratesLoading={rates.status === "loading"}
-          sortedCurrencyCodes={CURRENCY_CODES_BY_ISO_CODE}
-          sourceAmount={sourceAmount}
-          sourceCurrency={sourceCurrency}
-        />
-      )}
-    </PopupRouteFrame>
+    <Converter
+      config={requireLoadedConfig(popup)}
+      locale={popup.locale}
+      onAddFavorite={addFavorite}
+      onRemoveFavorite={removeFavorite}
+      onReorderFavorite={reorderFavorite}
+      onSourceAmountChange={setSourceAmount}
+      onSourceCurrencyChange={setSourceCurrency}
+      rates={rates.data}
+      ratesLoading={rates.status === "loading"}
+      sortedCurrencyCodes={CURRENCY_CODES_BY_ISO_CODE}
+      sourceAmount={sourceAmount}
+      sourceCurrency={sourceCurrency}
+    />
   );
 }
 
@@ -119,6 +116,17 @@ function Converter({
     [config.favorites, conversionResults, locale, parsedAmount, ratesLoading],
   );
 
+  const renderTargetTrend = useCallback(
+    (currencyCode: CurrencyCode) => (
+      <ConverterTargetTrend
+        currencyCode={currencyCode}
+        favorites={config.favorites}
+        locale={locale}
+      />
+    ),
+    [config.favorites, locale],
+  );
+
   return (
     <ConversionEditor
       amountText={sourceAmount}
@@ -128,6 +136,7 @@ function Converter({
       onAmountTextChange={onSourceAmountChange}
       onCurrencyChange={onSourceCurrencyChange}
       onReorderTarget={onReorderFavorite}
+      renderTargetTrend={renderTargetTrend}
       targetAmounts={targetAmounts}
       targetCurrencies={config.favorites}
       targetEditing={{
@@ -146,6 +155,29 @@ function Converter({
         )
       }
       targetTitle={translate(locale, "targetsHeading")}
+    />
+  );
+}
+
+interface ConverterTargetTrendProps {
+  readonly currencyCode: CurrencyCode;
+  readonly favorites: readonly CurrencyCode[];
+  readonly locale: UiLocale;
+}
+
+/**
+ * Reads the source here rather than in the row callback, so changing it redraws the trends
+ * without rerendering the target list. A trend opens the rates in place of the converter.
+ */
+function ConverterTargetTrend(props: ConverterTargetTrendProps) {
+  const sourceCurrency = usePopupConversion((state) => state.sourceCurrency);
+  const navigate = useNavigate();
+  return (
+    <TargetTrend
+      {...props}
+      // The rates screen is a peer of the converter, so it swaps in without a slide.
+      onOpenRates={() => void navigate({ to: "/rates" })}
+      sourceCurrency={sourceCurrency}
     />
   );
 }

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrencyCode } from "@cl/currency";
 import type { Config } from "@/lib/currency";
 import type { DetectedCurrency } from "@/lib/currency-detection";
+import type { QuickConversion } from "@/entrypoints/content/components/FloatingIcon";
 
 const mocks = vi.hoisted(() => ({
   conversion: {
@@ -24,7 +25,9 @@ const mocks = vi.hoisted(() => ({
     setFloating: vi.fn<(element: HTMLElement | null) => void>(),
     setReference: vi.fn<(reference: unknown) => void>(),
   },
+  quickConversion: null as QuickConversion | null,
   selection: null as { readonly rect: DOMRect; readonly text: string } | null,
+  useQuickConversion: vi.fn<(...arguments_: unknown[]) => void>(),
   useCurrencyDetection: vi.fn<(...arguments_: unknown[]) => void>(),
 }));
 
@@ -33,6 +36,9 @@ vi.mock("@floating-ui/react-dom", () => ({
   flip: vi.fn<() => { readonly name: string }>(() => ({ name: "flip" })),
   offset: vi.fn<() => { readonly name: string }>(() => ({ name: "offset" })),
   shift: vi.fn<() => { readonly name: string }>(() => ({ name: "shift" })),
+  size: vi.fn<(options: unknown) => { readonly name: string; readonly options: unknown }>(
+    (options) => ({ name: "size", options }),
+  ),
   useFloating: vi.fn<() => unknown>(() => ({
     floatingStyles: { position: "fixed" },
     refs: mocks.floating,
@@ -50,11 +56,19 @@ vi.mock("@/entrypoints/content/hooks/useCurrencyDetection", () => ({
   },
 }));
 
+vi.mock("@/entrypoints/content/hooks/useQuickConversion", () => ({
+  useQuickConversion: (...arguments_: unknown[]) => {
+    mocks.useQuickConversion(...arguments_);
+    return mocks.quickConversion;
+  },
+}));
+
 vi.mock("@/entrypoints/content/hooks/useConversion", () => ({
   useConversion: () => mocks.conversion,
 }));
 
 import App from "@/entrypoints/content/App";
+import { size } from "@floating-ui/react-dom";
 
 const DETECTION: DetectedCurrency = {
   amount: 10,
@@ -75,8 +89,10 @@ beforeEach(() => {
   mocks.detections = [];
   mocks.floating.setFloating.mockReset();
   mocks.floating.setReference.mockReset();
+  mocks.quickConversion = null;
   mocks.selection = null;
   mocks.useCurrencyDetection.mockReset();
+  mocks.useQuickConversion.mockReset();
   document.documentElement.lang = "";
 });
 
@@ -87,6 +103,51 @@ afterEach(() => {
 });
 
 describe("content App", () => {
+  it("caps the card to the height the page leaves below or above the selection", async () => {
+    installBrowser(() => Promise.resolve(successfulConfig(CONFIG)));
+    render(<App />);
+    await act(async () => {});
+    const options = vi.mocked(size).mock.calls.at(-1)?.[0] as
+      | {
+          readonly apply: (state: {
+            readonly availableHeight: number;
+            readonly elements: { readonly floating: HTMLElement };
+          }) => void;
+          readonly padding: number;
+        }
+      | undefined;
+    expect(options?.padding).toBe(12);
+    const floating = document.createElement("dialog");
+    const apply = (availableHeight: number) =>
+      options?.apply({ availableHeight, elements: { floating } });
+
+    apply(320.5);
+    expect(floating.style.getPropertyValue("--conversion-card-max-height")).toBe("320.5px");
+    apply(-8);
+    expect(floating.style.getPropertyValue("--conversion-card-max-height")).toBe("0px");
+  });
+
+  it("shows the top conversion on the trigger and opens the card from it", async () => {
+    installBrowser(() => Promise.resolve(successfulConfig(CONFIG)));
+    mocks.selection = { rect: new DOMRect(5, 6, 7, 8), text: "$10" };
+    mocks.detections = [DETECTION];
+    mocks.quickConversion = {
+      amount: { text: "¥1,547", value: 1547 },
+      currencyCode: "JPY",
+      pending: false,
+    };
+
+    render(<App />);
+    const trigger = await screen.findByRole("button", {
+      name: "¥1,547 (Japanese Yen). Show all conversions",
+    });
+
+    expect(mocks.useQuickConversion).toHaveBeenLastCalledWith(DETECTION, CONFIG, "en");
+    fireEvent.click(trigger);
+    expect(screen.getByRole("dialog", { name: "Conversion result" })).toBeDefined();
+    expect(mocks.useQuickConversion).toHaveBeenLastCalledWith(undefined, CONFIG, "en");
+  });
+
   it("loads configuration, positions the trigger, converts, and restores focus", async () => {
     const browserMock = installBrowser(() => Promise.resolve(successfulConfig(CONFIG)));
     const rect = new DOMRect(5, 6, 7, 8);
@@ -134,7 +195,8 @@ describe("content App", () => {
       );
     });
     expect(mocks.conversion.reset).toHaveBeenCalled();
-    expect(browserMock.storage.onChanged.addListener).toHaveBeenCalledOnce();
+    // The configuration subscribes once for the page; the card adds one for its chart colors.
+    expect(browserMock.storage.onChanged.addListener).toHaveBeenCalledTimes(2);
   });
 
   it("keeps focus on an outside target when that pointer dismisses the card", async () => {
@@ -211,6 +273,26 @@ describe("content App", () => {
       );
     });
     expect(mocks.conversion.reset).toHaveBeenCalled();
+  });
+
+  it("keeps the current result when an edit preserves the source amount", async () => {
+    installBrowser(() => Promise.resolve(successfulConfig(CONFIG)));
+    mocks.selection = { rect: new DOMRect(0, 0, 10, 10), text: "$10" };
+    mocks.detections = [DETECTION];
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Convert selected price" }));
+    await waitFor(() => expect(mocks.conversion.convert).toHaveBeenCalledOnce());
+    mocks.conversion.reset.mockClear();
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Amount" }), {
+      target: { value: "10.0" },
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.conversion.reset).not.toHaveBeenCalled();
+    expect(mocks.conversion.convert).toHaveBeenCalledOnce();
   });
 
   it("does not convert again when only the target order changes", async () => {
@@ -355,9 +437,8 @@ function successfulConfig(config: Config): unknown {
 }
 
 function installBrowser(sendMessage: () => Promise<unknown>) {
-  let storageListener:
-    | ((changes: Record<string, unknown>, areaName: string) => void)
-    | undefined;
+  type StorageListener = (changes: Record<string, unknown>, areaName: string) => void;
+  const storageListeners = new Set<StorageListener>();
   const browserMock = {
     i18n: { getUILanguage: vi.fn<() => string>(() => "en-US") },
     runtime: { sendMessage: vi.fn<() => Promise<unknown>>(sendMessage) },
@@ -365,20 +446,24 @@ function installBrowser(sendMessage: () => Promise<unknown>) {
       onChanged: {
         addListener: vi.fn<
           (listener: (changes: Record<string, unknown>, areaName: string) => void) => void
-        >((listener: (changes: Record<string, unknown>, areaName: string) => void) => {
-          storageListener = listener;
+        >((listener: StorageListener) => {
+          storageListeners.add(listener);
         }),
-        removeListener:
-          vi.fn<
-            (listener: (changes: Record<string, unknown>, areaName: string) => void) => void
-          >(),
+        removeListener: vi.fn<(listener: StorageListener) => void>((listener) => {
+          storageListeners.delete(listener);
+        }),
       },
     },
-    getStorageListener: () => {
-      if (storageListener === undefined) {
+    // Delivers a change to every subscriber, as the browser does.
+    getStorageListener: (): StorageListener => {
+      if (storageListeners.size === 0) {
         throw new Error("Storage listener was not registered");
       }
-      return storageListener;
+      return (changes, areaName) => {
+        for (const listener of storageListeners) {
+          listener(changes, areaName);
+        }
+      };
     },
   };
   vi.stubGlobal("browser", browserMock);

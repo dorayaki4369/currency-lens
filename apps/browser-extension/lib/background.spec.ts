@@ -146,6 +146,94 @@ describe("background lifecycle", () => {
     });
   });
 
+  it("reads and stores chart colors under their own synchronized key", async () => {
+    const fetchRates = vi.fn(() => Promise.resolve(createRateResponse()));
+    const harness = installBrowserHarness(fetchRates);
+    const { handleMessage } = await import("@/entrypoints/background");
+
+    await expect(handleMessage({ type: "GET_CHART_COLORS" })).resolves.toEqual({
+      success: true,
+      data: {},
+    });
+    await expect(
+      handleMessage({
+        type: "SET_CHART_COLORS",
+        payload: { color: "#E3B63F", direction: "up" },
+      }),
+    ).resolves.toEqual({ success: true, data: { up: "#e3b63f" } });
+    expect(harness.syncSet).toHaveBeenCalledWith({ chartColors: { up: "#e3b63f" } });
+    await expect(
+      handleMessage({
+        type: "SET_CHART_COLORS",
+        payload: { color: "yellow", direction: "up" },
+      }),
+    ).resolves.toEqual({ success: false, error: "Invalid message format" });
+  });
+
+  it("fetches validated rate history and reuses it for the same symbols", async () => {
+    const history = {
+      base: "USD",
+      resolution: "daily",
+      start: "2026-01-01T00:00:00.000Z",
+      rates: { JPY: [150, 151] },
+    };
+    const fetchImplementation = vi.fn((input: RequestInfo | URL) =>
+      Promise.resolve(
+        readRequestUrl(input).includes("/v1/history")
+          ? Response.json(history)
+          : createRateResponse(),
+      ),
+    );
+    installBrowserHarness(fetchImplementation);
+    const { handleMessage } = await import("@/entrypoints/background");
+    const request = {
+      type: "GET_RATE_HISTORY",
+      payload: { resolution: "daily", symbols: ["JPY", "EUR"] },
+    };
+
+    await expect(handleMessage(request)).resolves.toEqual({ success: true, data: history });
+    await expect(
+      handleMessage({
+        ...request,
+        payload: { resolution: "daily", symbols: ["EUR", "JPY"] },
+      }),
+    ).resolves.toEqual({ success: true, data: history });
+    const historyCalls = fetchImplementation.mock.calls.filter(([input]) =>
+      readRequestUrl(input).includes("/v1/history"),
+    );
+    expect(historyCalls).toHaveLength(1);
+    expect(readRequestUrl(historyCalls[0]![0])).toBe(
+      "https://cl.dryk.net/v1/history?resolution=daily&symbols=JPY%2CEUR",
+    );
+  });
+
+  it("reports a failed rate history request without caching it", async () => {
+    const fetchImplementation = vi.fn((input: RequestInfo | URL) =>
+      Promise.resolve(
+        readRequestUrl(input).includes("/v1/history")
+          ? new Response(null, { status: 503 })
+          : createRateResponse(),
+      ),
+    );
+    installBrowserHarness(fetchImplementation);
+    const { handleMessage } = await import("@/entrypoints/background");
+    const request = {
+      type: "GET_RATE_HISTORY",
+      payload: { resolution: "hourly", symbols: ["JPY"] },
+    };
+
+    await expect(handleMessage(request)).resolves.toEqual({
+      success: false,
+      error: "Rate history API returned HTTP 503",
+    });
+    await handleMessage(request);
+    expect(
+      fetchImplementation.mock.calls.filter(([input]) =>
+        readRequestUrl(input).includes("/v1/history"),
+      ),
+    ).toHaveLength(2);
+  });
+
   it("waits for an active stale-rate refresh and returns the replacement snapshot", async () => {
     const response = Promise.withResolvers<Response>();
     const fetchRates = vi.fn(() => response.promise);
@@ -207,9 +295,42 @@ describe("background lifecycle", () => {
     expect(harness.localSet).not.toHaveBeenCalled();
   });
 
-  it("reports unavailable rates before the first refresh completes", async () => {
-    const fetchRates = vi.fn(() => new Promise<Response>(() => undefined));
+  it("waits for the first refresh instead of reporting rates as unavailable", async () => {
+    // A popup or selection right after installation asks before the first refresh lands.
+    const response = Promise.withResolvers<Response>();
+    const fetchRates = vi.fn(() => response.promise);
+    const harness = installBrowserHarness(fetchRates, {});
+    const { handleMessage } = await import("@/entrypoints/background");
+    await vi.waitFor(() => expect(fetchRates).toHaveBeenCalledOnce());
+
+    const conversion = handleMessage({
+      type: "CONVERT_CURRENCIES",
+      payload: {
+        amounts: [{ amount: 10, currencyCode: "USD" }],
+        targetCurrencies: ["EUR"],
+      },
+    });
+    const rates = handleMessage({ type: "GET_RATES" });
+    response.resolve(createRateResponse({ USD: "1", EUR: "0.8" }));
+
+    await expect(conversion).resolves.toMatchObject({
+      success: true,
+      data: {
+        results: [{ status: "converted", toCurrency: "EUR", convertedAmount: "8.00" }],
+      },
+    });
+    await expect(rates).resolves.toMatchObject({
+      success: true,
+      data: { isStale: false, rates: { USD: "1", EUR: "0.8" } },
+    });
+    expect(fetchRates).toHaveBeenCalledOnce();
+    expect(harness.localSet).toHaveBeenCalledOnce();
+  });
+
+  it("reports unavailable rates when the first refresh fails", async () => {
+    const fetchRates = vi.fn(() => Promise.reject(new Error("offline")));
     installBrowserHarness(fetchRates, {});
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { handleMessage } = await import("@/entrypoints/background");
 
     await expect(
@@ -278,6 +399,14 @@ describe("background lifecycle", () => {
     );
   });
 });
+
+/** Reads the URL of a fetch input without relying on default stringification. */
+function readRequestUrl(input: RequestInfo | URL): string {
+  if (input instanceof URL) {
+    return input.href;
+  }
+  return typeof input === "string" ? input : input.url;
+}
 
 /** Installs a minimal WebExtension environment and exposes its observable boundaries. */
 function installBrowserHarness(

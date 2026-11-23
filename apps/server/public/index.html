@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Currency Lens is a browser extension that converts selected prices into up to 5 currencies. This site serves its exchange rate API."
+    />
+    <title>Currency Lens — Exchange Rate API</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0 auto;
+        max-width: 42rem;
+        padding: 2.5rem 1.25rem 4rem;
+        font-family: system-ui, sans-serif;
+        line-height: 1.7;
+      }
+      h1 {
+        line-height: 1.3;
+      }
+      h2 {
+        margin-top: 2.25rem;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.9em;
+      }
+      .tagline {
+        font-size: 1.15rem;
+      }
+      .stores {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+      }
+      .stores a {
+        border: 1px solid currentColor;
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem;
+        text-decoration: none;
+      }
+      footer {
+        margin-top: 3rem;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Currency Lens</h1>
+      <p class="tagline">A currency converter that works right where you browse.</p>
+      <p>
+        Currency Lens is a browser extension for Chrome and Firefox. Select a price or an
+        amount on any web page, and it converts the amount in place into up to 5 currencies
+        you register, without rewriting the page.
+      </p>
+      <p class="stores">
+        <a
+          href="https://chromewebstore.google.com/detail/currency-lens/njogcdgiffcmekoicidimafmhlicpdha"
+        >
+          Get it for Chrome
+        </a>
+        <a href="https://addons.mozilla.org/en-US/firefox/addon/currency-lens">
+          Get it for Firefox
+        </a>
+      </p>
+
+      <h2>Exchange rate API</h2>
+      <p>
+        This site, <code>cl.dryk.net</code>, serves the exchange rates the extension uses.
+        The latest rates are available as JSON at
+        <a href="https://cl.dryk.net/v1/latest"><code>GET /v1/latest</code></a
+        >. Rates are based on USD, sourced from Open Exchange Rates, and refreshed hourly.
+      </p>
+
+      <h2>Privacy</h2>
+      <p>
+        Text you select on web pages is analyzed only in your browser and is never sent to
+        this API. See the <a href="/privacy">Currency Lens Privacy Policy</a> for details.
+      </p>
+    </main>
+    <footer>
+      <p>
+        Currency Lens is made by <a href="https://dryk.net">Ryuya Hirayama</a>. Source code
+        is available on <a href="https://github.com/dorayaki4369/currency-lens">GitHub</a>.
+      </p>
+    </footer>
+  </body>
+</html>

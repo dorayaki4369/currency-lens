@@ -2,7 +2,7 @@ import { CircleAlert, Settings } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Command,
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Stack } from "@/components/layout/Stack";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -37,6 +38,7 @@ const UI_FIXTURE_IDS = [
   "input",
   "native-select",
   "popover",
+  "segmented-control",
   "skeleton",
   "tooltip",
 ] as const satisfies readonly ComponentFixtureId[];
@@ -76,15 +78,13 @@ export function UiComponentFixture({ fixtureId }: UiComponentFixtureProps) {
     ),
     card: (
       <Card>
-        <CardContent>
-          <Stack>
-            <h2 className="font-semibold">換算設定</h2>
-            <p className="text-sm text-muted-foreground">
-              換算元と換算後に表示する通貨を設定します。
-            </p>
-            <Button size="sm">設定を開く</Button>
-          </Stack>
-        </CardContent>
+        <Stack>
+          <h2 className="font-semibold">換算設定</h2>
+          <p className="text-sm text-muted-foreground">
+            換算元と換算後に表示する通貨を設定します。
+          </p>
+          <Button size="sm">設定を開く</Button>
+        </Stack>
       </Card>
     ),
     checkbox: (
@@ -129,6 +129,7 @@ export function UiComponentFixture({ fixtureId }: UiComponentFixtureProps) {
         </PopoverContent>
       </Popover>
     ),
+    "segmented-control": <SegmentedControlFixture />,
     skeleton: (
       <div className="flex items-center gap-3">
         <Skeleton className="size-9 rounded-full" />
@@ -180,5 +181,21 @@ function NativeSelectFixture() {
         <NativeSelectOption value="dark">ダーク</NativeSelectOption>
       </NativeSelect>
     </Stack>
+  );
+}
+
+function SegmentedControlFixture() {
+  const labelId = useId();
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-4">
+        <Label id={labelId}>テーマ</Label>
+        <SegmentedControl aria-labelledby={labelId} defaultValue="light">
+          <SegmentedControlItem value="system">システム</SegmentedControlItem>
+          <SegmentedControlItem value="light">ライト</SegmentedControlItem>
+          <SegmentedControlItem value="dark">ダーク</SegmentedControlItem>
+        </SegmentedControl>
+      </div>
+    </Card>
   );
 }

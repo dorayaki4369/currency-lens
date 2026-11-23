@@ -1,11 +1,12 @@
 import type { CurrencyCode } from "@cl/currency";
-import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react-dom";
+import { autoUpdate, flip, offset, shift, size, useFloating } from "@floating-ui/react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { Config } from "@/lib/currency";
 import type { DetectedCurrency } from "@/lib/currency-detection";
 import { getUiLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
+  CONVERSION_CARD_MAX_HEIGHT_PROPERTY,
   ConversionPopup,
   type ConversionDismissReason,
 } from "@/entrypoints/content/components/ConversionPopup";
@@ -13,6 +14,7 @@ import { FloatingIcon } from "@/entrypoints/content/components/FloatingIcon";
 import { useConversion } from "@/entrypoints/content/hooks/useConversion";
 import { useConversionSession } from "@/entrypoints/content/hooks/useConversionSession";
 import { useCurrencyDetection } from "@/entrypoints/content/hooks/useCurrencyDetection";
+import { useQuickConversion } from "@/entrypoints/content/hooks/useQuickConversion";
 import { useSelection } from "@/entrypoints/content/hooks/useSelection";
 import { ConfigStoreProvider, useConfigStore } from "@/stores/config";
 
@@ -72,6 +74,17 @@ function ContentApplication() {
       offset(10),
       flip({ padding: FLOATING_PADDING }),
       shift({ padding: FLOATING_PADDING }),
+      // Runs after flip, so the cap follows the side the card ended up on; a taller screen
+      // then scrolls inside the card instead of leaving the viewport.
+      size({
+        apply: ({ availableHeight, elements }) => {
+          elements.floating.style.setProperty(
+            CONVERSION_CARD_MAX_HEIGHT_PROPERTY,
+            `${String(Math.max(0, availableHeight))}px`,
+          );
+        },
+        padding: FLOATING_PADDING,
+      }),
     ],
     [],
   );
@@ -150,10 +163,18 @@ function ContentApplication() {
 
   const handleSourceChange = useCallback(
     (source: DetectedCurrency | null) => {
+      // An equivalent edit starts no new request, so its current result must stay.
+      const preservesConversion =
+        source !== null &&
+        config !== null &&
+        conversionFingerprint.current ===
+          createConversionFingerprint(source, config.favorites);
       updateSource(source);
-      reset();
+      if (!preservesConversion) {
+        reset();
+      }
     },
-    [reset, updateSource],
+    [config, reset, updateSource],
   );
 
   const handleSetTrigger = useCallback(
@@ -168,6 +189,7 @@ function ContentApplication() {
     config !== null && !showPopup && selectionRect !== undefined
       ? detections[0]
       : undefined;
+  const quickConversion = useQuickConversion(triggerDetection, config, uiLocale);
   const theme = getContentTheme(config);
   const targetEditing = useMemo(
     () => ({ onAdd: handleAddTarget, onRemove: handleRemoveTarget }),
@@ -181,6 +203,7 @@ function ContentApplication() {
           floatingStyles={floatingStyles}
           locale={uiLocale}
           onClick={() => handleOpen(triggerDetection)}
+          quickConversion={quickConversion}
           setFloating={handleSetTrigger}
         />
       ) : null}

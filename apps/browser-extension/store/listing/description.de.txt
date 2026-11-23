@@ -1,0 +1,27 @@
+Currency Lens rechnet Preise direkt auf der Seite um, die du gerade liest. Du kaufst in einem ausländischen Onlineshop ein, planst eine Reise oder liest internationale Nachrichten? Markiere einen Preis wie 19,99 $, 49 € oder 1.200 JPY und sieh ihn in bis zu 5 Währungen deiner Wahl, ohne die Seite zu verlassen oder zu verändern.
+
+So funktioniert es
+
+1. Markiere einen Preis auf einer Website.
+2. Klicke auf die Currency-Lens-Schaltfläche, die neben der Markierung erscheint.
+3. Eine kleine Karte zeigt den Preis in deinen gewählten Währungen. Du kannst sie jederzeit über die Symbolleiste ändern.
+
+Funktionen
+
+- Liest Preise in vielen Schreibweisen: Währungssymbole ($, €, ¥), Codes (USD, JPY) und Namen („Euro“, „dollars“, „円“), auch Beträge wie „$1.5 million“, „5k円“ und „5万円“ sowie Preise in japanischen, chinesischen, koreanischen oder thailändischen Sätzen.
+- Mehrdeutige Symbole wie „$“: Wird ein Symbol von mehreren Währungen verwendet, wählt Currency Lens anhand deiner Einstellungen, der Seitensprache und der Browsersprache eine aus. Du kannst festlegen, für welche Währung jedes Symbol steht.
+- Bearbeiten und neu umrechnen: Ändere Betrag oder Ausgangswährung direkt in der Karte.
+- Fenster in der Symbolleiste: Gib einen beliebigen Betrag und eine Währung ein, um direkt umzurechnen, und füge Währungen hinzu, entferne sie oder ordne sie neu an.
+- Kursverlauf als Diagramm: Sieh dir im Fenster der Symbolleiste und in der Karte an, wie sich die Kurse deiner Währungen über Zeiträume von 1 Tag bis 1 Jahr entwickelt haben, oder vergleiche die Veränderungen aller Währungen in einem Diagramm.
+- Aktuelle Wechselkurse von Open Exchange Rates, mit einem Hinweis, wenn sie veraltet sind.
+- Oberfläche auf Deutsch, Englisch, Japanisch, vereinfachtem und traditionellem Chinesisch, Koreanisch, Spanisch, Französisch und brasilianischem Portugiesisch, passend zur Browsersprache.
+
+Datenschutz
+
+Kein Konto nötig. Der markierte Text wird in deinem Browser ausgewertet und nirgendwohin gesendet. Die einzige Netzwerkanfrage ruft Wechselkurse ab und enthält keine Seiteninhalte.
+
+Datenschutzerklärung: https://cl.dryk.net/privacy
+
+Wo es funktioniert
+
+Auf normalen Websites in Chrome für den Desktop und Firefox ab Version 140. Nicht auf PDFs, Formularfeldern, Canvas-Elementen, Einstellungsseiten des Browsers oder in Erweiterungs-Stores.

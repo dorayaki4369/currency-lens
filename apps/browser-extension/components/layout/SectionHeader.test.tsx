@@ -28,5 +28,14 @@ describe("SectionHeader", () => {
     expect(screen.getByRole("heading", { level: 3, name: "Original" })).toBeDefined();
     expect(screen.queryByText("Choose the currencies to display.")).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(screen.getByRole("heading").parentElement?.className).not.toContain("min-h-8");
+  });
+
+  it("can keep the title row as tall as one with a small icon action", () => {
+    render(<SectionHeader id="rates-heading" reserveActionHeight title="Rates" />);
+
+    expect(
+      screen.getByRole("heading", { name: "Rates" }).parentElement?.className,
+    ).toContain("min-h-8");
   });
 });

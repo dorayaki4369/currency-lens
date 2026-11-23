@@ -4,26 +4,28 @@ Currency Lensは、Webページで選択した金額を、登録した通貨へ�
 
 対応ブラウザは、デスクトップ版のChromeと、Firefox 140以降です。Firefox for Androidには対応していません。
 
-- [Chrome Web Store](https://chrome.google.com/webstore/detail/currency-lens/cfpmgblhfmfomcgkpkghcgkcfblbpgkm)
+- [Chrome Web Store](https://chrome.google.com/webstore/detail/currency-lens/njogcdgiffcmekoicidimafmhlicpdha)
 - [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/currency-lens)
 
 ## 使い方
 
-1. 拡張機能のPopupで、換算後に表示したい通貨を最大5件登録します。変更はその場で保存されます。
+1. 拡張機能のPopupで、換算後に表示したい通貨を1件以上、最大5件登録します。変更はその場で保存されます。
 2. Webページ上で、`$19.99`や`1,200 JPY`のような金額を含むテキストを選択します。
-3. 選択範囲の近くに出るCurrency Lensのロゴ（青い虫眼鏡と黄色いドル記号）を押します。
-4. 換算カードに、登録した通貨での金額が表示されます。
+3. 選択範囲の近くに、登録した通貨のうち一番上の通貨での金額が、国旗と一緒に表示されます。選択した金額と同じ通貨が一番上にある場合は、次の通貨で表示します。
+4. その表示を押すと換算カードが開き、登録したすべての通貨での金額が表示されます。
 
 ブラウザの設定画面や拡張機能ストアなど、ブラウザが拡張機能の実行を禁止しているページでは動作しません。
 
 ## できること
 
-- **金額の検出**: 通貨記号、通貨コード、または「円」「dollars」のような各言語の通貨名を含むテキストから金額を見つけます。選択範囲に複数の金額がある場合は、最初の1件を換算します。
-- **曖昧な記号の解釈**: `$`のように複数の通貨で使われる記号は、ユーザー設定、ページの言語、ブラウザの言語の順に手がかりにして通貨を決めます。記号ごとの解釈はPopupの設定から変えられます。
-- **Popupでの換算**: Popupのトップでは、金額と換算元の通貨を自由に入力して換算できます。換算後の通貨の追加、削除、並べ替えも同じ画面でできます。
-- **換算カードでの再換算**: ページ上の換算カードでも、換算元の金額と通貨を書き換えて換算し直せます。
-- **表示**: 換算後の金額は小数点以下2桁に丸め、表示幅に収まらない場合は指数表記にします。UIは日本語と英語に対応し、ブラウザの言語に合わせて切り替えます。
+- **金額の検出**: 通貨記号、通貨コード、または「円」「dollars」のような各言語の通貨名を含むテキストから金額を見つけます。「5万円」「5万ドル」「$1.5 million」「5k円」のように、万・億やk、millionなどの単位は、どの通貨の記号、コード、通貨名とも組み合わせて検出します。「価格は500円です」のように、日本語、中国語、韓国語、タイ語の文に続けて書かれた金額も検出します。「billion」は、ページの言語がドイツ語かフランス語なら10の12乗、それ以外なら10の9乗として扱います。「50¢」「25 cents」「99 pence」「50 копеек」「25銭」のような補助単位の金額は、主単位に直して換算します。「$5 and 50 cents」「£3 20p」「150円25銭」「3元5角2分」のように主単位と補助単位を続けて書いた金額は、合わせて1件の金額として扱います。「p」「角」「分」のように短い語や別の意味でも使われる語は、主単位の直後にある場合だけ補助単位として読みます。選択範囲に複数の金額がある場合は、最初の1件を換算します。
+- **曖昧な記号の解釈**: `$`のように複数の通貨で使われる記号は、ユーザー設定、ページの言語、ブラウザの言語の順に手がかりにして通貨を決めます。記号ごとの解釈はPopupの設定から変えられます。「¢」と「cents」は`$`の解釈に、「pence」は`£`の解釈に従います。「CAD 50 cents」「€50 cents」のように通貨コードや記号を前に書いた補助単位は、その通貨として読みます。
+- **Popupでの換算**: Popupのトップでは、金額と換算元の通貨を自由に入力して換算できます。換算後の通貨の追加、削除、並べ替えも同じ画面でできます。換算後の各通貨には過去1か月のレートの推移を小さなグラフで表示し、押すとその通貨のレート画面を開きます。狭い画面で換算後を編集するときのように、通貨のアイコンとコードを並べる幅が残らない行では、このグラフを省きます。
+- **レートの推移**: Popup上部の「換算｜レート」でレート画面へ切り替えると、換算元の通貨を基準にした換算後の通貨のレートを、1日から1年までの期間のグラフで確認できます。すべての通貨の変化率を重ねて比べることも、1通貨のレートと期間中の変化を見ることもできます。上昇は緑、下降は赤で表示します。設定の「外観」で、上昇と下落の色をそれぞれ17色から選べます。選んだ色はPopupと換算カードの両方のグラフに使います。
+- **換算カードでの再換算とレートの推移**: ページ上の換算カードでも、換算元の金額と通貨を書き換えて換算し直せます。換算カードにもPopupと同じ「換算｜レート」の切り替え、換算後の各通貨の推移のグラフ、レート画面があり、カードの換算元の通貨を基準にレートの推移を確認できます。期間と表示する通貨は、カードを開くたびに1か月とすべての通貨に戻ります。カードが画面に収まらない高さになるときは、閉じるボタンと切り替えを残して、その下だけをスクロールします。
+- **表示**: 選択範囲の近くの表示では、換算後の金額をその通貨の記号と通常の桁数で表します（円なら小数なし）。換算カードでは小数点以下2桁に丸め、表示幅に収まらない場合は指数表記にします。UIは英語、日本語、中国語（簡体字・繁体字）、韓国語、スペイン語、フランス語、ドイツ語、ポルトガル語（ブラジル）に対応し、ブラウザの言語に合わせて切り替えます。
 - **ページとの分離**: 換算カードはShadow DOMの中に描画するため、閲覧中のページとCurrency Lensのスタイルは互いに影響しません。
+- **レートの出どころ**: 換算結果の下に、レートの提供時刻と、提供元であるOpen Exchange Ratesへのリンクを表示します。
 - **レートの保持**: レートの取得に失敗しても、最後に取得できたレートで換算を続けます。レートの提供時刻から24時間以上たった場合は、古いレートであることを画面に表示します。
 
 ## プライバシー
@@ -82,15 +84,17 @@ mise exec -- pnpm install --frozen-lockfile
 
 ```dotenv
 API_ENDPOINT=http://localhost:8787
+RATE_SOURCE=mock
 OPEN_EXCHANGE_RATE_APP_ID=your-app-id
 ```
 
 | 変数                        | 用途                                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------------------- |
 | `API_ENDPOINT`              | 拡張機能が接続するレートAPIのベースURLです。拡張機能はこれに`/v1/latest`を付けて接続します。 |
-| `OPEN_EXCHANGE_RATE_APP_ID` | WorkerがOpen Exchange Ratesからレートを取得するためのApp IDです。                            |
+| `RATE_SOURCE`               | ローカルのWorkerがレートを取得する先です。`mock`（既定）か`live`を指定します。               |
+| `OPEN_EXCHANGE_RATE_APP_ID` | WorkerがOpen Exchange Ratesからレートを取得するためのApp IDです。`live`のときだけ使います。  |
 
-`.env`は必須ではありません。`.env`がない場合、開発サーバーは`API_ENDPOINT`をローカルWorkerの`http://localhost:8787`にして起動します。ただし、App IDがないためWorkerはレートを取得できず、ローカルのR2は空のままです。
+`.env`は必須ではありません。`.env`がない場合、開発サーバーは`API_ENDPOINT`をローカルWorkerの`http://localhost:8787`にして起動し、Workerはモックのレートを返します。モックとOpen Exchange Ratesの切り替えは[Workerのローカル開発](apps/server/README.md#ローカル開発)にあります。
 
 `pnpm build`と`pnpm validate`は`.env`を読みません。ローカルで実行するときは、`API_ENDPOINT=https://cl.dryk.net pnpm validate`のように値を直接渡します。GitHub Actionsでは、CIは本番のURL、ストア提出用のビルドはRepository variableの値を使います。
 
@@ -114,24 +118,26 @@ pnpm -C apps/browser-extension dev:firefox  # 拡張機能（Firefox）
 pnpm -C apps/server dev                     # Worker
 ```
 
-ローカルのWorkerは、R2に保存済みのレートを返します。レートを取得し直す手順は[Workerのローカル開発](apps/server/README.md#ローカル開発)にあります。
+ローカルのWorkerは、既定ではOpen Exchange Ratesへ接続せず、モックのレートを返します。API使用量を消費しないため、App IDがなくても換算を確かめられます。本物のレートを使う手順とレートを取得し直す手順は[Workerのローカル開発](apps/server/README.md#ローカル開発)にあります。
 
 ### コマンド
 
 ルートで実行します。
 
-| コマンド                | 用途                                                                                                                           |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm dev`              | 拡張機能とWorkerの開発サーバーを起動する                                                                                       |
-| `pnpm check`            | 整形、lint、型検査をまとめて確認する。`--fix`を付けると自動修正する                                                            |
-| `pnpm test`             | unitテストを実行する（`pnpm test:unit`と同じ）                                                                                 |
-| `pnpm test:integration` | 実ブラウザで結合テストを実行する                                                                                               |
-| `pnpm test:coverage`    | unitテストのカバレッジ4指標が全ファイルで100%であることを検証する                                                              |
-| `pnpm test:e2e`         | 拡張機能をビルドし、Chromiumへ読み込んで主要な操作を検証する。Firefox審査用のsources ZIPの中身も検証する。`API_ENDPOINT`が必要 |
-| `pnpm build`            | 拡張機能とWorkerをビルドする。`API_ENDPOINT`が必要                                                                             |
-| `pnpm validate`         | check、coverage、integration、buildを順に実行する。`API_ENDPOINT`が必要                                                        |
-| `pnpm store:dev`        | ストア掲載用の宣伝画像を`http://127.0.0.1:4310/`でプレビューする。元になるレビュー用画像が必要                                 |
-| `pnpm store:images`     | ストア掲載用の宣伝画像を`apps/browser-extension/.output/store-images/`へ書き出す。元になるレビュー用画像が必要                 |
+| コマンド                        | 用途                                                                                                                                                           |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                      | 拡張機能とWorkerの開発サーバーを起動する                                                                                                                       |
+| `pnpm check`                    | 整形、lint、型検査をまとめて確認する。`--fix`を付けると自動修正する                                                                                            |
+| `pnpm test`                     | unitテストを実行する（`pnpm test:unit`と同じ）                                                                                                                 |
+| `pnpm test:integration`         | 実ブラウザで結合テストを実行する                                                                                                                               |
+| `pnpm test:integration:firefox` | 配置の結合テストをFirefoxで実行する。Playwrightが管理するFirefoxが必要                                                                                         |
+| `pnpm test:coverage`            | unitテストのカバレッジ4指標が全ファイルで100%であることを検証する                                                                                              |
+| `pnpm test:e2e`                 | 拡張機能をビルドし、Chromiumへ読み込んで主要な操作を検証する。Firefox審査用のsources ZIPの中身も検証する。`API_ENDPOINT`が必要                                 |
+| `pnpm build`                    | 拡張機能とWorkerをビルドする。`API_ENDPOINT`が必要                                                                                                             |
+| `pnpm validate`                 | check、coverage、integration、buildを順に実行する。`API_ENDPOINT`が必要                                                                                        |
+| `pnpm store:dev`                | ストア掲載用の宣伝画像を`http://127.0.0.1:4310/`でプレビューする。元になるレビュー用画像が必要                                                                 |
+| `pnpm store:images`             | ストア掲載用の宣伝画像を`apps/browser-extension/.output/store-images/`へ書き出す。元になるレビュー用画像が必要                                                 |
+| `pnpm store:video`              | ストア掲載用の説明動画を撮り直す。Chrome系ブラウザ、libx264付きのffmpeg、`cdn.jsdelivr.net`への接続が必要（[手順](docs/deployment.md#ストア掲載用の宣伝画像)） |
 
 拡張機能のビルドとストア提出用ZIPの作成は、[ブラウザ拡張機能のREADME](apps/browser-extension/README.md#ビルド)を参照してください。
 
@@ -145,6 +151,6 @@ pnpm -C apps/server dev                     # Worker
 
 通常の開発は`develop`へのPull Requestで行い、リリース時に`develop`から`main`へのPull Requestで昇格させます。`main`へ直接変更を入れることはありません。
 
-`develop`と`main`へのpushとPull Requestでは、GitHub Actionsが`pnpm check`、カバレッジ検証、integration、E2E、ビルドを別々のjobとして並列に実行し、unitのカバレッジをPull Requestへコメントします。`main`が更新されると、同じCIがすべてのjobの成功後にWorkerをデプロイします。拡張機能のversionと変更履歴は[Changesets](https://changesets.dev/)で管理します。利用者に見える変更を含むPull Requestには`pnpm changeset`でchangesetを追加し、`pnpm changeset version`で更新したversionが`main`に入ると、Chrome Web StoreとFirefox Add-onsへ提出されてtagとGitHub Releaseが作られます。手順は[デプロイとストア公開](docs/deployment.md#公開手順)にあります。
+`develop`と`main`へのpushとPull Requestでは、GitHub Actionsが`pnpm check`、カバレッジ検証、integration、Firefoxでの配置のintegration、E2E、ビルドを別々のjobとして並列に実行し、unitのカバレッジをPull Requestへコメントします。`main`が更新されると、同じCIがすべてのjobの成功後にWorkerをデプロイします。拡張機能のversionと変更履歴は[Changesets](https://changesets.dev/)で管理します。利用者に見える変更を含むPull Requestには`pnpm changeset`でchangesetを追加し、`pnpm changeset version`で更新したversionが`main`に入ると、Chrome Web StoreとFirefox Add-onsへ提出されてtagとGitHub Releaseが作られます。手順は[デプロイとストア公開](docs/deployment.md#公開手順)にあります。
 
 Cloudflare、R2、Custom Domain、各ストアの初回設定は、リポジトリの外で行う作業です。手順は[デプロイとストア公開](docs/deployment.md)にあります。

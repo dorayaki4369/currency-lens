@@ -24,11 +24,20 @@ import {
 import { createConversionTargetAmounts } from "@/components/conversion/conversion-target-amounts";
 import { RateTimestamp } from "@/components/conversion/RateTimestamp";
 import { Stack } from "@/components/layout/Stack";
+import { RatesScreen } from "@/components/rates/RatesScreen";
+import {
+  RatesScreenSwitch,
+  type RatesScreenView,
+} from "@/components/rates/RatesScreenSwitch";
+import { TargetTrend } from "@/components/rates/TargetTrend";
 import { IconButton } from "@/components/ui/icon-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { List, ListItem, ListItemRow } from "@/components/ui/list";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RateHistoryProvider, type RateHistoryPreview } from "@/stores/rate-history";
+import { ChartColorsProvider } from "@/stores/chart-colors";
+import type { ChartColorSettings } from "@/lib/trend-colors";
 
 export interface ConversionPopupData {
   readonly base: CurrencyCode;
@@ -38,15 +47,22 @@ export interface ConversionPopupData {
   readonly sourceTimestamp: number;
 }
 
+/** Carries the height the page leaves for the card, which the card caps itself to. */
+export const CONVERSION_CARD_MAX_HEIGHT_PROPERTY = "--conversion-card-max-height";
+
 export type ConversionDismissReason = "close-button" | "escape" | "outside-pointer";
 
 export type ConversionSource = DetectedCurrency;
 
 interface ConversionPopupProps {
+  /** Fixed chart colors for previews and tests, which then never read or follow storage. */
+  readonly chartColorsPreview?: ChartColorSettings | undefined;
   readonly data: ConversionPopupData | null;
   readonly detection: DetectedCurrency | null;
   readonly error: string | null;
   readonly floatingStyles: CSSProperties;
+  /** Fixed rate history for previews and tests, which then never request it. */
+  readonly historyPreview?: RateHistoryPreview | undefined;
   readonly loading: boolean;
   readonly locale: UiLocale;
   readonly onClose: (reason: ConversionDismissReason) => void;
@@ -67,10 +83,12 @@ interface ConversionPopupProps {
 
 /** Displays one selected amount in a native top-layer dialog containing a shadcn card. */
 export function ConversionPopup({
+  chartColorsPreview,
   data,
   detection,
   error,
   floatingStyles,
+  historyPreview,
   loading,
   locale,
   onClose,
@@ -102,7 +120,9 @@ export function ConversionPopup({
   return (
     <dialog
       aria-labelledby={titleId}
-      className="inset-auto m-0 w-96 max-h-none max-w-[calc(100vw_-_--spacing(6))] overflow-visible border-0 bg-transparent p-0 text-inherit outline-none backdrop:bg-transparent"
+      // The card sits in a host page of any language, so it declares its own for glyphs and speech.
+      lang={locale}
+      className="inset-auto m-0 w-96 max-h-(--conversion-card-max-height) max-w-[calc(100vw_-_--spacing(6))] flex-col overflow-visible open:flex border-0 bg-transparent p-0 text-inherit outline-none backdrop:bg-transparent"
       onCancel={(event) => {
         event.preventDefault();
         onClose("escape");
@@ -119,41 +139,47 @@ export function ConversionPopup({
       style={floatingStyles}
       tabIndex={-1}
     >
-      <Card className="relative w-full bg-background shadow-lg" spacing="compact">
+      <Card className="relative w-full" layer="overlay" spacing="flush">
         <h2 className="sr-only" id={titleId}>
           {translate(locale, "conversionResult")}
         </h2>
-        <IconButton
-          className="absolute top-2 right-2 z-10"
-          label={translate(locale, "closeApp")}
-          onClick={() => onClose("close-button")}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <X aria-hidden="true" />
-        </IconButton>
-
-        <CardContent className="pt-6">
-          <ConversionCardBody
-            data={data}
-            detection={detection}
-            error={error}
-            loading={loading}
-            locale={locale}
-            onReorderTarget={onReorderTarget}
-            onSourceChange={onSourceChange}
-            settingsSaveFailed={settingsSaveFailed}
-            targetCurrencies={targetCurrencies}
-            targetEditing={targetEditing}
-          />
-        </CardContent>
+        {/* Opening the card again starts the rates over at one month of every target. */}
+        <RateHistoryProvider preview={historyPreview}>
+          {/* Follows the saved chart colors, including changes made while the card is open. */}
+          <ChartColorsProvider preview={chartColorsPreview}>
+            <ConversionCardBody
+              closeButton={
+                <IconButton
+                  label={translate(locale, "closeApp")}
+                  onClick={() => onClose("close-button")}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <X aria-hidden="true" />
+                </IconButton>
+              }
+              data={data}
+              detection={detection}
+              error={error}
+              loading={loading}
+              locale={locale}
+              onReorderTarget={onReorderTarget}
+              onSourceChange={onSourceChange}
+              settingsSaveFailed={settingsSaveFailed}
+              targetCurrencies={targetCurrencies}
+              targetEditing={targetEditing}
+            />
+          </ChartColorsProvider>
+        </RateHistoryProvider>
       </Card>
     </dialog>
   );
 }
 
-type ConversionCardBodyProps = Pick<
+type ConversionCardBodyProps = {
+  readonly closeButton: ReactNode;
+} & Pick<
   ConversionPopupProps,
   | "data"
   | "detection"
@@ -169,6 +195,7 @@ type ConversionCardBodyProps = Pick<
 
 /** Selects exactly one mutually exclusive body state. */
 function ConversionCardBody({
+  closeButton,
   data,
   detection,
   error,
@@ -181,20 +208,23 @@ function ConversionCardBody({
   targetEditing,
 }: ConversionCardBodyProps) {
   if (detection === null) {
-    if (loading) {
-      return <ConversionSkeleton locale={locale} />;
-    }
-    if (error !== null) {
-      return <ErrorState error={error} locale={locale} />;
-    }
     return (
-      <p className="py-6 text-center text-sm text-muted-foreground">
-        {translate(locale, "conversionEmpty")}
-      </p>
+      <ConversionCardFrame closeButton={closeButton}>
+        {loading ? (
+          <ConversionSkeleton locale={locale} />
+        ) : error === null ? (
+          <p className="text-center text-sm text-muted-foreground">
+            {translate(locale, "conversionEmpty")}
+          </p>
+        ) : (
+          <ErrorState locale={locale} />
+        )}
+      </ConversionCardFrame>
     );
   }
   return (
     <ConversionDetails
+      closeButton={closeButton}
       data={data}
       detection={detection}
       error={error}
@@ -210,6 +240,7 @@ function ConversionCardBody({
 }
 
 interface ConversionDetailsProps {
+  readonly closeButton: ReactNode;
   readonly data: ConversionPopupData | null;
   readonly detection: DetectedCurrency;
   readonly error: string | null;
@@ -224,8 +255,13 @@ interface ConversionDetailsProps {
 
 type RatePresentation = Pick<ConversionPopupData, "isStale" | "sourceTimestamp">;
 
-/** Renders the source amount and ordered conversion results. */
+/**
+ * Renders the source amount and ordered conversion results, or the rates against the source
+ * currency, behind the same switch as the popup. The base of the rates is this card's source,
+ * so changing either changes both without touching the saved settings.
+ */
 function ConversionDetails({
+  closeButton,
   data,
   detection,
   error,
@@ -239,6 +275,9 @@ function ConversionDetails({
 }: ConversionDetailsProps) {
   const [amountText, setAmountText] = useState(String(detection.amount));
   const [currencyCode, setCurrencyCode] = useState(detection.currencyCode);
+  const [view, setView] = useState<RatesScreenView>("converter");
+  const checkedViewReference = useRef<HTMLButtonElement>(null);
+  const shownView = useRef(view);
   const lastRatePresentation = useRef<RatePresentation | null>(
     data === null
       ? null
@@ -305,6 +344,16 @@ function ConversionDetails({
     }
   }, [data]);
 
+  useEffect(() => {
+    if (shownView.current === view) {
+      return;
+    }
+    shownView.current = view;
+    // A trend opens the rates in place of itself, and the converter focuses its amount when it
+    // returns, so focus follows the switch to the screen now shown.
+    checkedViewReference.current?.focus({ preventScroll: true });
+  }, [view]);
+
   const ratePresentation = error === null ? (data ?? lastRatePresentation.current) : null;
 
   const notifySourceChange = (nextAmountText: string, nextCurrency: CurrencyCode) => {
@@ -319,9 +368,36 @@ function ConversionDetails({
           },
     );
   };
+  const changeCurrency = (nextCurrency: CurrencyCode) => {
+    setCurrencyCode(nextCurrency);
+    notifySourceChange(amountText, nextCurrency);
+  };
+  // Stays stable while only the amount changes, so typing does not rerender the target list.
+  const renderTargetTrend = useCallback(
+    (targetCurrency: CurrencyCode) => (
+      <TargetTrend
+        currencyCode={targetCurrency}
+        favorites={displayedTargetCurrencies}
+        locale={locale}
+        onOpenRates={() => setView("rates")}
+        sourceCurrency={currencyCode}
+      />
+    ),
+    [currencyCode, displayedTargetCurrencies, locale],
+  );
 
   return (
-    <Stack gap={3}>
+    <ConversionCardFrame
+      closeButton={closeButton}
+      screenSwitch={
+        <RatesScreenSwitch
+          checkedItemRef={checkedViewReference}
+          locale={locale}
+          onValueChange={setView}
+          value={view}
+        />
+      }
+    >
       {settingsSaveFailed ? (
         <Alert role="alert" variant="destructive">
           <CircleAlert aria-hidden="true" />
@@ -329,38 +405,85 @@ function ConversionDetails({
         </Alert>
       ) : null}
 
-      <ConversionEditor
-        amountText={amountText}
-        currencyCode={currencyCode}
-        locale={locale}
-        onAmountTextChange={(nextAmountText) => {
-          setAmountText(nextAmountText);
-          notifySourceChange(nextAmountText, currencyCode);
-        }}
-        onCurrencyChange={(nextCurrency) => {
-          setCurrencyCode(nextCurrency);
-          notifySourceChange(amountText, nextCurrency);
-        }}
-        onReorderTarget={onReorderTarget}
-        portalled={false}
-        sourceHeadingLevel={3}
-        targetAmounts={targetAmounts}
-        targetCurrencies={displayedTargetCurrencies}
-        targetEditing={targetEditing}
-        targetFallback={targetFallback}
-        targetFooter={
-          sourceIsValid && ratePresentation !== null ? (
-            <RateTimestamp
-              isStale={ratePresentation.isStale}
-              locale={locale}
-              sourceTimestamp={ratePresentation.sourceTimestamp}
-            />
-          ) : undefined
-        }
-        targetHeadingLevel={3}
-        targetTitle={translate(locale, "convertedHeading")}
-      />
-    </Stack>
+      {view === "rates" ? (
+        <RatesScreen
+          baseCurrency={currencyCode}
+          favorites={displayedTargetCurrencies}
+          headingLevel={3}
+          locale={locale}
+          onBaseCurrencyChange={changeCurrency}
+          portalled={false}
+          rateTime={ratePresentation}
+        />
+      ) : (
+        <ConversionEditor
+          amountText={amountText}
+          currencyCode={currencyCode}
+          locale={locale}
+          onAmountTextChange={(nextAmountText) => {
+            setAmountText(nextAmountText);
+            notifySourceChange(nextAmountText, currencyCode);
+          }}
+          onCurrencyChange={changeCurrency}
+          onReorderTarget={onReorderTarget}
+          portalled={false}
+          renderTargetTrend={renderTargetTrend}
+          sourceHeadingLevel={3}
+          targetAmounts={targetAmounts}
+          targetCurrencies={displayedTargetCurrencies}
+          targetEditing={targetEditing}
+          targetFallback={targetFallback}
+          targetFooter={
+            sourceIsValid && ratePresentation !== null ? (
+              <RateTimestamp
+                isStale={ratePresentation.isStale}
+                locale={locale}
+                sourceTimestamp={ratePresentation.sourceTimestamp}
+              />
+            ) : undefined
+          }
+          targetHeadingLevel={3}
+          targetTitle={translate(locale, "convertedHeading")}
+        />
+      )}
+    </ConversionCardFrame>
+  );
+}
+
+interface ConversionCardFrameProps {
+  readonly children: ReactNode;
+  readonly closeButton: ReactNode;
+  readonly screenSwitch?: ReactNode | undefined;
+}
+
+/**
+ * Keeps the close button on a row of its own with the screen switch below it, and scrolls only
+ * the screen beneath them, like the popup's frame. The dialog caps the card to the space the
+ * page leaves, so a tall screen scrolls inside the card instead of leaving the viewport. Both
+ * parts pad themselves by the card's 8px, so content scrolls under the card's edges without
+ * clipping shadows or focus rings.
+ */
+function ConversionCardFrame({
+  children,
+  closeButton,
+  screenSwitch,
+}: ConversionCardFrameProps) {
+  return (
+    <>
+      <Stack className="shrink-0 p-2" data-slot="conversion-card-header" gap={2}>
+        <div className="flex justify-end" data-slot="conversion-card-toolbar">
+          {closeButton}
+        </div>
+        {screenSwitch}
+      </Stack>
+      <Stack
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+        data-slot="conversion-card-body"
+        gap={3}
+      >
+        {children}
+      </Stack>
+    </>
   );
 }
 
@@ -376,7 +499,7 @@ function getConversionTargetFallback(
     return <ConversionResultsSkeleton locale={locale} />;
   }
   if (error !== null) {
-    return <ErrorState error={error} locale={locale} />;
+    return <ErrorState locale={locale} />;
   }
   if (data === null && useBoundaryFallback) {
     return (
@@ -465,7 +588,7 @@ function useDismissableLayer(
 /** Preserves the result-list shape while conversion data is loading. */
 function ConversionResultsSkeleton({ locale }: { readonly locale: UiLocale }) {
   return (
-    <Card aria-label={translate(locale, "loadingConversion")} role="status" spacing="none">
+    <Card aria-label={translate(locale, "loadingConversion")} role="status" spacing="flush">
       <List>
         {[0, 1].map((row) => (
           <ListItem key={row}>
@@ -491,25 +614,14 @@ function ConversionSkeleton({ locale }: { readonly locale: UiLocale }) {
 }
 
 /** Presents a localized conversion failure without leaking boundary details. */
-function ErrorState({
-  error,
-  locale,
-}: {
-  readonly error: string;
-  readonly locale: UiLocale;
-}) {
-  const isMissingTarget = error === "MISSING_CONVERSION_TARGET";
+function ErrorState({ locale }: { readonly locale: UiLocale }) {
   return (
     <Alert variant="destructive">
       <CircleAlert aria-hidden="true" />
-      <AlertTitle>
-        {translate(locale, isMissingTarget ? "conversionMissingTarget" : "conversionError")}
-      </AlertTitle>
-      {isMissingTarget ? null : (
-        <AlertDescription className="text-pretty">
-          {translate(locale, "conversionRetry")}
-        </AlertDescription>
-      )}
+      <AlertTitle>{translate(locale, "conversionError")}</AlertTitle>
+      <AlertDescription className="text-pretty">
+        {translate(locale, "conversionRetry")}
+      </AlertDescription>
     </Alert>
   );
 }

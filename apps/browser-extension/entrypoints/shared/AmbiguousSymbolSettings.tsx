@@ -1,4 +1,5 @@
 import { useId, useMemo } from "react";
+import { ROW_INSET_CLASS_NAME } from "@/components/ui/row-control";
 import {
   getAmbiguousCurrencySymbolGroups,
   isKnownCurrencyCode,
@@ -47,7 +48,7 @@ export function AmbiguousSymbolSettings({
   };
 
   return (
-    <Card className={cn("overflow-hidden", listClassName)} spacing="none">
+    <Card className={cn("overflow-hidden", listClassName)} spacing="flush">
       <List aria-labelledby={headingId} as="ul" className="min-h-0 flex-1 overflow-y-auto">
         {groups.map((group) => (
           <ListItem as="li" key={group.tokens.join("")}>
@@ -77,18 +78,14 @@ function SymbolMappingRow({
   readonly value: string;
 }) {
   const selectId = useId();
-  const selectedCurrency = isKnownCurrencyCode(value)
-    ? value
-    : value === MIXED_OVERRIDE_VALUE
-      ? null
-      : group.defaultCurrency;
+  const selectedCurrency = isKnownCurrencyCode(value) ? value : null;
   return (
     <div
       className="grid min-w-0 grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-center gap-1"
       data-slot="ambiguous-symbol-row"
     >
       <Label
-        className="min-h-12 min-w-0 px-3"
+        className={cn("min-w-0", ROW_INSET_CLASS_NAME)}
         data-slot="ambiguous-symbols"
         htmlFor={selectId}
       >
@@ -106,12 +103,16 @@ function SymbolMappingRow({
           currencyCodes={group.currencyCodes}
           id={selectId}
           locale={locale}
-          nullValueLabel={
-            value === MIXED_OVERRIDE_VALUE ? translate(locale, "ambiguousMixed") : undefined
-          }
-          onValueChange={(currencyCode) =>
-            onChange(group, currencyCode === group.defaultCurrency ? "" : currencyCode)
-          }
+          nullOption={{
+            label: translate(locale, "ambiguousAutomatic"),
+            onSelect: () => onChange(group, ""),
+            selected: value === "",
+          }}
+          nullValueLabel={translate(
+            locale,
+            value === MIXED_OVERRIDE_VALUE ? "ambiguousMixed" : "ambiguousAutomatic",
+          )}
+          onValueChange={(currencyCode) => onChange(group, currencyCode)}
           placeholder={translate(locale, "targetChoose")}
           value={selectedCurrency}
           variant="row"

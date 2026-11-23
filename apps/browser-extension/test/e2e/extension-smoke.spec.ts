@@ -1,16 +1,37 @@
 import type { Locator, Page } from "@playwright/test";
+import packageManifest from "@/package.json" with { type: "json" };
 import { expectNoAutomatedAccessibilityViolations } from "@/test/accessibility";
-import { expect, HOST_PAGE_URL, saveReviewScreenshot, test } from "@/test/e2e/fixtures";
+import {
+  expect,
+  expectRateChartDrawn,
+  expectTrendLinesDrawn,
+  HOST_PAGE_URL,
+  saveReviewScreenshot,
+  test,
+} from "@/test/e2e/fixtures";
 
 const localized = {
   addTarget: /^(?:Add a target|換算通貨を追加)$/u,
   amount: /^(?:Amount|金額)$/u,
   conversionResult: /^(?:Conversion result|換算結果)$/u,
-  convertSelection: /^(?:Convert selected price|選択した金額を換算)$/u,
+  rateHistoryEmpty:
+    /^(?:Rate history isn’t available yet\.|レートの履歴はまだありません。)/u,
+  rates: /^(?:Rates|レート)$/u,
+  openChfRates: /^(?:Open CHF rates|CHF のレートを開く)$/u,
+  openJpyRates: /^(?:Open JPY rates|JPY のレートを開く)$/u,
+  base: /^(?:Base|基準)$/u,
+  quickConversion:
+    /^(?:¥37,213 \(Japanese Yen\)\. Show all conversions|￥37,213（日本円）。すべての換算先を表示)$/u,
+  quickChfConversion:
+    /^(?:.+ \(Swiss Franc\)\. Show all conversions|.+（スイス フラン）。すべての換算先を表示)$/u,
   converted: /^(?:Converted|換算後)$/u,
   currencySearch: /^(?:Code, name, or region|コード・通貨名・地域)$/u,
   editTargets: /^(?:Edit conversion targets|換算後を編集)$/u,
   finishTargetEditing: /^(?:Finish editing conversion targets|換算後の編集を終了)$/u,
+  about: /^(?:About|このアプリについて)$/u,
+  licenses: /^(?:Open source licenses|オープンソースライセンス)$/u,
+  openSettings: /^(?:Open settings|設定を開く)$/u,
+  review: /^(?:Write a review on Chrome Web Store|Chrome ウェブストアでレビューを書く)/u,
 } as const;
 
 interface ChromeExtensionGlobal {
@@ -43,6 +64,33 @@ test("the toolbar popup opens at its full size", async ({ context, extensionId }
     .toEqual({ width: 400, height: 600 });
 });
 
+test("the built popup shows its version, store review link, and bundled licenses", async ({
+  context,
+  extensionId,
+}) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole("button", { name: localized.openSettings }).click();
+  await popup.getByRole("button", { name: localized.about }).click();
+
+  await expect(
+    popup.getByText(new RegExp(`${packageManifest.version}$`, "u")),
+  ).toBeVisible();
+  await expect(popup.getByRole("link", { name: localized.review })).toHaveAttribute(
+    "href",
+    "https://chromewebstore.google.com/detail/cfpmgblhfmfomcgkpkghcgkcfblbpgkm/reviews",
+  );
+
+  await saveReviewScreenshot(popup, "e2e-popup-about");
+
+  await popup.getByRole("button", { name: localized.licenses }).click();
+  const licenses = popup.getByRole("list", { name: localized.licenses });
+  await expect(licenses.getByText("react-dom", { exact: true })).toBeVisible();
+  await expect(licenses.getByText("tailwindcss", { exact: true })).toBeVisible();
+  await licenses.getByText("react-dom", { exact: true }).click();
+  await saveReviewScreenshot(popup, "e2e-popup-licenses");
+});
+
 test("the built extension exposes an accessible popup and content flow", async ({
   apiRequests,
   context,
@@ -62,18 +110,30 @@ test("the built extension exposes an accessible popup and content flow", async (
   await addConversionTarget(popup, "GBP");
   await finishTargetEditing(popup);
   await expect(popup.getByText("149.00", { exact: true })).toBeVisible();
+  // The local Worker starts with a seeded history, so every target draws its trend.
+  await expectTrendLinesDrawn(popup.locator("body"), 3);
   await saveReviewScreenshot(popup, "e2e-popup");
 
   await expectNoAutomatedAccessibilityViolations(popup, testInfo, {
     attachmentName: "axe-results-built-popup",
   });
 
+  await popup.getByRole("radio", { name: localized.rates }).click();
+  await expect(popup.getByRole("heading", { name: localized.base })).toBeVisible();
+  await expectRateChartDrawn(popup.locator("body"));
+  expect(apiRequests).toContain("/v1/history");
+  await saveReviewScreenshot(popup, "e2e-popup-rates");
+  await expectNoAutomatedAccessibilityViolations(popup, testInfo, {
+    attachmentName: "axe-results-built-popup-rates",
+  });
+
   await page.goto(HOST_PAGE_URL, { waitUntil: "domcontentloaded" });
   await page.locator("#price").selectText();
 
-  const trigger = page.getByRole("button", { name: localized.convertSelection });
+  // The first target is USD, the selected currency, so the trigger shows the next target, JPY.
+  const trigger = page.getByRole("button", { name: localized.quickConversion });
   await expect(trigger).toBeVisible();
-  await expectAppLogoLoaded(trigger.locator('[data-slot="app-logo"]'));
+  await expectImageLoaded(trigger.locator('[data-currency-icon="JPY"] img'));
   await saveReviewScreenshot(page, "e2e-selection-trigger");
   await trigger.click();
 
@@ -83,10 +143,65 @@ test("the built extension exposes an accessible popup and content flow", async (
   await expect(dialog.getByRole("spinbutton", { name: localized.amount })).toBeFocused();
   await expect(dialog.getByRole("heading", { name: localized.converted })).toBeVisible();
   await expect(dialog.getByText("37,213.00", { exact: true })).toBeVisible();
+  await expectTrendLinesDrawn(dialog, 3);
   await saveReviewScreenshot(page, "e2e-conversion-card");
 
   await expectNoAutomatedAccessibilityViolations(page, testInfo, {
     attachmentName: "axe-results-built-content-script",
+    include: {
+      fromShadowDom: ["currency-lens-overlay", "[data-theme]"],
+    },
+  });
+
+  // A target's trend opens the same rates screen as the popup, with that currency chosen.
+  await dialog.getByRole("button", { name: localized.openJpyRates }).click();
+  const ratesChoice = dialog.getByRole("radio", { name: localized.rates });
+  await expect(ratesChoice).toBeChecked();
+  await expect(ratesChoice).toBeFocused();
+  await expect(dialog.getByRole("heading", { name: localized.base })).toBeVisible();
+  await expect(dialog.getByRole("radio", { name: "JPY", exact: true })).toBeChecked();
+  await expectRateChartDrawn(dialog);
+  await saveReviewScreenshot(page, "e2e-conversion-card-rates");
+  await expectNoAutomatedAccessibilityViolations(page, testInfo, {
+    attachmentName: "axe-results-built-content-script-rates",
+    include: {
+      fromShadowDom: ["currency-lens-overlay", "[data-theme]"],
+    },
+  });
+});
+
+test("the rates screens explain a target that has no rate history", async ({
+  context,
+  extensionId,
+  page,
+}, testInfo) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole("button", { name: localized.editTargets }).click();
+  // The local Worker has a rate for CHF but no history of it.
+  await addConversionTarget(popup, "CHF");
+  await finishTargetEditing(popup);
+  await expect(popup.getByText("0.79", { exact: true })).toBeVisible();
+  await expect(popup.locator('[data-slot="sparkline-placeholder"]')).toHaveCount(1);
+
+  await popup.getByRole("radio", { name: localized.rates }).click();
+  await expect(popup.getByRole("heading", { name: localized.base })).toBeVisible();
+  await expect(popup.getByText(localized.rateHistoryEmpty)).toBeVisible();
+  await saveReviewScreenshot(popup, "e2e-popup-rates-empty");
+  await expectNoAutomatedAccessibilityViolations(popup, testInfo, {
+    attachmentName: "axe-results-built-popup-rates-empty",
+  });
+
+  await page.goto(HOST_PAGE_URL, { waitUntil: "domcontentloaded" });
+  await page.locator("#price").selectText();
+  await page.getByRole("button", { name: localized.quickChfConversion }).click();
+  const dialog = page.getByRole("dialog", { name: localized.conversionResult });
+  await dialog.getByRole("button", { name: localized.openChfRates }).click();
+  await expect(dialog.getByRole("radio", { name: localized.rates })).toBeChecked();
+  await expect(dialog.getByText(localized.rateHistoryEmpty)).toBeVisible();
+  await saveReviewScreenshot(page, "e2e-conversion-card-rates-empty");
+  await expectNoAutomatedAccessibilityViolations(page, testInfo, {
+    attachmentName: "axe-results-built-content-script-rates-empty",
     include: {
       fromShadowDom: ["currency-lens-overlay", "[data-theme]"],
     },
@@ -112,11 +227,16 @@ async function finishTargetEditing(popup: Page): Promise<void> {
 
 /** Verifies bundled artwork actually decodes in popup and host-page execution contexts. */
 async function expectAppLogoLoaded(logo: Locator): Promise<void> {
-  await expect(logo).toBeVisible();
   await expect(logo).toHaveAttribute("src", /^data:image\/svg\+xml[;,]/u);
+  await expectImageLoaded(logo);
+}
+
+/** Verifies that an image is visible and decoded from its packaged source. */
+async function expectImageLoaded(image: Locator): Promise<void> {
+  await expect(image).toBeVisible();
   await expect
     .poll(() =>
-      logo.evaluate(
+      image.evaluate(
         (element) =>
           element instanceof HTMLImageElement &&
           element.complete &&

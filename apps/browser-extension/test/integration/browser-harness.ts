@@ -1,7 +1,7 @@
 import axe, { type ElementContext, type Result } from "axe-core";
 import type { Root } from "react-dom/client";
 import { afterEach, expect } from "vitest";
-import { commands, page } from "vitest/browser";
+import { commands, page, server } from "vitest/browser";
 import {
   mountComponentFixture,
   mountConversionScreen,
@@ -10,6 +10,7 @@ import {
   type PopupScreenOptions,
 } from "@/test/integration/screens";
 import { WCAG_AA_TAGS } from "@/test/accessibility-rules";
+import { settleFiniteAnimations } from "@/test/animation-settle";
 import type { MediaEmulation, PointerPosition } from "@/test/integration/browser-commands";
 import type { ComponentFixtureId } from "@/test/integration/component-fixtures/fixtures";
 import { COMPONENT_FIXTURES } from "@/test/integration/component-fixtures/fixtures";
@@ -59,7 +60,11 @@ export async function openPopupScreen(
   options: Partial<PopupScreenOptions> = {},
 ): Promise<void> {
   mountScreen((container) =>
-    mountPopupScreen(container, { theme: options.theme ?? "light" }),
+    mountPopupScreen(container, {
+      locale: options.locale ?? "ja",
+      history: options.history ?? "data",
+      theme: options.theme ?? "light",
+    }),
   );
   await expect.element(page.getByRole("heading", { name: "Currency Lens" })).toBeVisible();
 }
@@ -70,9 +75,11 @@ export async function openConversionScreen(
 ): Promise<Document | ShadowRoot> {
   const container = mountScreen((element) =>
     mountConversionScreen(element, {
+      locale: options.locale ?? "ja",
       motion: options.motion ?? "default",
       root: options.root ?? "document",
       state: options.state ?? "success",
+      theme: options.theme ?? "light",
     }),
   );
   const renderRoot = container.shadowRoot ?? document;
@@ -93,10 +100,16 @@ export async function openComponentFixture(fixtureId: ComponentFixtureId): Promi
     .toBe("true");
 }
 
-/** Saves the painted page as an uncompared image for manual design review. */
+/**
+ * Saves the painted page as an uncompared image for manual design review. Images from browsers
+ * other than Chromium carry the browser's name, so they never replace the Chromium images that
+ * the store images are cropped from.
+ */
 export async function saveReviewScreenshot(name: string): Promise<void> {
+  await settleFiniteAnimations();
   await nextFrames();
-  await page.screenshot({ path: `${REVIEW_SCREENSHOT_DIRECTORY}/${name}.png` });
+  const prefix = server.browser === "chromium" ? "" : `${server.browser}-`;
+  await page.screenshot({ path: `${REVIEW_SCREENSHOT_DIRECTORY}/${prefix}${name}.png` });
 }
 
 /** Adds host-page CSS that is removed after the current test. */

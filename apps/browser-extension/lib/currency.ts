@@ -13,6 +13,7 @@ export const currencyCodeSchema = z
 
 const favoriteCurrenciesSchema = z
   .array(currencyCodeSchema)
+  .min(1)
   .max(MAX_FAVORITE_CURRENCIES)
   .refine(
     (codes) => new Set(codes).size === codes.length,
@@ -71,6 +72,14 @@ export function isKnownSymbolToken(token: string): boolean {
 /** Returns immutable metadata for a code from the exhaustive bundled currency union. */
 export function getCurrencyMetadata(code: CurrencyCode): CurrencyMetadata {
   return currencies.find((currency) => currency.code === code)!;
+}
+
+/** Picks the highest-priority conversion target that differs from the selected currency. */
+export function selectQuickConversionTarget(
+  favorites: readonly CurrencyCode[],
+  sourceCurrency: CurrencyCode,
+): CurrencyCode | null {
+  return favorites.find((currencyCode) => currencyCode !== sourceCurrency) ?? null;
 }
 
 /** Returns every supported currency code for constructing detection patterns. */

@@ -8,6 +8,7 @@ import {
   getCurrencySymbolDefinition,
   getCurrencySymbolDefinitions,
   isKnownCurrencyCode,
+  selectQuickConversionTarget,
 } from "@/lib/currency";
 
 afterEach(() => {
@@ -136,5 +137,15 @@ describe("symbol table normalization", () => {
         currencyCodes: ["AAA", "BBB"],
       },
     ]);
+  });
+});
+
+describe("selectQuickConversionTarget", () => {
+  it.each([
+    [["JPY", "EUR"], "USD", "JPY"],
+    [["JPY", "USD"], "JPY", "USD"],
+    [["JPY"], "JPY", null],
+  ] as const)("selects from %j for %s", (favorites, sourceCurrency, expected) => {
+    expect(selectQuickConversionTarget(favorites, sourceCurrency)).toBe(expected);
   });
 });

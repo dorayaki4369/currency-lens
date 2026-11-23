@@ -20,25 +20,32 @@ interface AnimatedNumberState {
   readonly revision: number;
 }
 
+const EMPTY_NUMBER: NumberSnapshot = { text: "", value: Number.NEGATIVE_INFINITY };
+
 export interface AnimatedNumberProps extends Omit<
   ComponentPropsWithoutRef<"span">,
   "children"
 > {
+  /** Rolls every glyph in from below when the number first appears. */
+  readonly animateOnMount?: boolean | undefined;
   readonly text: string;
   readonly value: number;
 }
 
 /** Rolls changed glyphs upward for increases and downward for decreases. */
-export function AnimatedNumber({ className, text, value, ...props }: AnimatedNumberProps) {
-  const [state, setState] = useState<AnimatedNumberState>(() => ({
-    current: { text, value },
-    direction: null,
-    previous: null,
-    revision: 0,
-  }));
+export function AnimatedNumber({
+  animateOnMount = false,
+  className,
+  text,
+  value,
+  ...props
+}: AnimatedNumberProps) {
+  const [state, setState] = useState<AnimatedNumberState>(() =>
+    createInitialState({ text, value }, animateOnMount && !prefersReducedMotion()),
+  );
 
   useLayoutEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reducedMotion = prefersReducedMotion();
     setState((currentState) => {
       const next = { text, value };
       if (
@@ -115,7 +122,7 @@ export function AnimatedNumber({ className, text, value, ...props }: AnimatedNum
                     data-slot="animated-number-outgoing"
                     key={`outgoing-${String(state.revision)}`}
                   >
-                    {renderCharacter(previousCharacter)}
+                    {previousCharacter}
                   </span>
                   <span
                     className="absolute inset-0"
@@ -125,12 +132,12 @@ export function AnimatedNumber({ className, text, value, ...props }: AnimatedNum
                       index === lastChangedIndex ? finishTransition : undefined
                     }
                   >
-                    {renderCurrentCharacter}
+                    {currentCharacter}
                   </span>
                 </>
               ) : (
                 <span className="absolute inset-0" data-slot="animated-number-current">
-                  {renderCurrentCharacter}
+                  {currentCharacter}
                 </span>
               )}
             </span>
@@ -139,6 +146,21 @@ export function AnimatedNumber({ className, text, value, ...props }: AnimatedNum
       </span>
     </span>
   );
+}
+
+/** Starts from an empty reel when the number should roll in on its first render. */
+function createInitialState(current: NumberSnapshot, rollIn: boolean): AnimatedNumberState {
+  return {
+    current,
+    direction: rollIn ? "up" : null,
+    previous: rollIn ? EMPTY_NUMBER : null,
+    revision: 0,
+  };
+}
+
+/** Reads the user's motion preference at the moment a transition would start. */
+function prefersReducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 /** Selects motion only when the rendered number visibly changes. */
@@ -157,7 +179,7 @@ function alignCharacters(characters: readonly string[], length: number): readonl
   return [...Array<string>(length - characters.length).fill(""), ...characters];
 }
 
-/** Keeps an empty reel column measurable until its outgoing glyph has left. */
+/** Keeps an empty reel column measurable; the moving layers stay empty so no stray spaces show. */
 function renderCharacter(character: string): string {
   return character === "" ? "\u00a0" : character;
 }

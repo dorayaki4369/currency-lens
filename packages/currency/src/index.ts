@@ -1,5 +1,7 @@
 export { currencyLocalNames } from "./local-names.ts";
 export type { CurrencyLocalName, CurrencyLocalNameEntry } from "./local-names.ts";
+export { currencyMinorUnits } from "./minor-units.ts";
+export type { CurrencyMinorUnit } from "./minor-units.ts";
 
 export const currencies = [
   {
@@ -311,7 +313,9 @@ export const currencies = [
       "AT",
       "BE",
       "CY",
+      "DE",
       "EE",
+      "ES",
       "EU",
       "FI",
       "FR",

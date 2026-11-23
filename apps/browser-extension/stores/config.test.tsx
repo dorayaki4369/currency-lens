@@ -48,6 +48,17 @@ describe("config store", () => {
     expect(result.current.config?.favorites).toEqual(["CAD", "JPY", "GBP"]);
   });
 
+  it("keeps the only conversion target when it is removed", () => {
+    const { result } = renderConfigStore({ ...CONFIG, favorites: ["JPY"] });
+    const configBeforeRemoval = result.current.config;
+
+    act(() => {
+      result.current.removeFavorite("JPY");
+    });
+
+    expect(result.current.config).toBe(configBeforeRemoval);
+  });
+
   it("creates isolated memory for separate UI roots", () => {
     const popupStore = renderConfigStore(CONFIG);
     const contentStore = renderConfigStore(CONFIG);

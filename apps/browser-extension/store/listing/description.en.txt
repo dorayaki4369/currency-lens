@@ -1,0 +1,27 @@
+Currency Lens converts prices right on the page you are reading. Shopping on an overseas site, planning a trip or reading foreign news? Select a price like $19.99, €49 or 1,200 JPY and see it in up to 5 currencies of your choice, without leaving the page or changing it.
+
+How it works
+
+1. Select a price on a web page.
+2. Click the Currency Lens button that appears next to your selection.
+3. A small card shows the price in your chosen currencies. You can change them anytime from the toolbar.
+
+Features
+
+- Reads prices in many formats: currency symbols ($, €, ¥), codes (USD, JPY) and names ("dollars", "円"), including amounts such as "$1.5 million", "5k円" and "5万円", and prices inside Japanese, Chinese, Korean or Thai sentences.
+- Handles shared symbols like "$": when a symbol is shared by several currencies, Currency Lens picks one from your settings, the page language and your browser language. You can change which currency each symbol stands for.
+- Edit and re-convert: change the amount or the source currency right in the card.
+- Toolbar popup: type any amount and currency to convert it directly, and add, remove or reorder your currencies.
+- Rate history charts: in the toolbar popup and the card, see how the rates of your currencies have moved over periods from 1 day to 1 year, or compare the changes of all of them on one chart.
+- Latest exchange rates from Open Exchange Rates, with a warning if they are out of date.
+- Interface in English, Japanese, Simplified and Traditional Chinese, Korean, Spanish, French, German and Brazilian Portuguese, following your browser language.
+
+Privacy
+
+No account needed. Selected text is analyzed locally in your browser and never sent anywhere. The only network request fetches exchange rates and contains no page content.
+
+Privacy policy: https://cl.dryk.net/privacy
+
+Where it works
+
+Regular web pages in desktop Chrome and Firefox 140 or later. It does not work on PDFs, form fields, canvas elements, browser settings pages or extension stores.

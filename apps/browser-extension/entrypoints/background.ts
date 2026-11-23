@@ -2,12 +2,19 @@ import {
   convertCurrenciesRequestSchema,
   convertCurrenciesResponseSchema,
   getConfigResponseSchema,
+  getChartColorsResponseSchema,
+  getRateHistoryRequestSchema,
+  getRateHistoryResponseSchema,
   getRatesResponseSchema,
   messageSchema,
   parseMessageResponse,
   setConfigRequestSchema,
+  setChartColorsRequestSchema,
+  setChartColorsResponseSchema,
   setConfigResponseSchema,
   type ConvertCurrenciesRequest,
+  type GetRateHistoryRequest,
+  type SetChartColorsRequest,
   type Message,
   type MessageResponse,
 } from "@/lib/messages";
@@ -16,16 +23,23 @@ import {
   fetchExchangeRateCache,
   getRateSnapshot,
   isExchangeRateCacheStale,
+  type ExchangeRateCache,
 } from "@/lib/rates";
+import { createRateHistoryCache, fetchRateHistory } from "@/lib/rate-history";
 import { RATE_REFRESH_ALARM_NAME, ensureRateRefreshAlarm } from "@/lib/rate-refresh";
 import {
+  getChartColorSettings,
   getConfig,
   getExchangeRateCache,
+  updateChartColor,
   setConfig,
   setExchangeRateCache,
 } from "@/lib/storage";
 
 const RATE_ENDPOINT = new URL("v1/latest", `${import.meta.env.API_ENDPOINT}/`).href;
+const RATE_HISTORY_ENDPOINT = new URL("v1/history", `${import.meta.env.API_ENDPOINT}/`)
+  .href;
+const rateHistoryCache = createRateHistoryCache();
 let activeRateRefresh: Promise<void> | null = null;
 
 export default defineBackground(() => {
@@ -90,8 +104,13 @@ type MessageHandlerByType = Record<
 const messageHandlerByType = {
   CONVERT_CURRENCIES: (message) =>
     handleConvertCurrencies(convertCurrenciesRequestSchema.parse(message)),
+  GET_CHART_COLORS: () => handleGetChartColors(),
   GET_CONFIG: () => handleGetConfig(),
   GET_RATES: () => handleGetRates(),
+  GET_RATE_HISTORY: (message) =>
+    handleGetRateHistory(getRateHistoryRequestSchema.parse(message)),
+  SET_CHART_COLORS: (message) =>
+    handleSetChartColor(setChartColorsRequestSchema.parse(message).payload),
   SET_CONFIG: (message) => handleSetConfig(setConfigRequestSchema.parse(message).payload),
 } satisfies MessageHandlerByType;
 
@@ -114,11 +133,25 @@ async function handleSetConfig(
   return setConfigResponseSchema.parse({ success: true, data: config });
 }
 
+/** Returns the chart color choices synchronized across devices. */
+async function handleGetChartColors(): Promise<MessageResponse> {
+  const settings = await getChartColorSettings();
+  return getChartColorsResponseSchema.parse({ success: true, data: settings });
+}
+
+/** Merges one direction's color into storage and returns every stored choice. */
+async function handleSetChartColor(
+  update: SetChartColorsRequest["payload"],
+): Promise<MessageResponse> {
+  const settings = await updateChartColor(update.direction, update.color);
+  return setChartColorsResponseSchema.parse({ success: true, data: settings });
+}
+
 /** Converts the requested batch against the retained last-good rates. */
 async function handleConvertCurrencies(
   request: ConvertCurrenciesRequest,
 ): Promise<MessageResponse> {
-  const cache = await getExchangeRateCache();
+  const cache = await getUsableRateCache({ refreshStale: false });
   if (!cache) {
     return convertCurrenciesResponseSchema.parse({
       success: false,
@@ -140,15 +173,7 @@ async function handleConvertCurrencies(
 
 /** Returns the retained rates together with freshness metadata. */
 async function handleGetRates(): Promise<MessageResponse> {
-  let cache = await getExchangeRateCache();
-  if (cache && isExchangeRateCacheStale(cache)) {
-    try {
-      await refreshRates();
-      cache = (await getExchangeRateCache()) ?? cache;
-    } catch {
-      // The retained cache remains useful and carries an explicit stale warning.
-    }
-  }
+  const cache = await getUsableRateCache({ refreshStale: true });
   if (!cache) {
     return getRatesResponseSchema.parse({
       success: false,
@@ -160,6 +185,39 @@ async function handleGetRates(): Promise<MessageResponse> {
     success: true,
     data: { ...getRateSnapshot(cache), rates: cache.rates },
   });
+}
+
+/**
+ * Reads the retained rates, waiting for a refresh when none are stored yet, or when they are
+ * stale and `refreshStale` is set. A request made right after installation therefore joins the
+ * first refresh instead of reporting rates as unavailable while that refresh is in flight.
+ */
+async function getUsableRateCache({
+  refreshStale,
+}: {
+  readonly refreshStale: boolean;
+}): Promise<ExchangeRateCache | null> {
+  const cache = await getExchangeRateCache();
+  if (cache && !(refreshStale && isExchangeRateCacheStale(cache))) {
+    return cache;
+  }
+  try {
+    await refreshRates();
+  } catch {
+    // A retained stale cache remains useful and carries an explicit stale warning.
+    return cache;
+  }
+  return (await getExchangeRateCache()) ?? cache;
+}
+
+/** Returns validated rate history, reusing a recent response for the same query. */
+async function handleGetRateHistory(
+  request: GetRateHistoryRequest,
+): Promise<MessageResponse> {
+  const history = await rateHistoryCache.get(request.payload, () =>
+    fetchRateHistory(RATE_HISTORY_ENDPOINT, request.payload),
+  );
+  return getRateHistoryResponseSchema.parse({ success: true, data: history });
 }
 
 /** Ensures the alarm at each lifecycle entry and refreshes missing or stale data. */

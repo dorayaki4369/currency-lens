@@ -19,19 +19,6 @@ afterEach(() => {
 });
 
 describe("useConversion", () => {
-  it("does not call the background when no target is configured", async () => {
-    const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>();
-    vi.stubGlobal("browser", { runtime: { sendMessage } });
-    const { result } = renderHook(() => useConversion());
-
-    await act(async () => {
-      await result.current.convert(DETECTION, []);
-    });
-
-    expect(sendMessage).not.toHaveBeenCalled();
-    expect(result.current.error).toBe("MISSING_CONVERSION_TARGET");
-  });
-
   it("does not call the background when there is no detected amount", async () => {
     const sendMessage = vi.fn<(message: unknown) => Promise<unknown>>();
     vi.stubGlobal("browser", { runtime: { sendMessage } });

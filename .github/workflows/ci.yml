@@ -57,7 +57,7 @@ jobs:
 
       - &install-pnpm
         name: Install pnpm
-        uses: pnpm/action-setup@v6.1.0
+        uses: pnpm/action-setup@v6.1.1
 
       - &set-up-node
         name: Set up Node.js
@@ -148,7 +148,7 @@ jobs:
 
       # Fork pull requests get a read-only token, so they only see the job summary.
       - name: Report coverage
-        uses: davelosert/vitest-coverage-report-action@v2.13.1
+        uses: davelosert/vitest-coverage-report-action@v2.13.2
         with:
           comment-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) && 'pr' || 'none' }}
 
@@ -190,6 +190,40 @@ jobs:
 
       - name: Test integration
         run: pnpm test:integration
+
+  # Repeats the layout checks in Firefox, whose container queries, popover placement, and fonts
+  # differ from Chromium's. It runs beside the Chromium job so the wall-clock time stays the same.
+  integration-firefox:
+    name: testing (integration, Firefox)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - *checkout
+      - *reject-environment-files
+      - *install-pnpm
+      - *set-up-node
+      - *install-dependencies
+      - *resolve-playwright-version
+
+      - name: Cache Playwright Firefox
+        id: playwright-cache
+        uses: actions/cache@v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright-version.outputs.version }}-firefox
+
+      - name: Install Playwright Firefox
+        env:
+          CACHE_HIT: ${{ steps.playwright-cache.outputs.cache-hit }}
+        run: |
+          if [[ "$CACHE_HIT" == "true" ]]; then
+            pnpm exec playwright install-deps firefox
+          else
+            pnpm exec playwright install --with-deps firefox
+          fi
+
+      - name: Test integration in Firefox
+        run: pnpm test:integration:firefox
 
   # Tests the extension that `build` produced with the production API endpoint.
   e2e:
@@ -248,6 +282,7 @@ jobs:
       - check
       - unit
       - integration
+      - integration-firefox
       - e2e
       - build
     # A skipped required check counts as passing, so this job must run and fail on its own.

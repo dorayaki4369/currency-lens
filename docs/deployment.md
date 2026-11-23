@@ -26,7 +26,7 @@
 
 ## ストアの初期設定
 
-WXTは既存listingの更新を自動化しますが、最初のlistingは作成しません。Chrome Web Storeとaddons.mozilla.orgで初回登録、説明、画像、プライバシー情報を手動で設定してください。プライバシーポリシーのURLには、Workerが配信する`https://cl.dryk.net/privacy`を指定します。このページは`main`へのmerge後の`deploy Worker`で公開されます。
+WXTは既存listingの更新を自動化しますが、最初のlistingは作成しません。Chrome Web Storeとaddons.mozilla.orgで初回登録、説明、画像、プライバシー情報を手動で設定してください。掲載文と掲載設定の正本は[apps/browser-extension/store/listing/README.md](../apps/browser-extension/store/listing/README.md)にあります。AMOの名前、要約、詳細説明、既定言語、カテゴリ、タグは、提出のたびにこの正本で上書きされるため、AMOのdashboardでは変更しません。プライバシーポリシーのURLには、Workerが配信する`https://cl.dryk.net/privacy`を指定します。このページは`main`へのmerge後の`deploy Worker`で公開されます。
 
 ChromeではChrome Web Store APIを有効にしたGoogle Cloud projectを用意し、listing所有者のGoogle accountでOAuth refresh tokenを発行します。Firefoxではaddons.mozilla.orgのAPI credentialsからJWT issuerとJWT secretを発行します。
 
@@ -45,9 +45,15 @@ Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必�
 
 ### ストア掲載用の宣伝画像
 
-提出とdry-runのどちらでも、`render store promo images` jobが1280×800の宣伝画像を作り、Actions artifactの`store-promo-images-{run id}`へ保存します。画像はintegrationとE2Eが保存するレビュー用画像からpopupと換算カードを切り抜いて作るので、そのversionの画面がそのまま載ります。ストアへの掲載は自動化していないため、必要なときにartifactから取り出して各ストアのdashboardで差し替えます。このjobが失敗しても提出とGitHub Releaseは止まりません。ただしrunは失敗と表示されるため、提出とReleaseの結果は`publish Chrome and Firefox packages`と`record the release on GitHub`のjobで確かめます。
+提出とdry-runのどちらでも、`render store promo images` jobが1280×800の宣伝画像をUIの言語ごとに4枚作り、Actions artifactの`store-promo-images-{run id}`へ言語別のフォルダで保存します。画像はE2Eが言語ごとに保存するレビュー用画像からpopup、換算カード、レートのグラフを切り抜いて作るので、そのversionの画面がそのまま載ります。グラフは、E2Eの起動時にローカルのWorkerへ書き込むテスト用の履歴で描きます。宣伝画像で換算する通貨を変えるときは、`test/e2e/global-setup.ts`の`HISTORY_RATES`にもその通貨を足します。Chrome Web Storeはスクリーンショットを言語ごとに登録できますが、Firefox Add-onsは1組しか登録できません。ストアへの掲載は自動化していないため、必要なときにartifactから取り出して各ストアのdashboardで差し替えます。このjobが失敗しても提出とGitHub Releaseは止まりません。ただしrunは失敗と表示されるため、提出とReleaseの結果は`publish Chrome and Firefox packages`と`record the release on GitHub`のjobで確かめます。
 
-画像の構成と文言は`apps/browser-extension/store/promo-images.ts`にあります。変えるときは、`pnpm test:integration`と`pnpm test:e2e`でレビュー用画像を作ってから`pnpm store:dev`でプレビューし、`pnpm store:images`で書き出した画像を確認します。ローカルとCIではフォントが異なり、macOSではヒラギノ、CIではNoto Sans CJK JPで描画されます。
+画像の構成は`apps/browser-extension/store/promo-images.ts`、言語ごとの文言は`apps/browser-extension/store/promo-copy.ts`にあります。変えるときは、`pnpm test:e2e`でレビュー用画像を作ってから`pnpm store:dev`でプレビューし、`pnpm store:images`で書き出した画像を確認します。ローカルとCIではフォントが異なり、macOSではヒラギノやPingFangなどのシステムフォント、CIではNoto Sans CJKで描画されます。
+
+`pnpm store:images`は、言語に依存しないプロモーションタイル（小タイル440×280とマーキー1400×560）も`promo-tiles/`へ書き出します。Chrome Web Storeのプロモーション画像は言語ごとに登録できないため、タイルには文字を入れず、数字と記号だけで伝えます。
+
+ストア掲載用の説明動画（日本語、28.5秒）は`apps/browser-extension/store/video/currency-lens-intro-ja.mp4`にあります。撮影元は同じフォルダの`index.html`と`scene.js`で、`index.html`をブラウザで開くと再生バーで時刻を動かして確かめられます。撮り直すときは`pnpm store:video`を実行します。字幕の対応通貨数は`scene.js`に書いてあるため、対応通貨を増減したときは数を直して撮り直します。Chrome系ブラウザ、libx264付きのffmpeg、Tailwind CSSを読み込むための`cdn.jsdelivr.net`への接続が要ります。動画はChrome Web StoreへYouTubeのURLとして登録します。
+
+ストアの掲載文の正本と反映手順は[ストア掲載文](../apps/browser-extension/store/listing/README.md)にあります。
 
 ChromeとFirefoxへの提出は一つのトランザクションではなく、一方だけ成功することがあります。提出かGitHub Releaseの作成が失敗すると、tagは作られません。tagがない間は、`main`へpushするたびに同じversionの提出を試み、ストアが同じversionを拒否して失敗します。
 

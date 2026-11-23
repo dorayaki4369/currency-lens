@@ -234,6 +234,26 @@ describe("convertCurrencyBatch", () => {
     });
   });
 
+  it("marks a conversion that overflows as unavailable instead of throwing", () => {
+    const results = convertCurrencyBatch(
+      makeCache(),
+      [{ amount: 1e308, currencyCode: code("USD") }],
+      [code("JPY"), code("BTC")],
+    );
+
+    expect(results).toEqual([
+      {
+        status: "unavailable",
+        sourceIndex: 0,
+        amount: 1e308,
+        fromCurrency: "USD",
+        toCurrency: "JPY",
+        reason: "AMOUNT_OUT_OF_RANGE",
+      },
+      expect.objectContaining({ status: "converted", toCurrency: "BTC" }),
+    ]);
+  });
+
   it("supports one source with the full five-target limit", () => {
     const results = convertCurrencyBatch(
       makeCache(),

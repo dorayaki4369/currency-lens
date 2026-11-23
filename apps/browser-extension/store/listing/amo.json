@@ -1,5 +1,6 @@
 {
   "default_locale": "en-US",
   "categories": { "firefox": ["search-tools"] },
+  "support_url": "https://cl.dryk.net",
   "tags": ["shopping"]
 }

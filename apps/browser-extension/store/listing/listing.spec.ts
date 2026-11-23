@@ -1,6 +1,7 @@
+import { readdir } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
-import { readAmoMetadata } from "@/store/amo-metadata";
+import { AMO_LOCALES, readAmoMetadata } from "@/store/amo-metadata";
 
 // AMO caps names at 50 characters, which is stricter than Chrome's 75.
 const MAX_NAME_CHARACTERS = 50;
@@ -9,6 +10,10 @@ const MAX_SUMMARY_CHARACTERS = 132;
 // AMO accepts 3, but its listing guide asks for at most 2 and only 1 when it fits.
 const MAX_AMO_CATEGORIES = 2;
 const MAX_AMO_TAGS = 10;
+// https://learn.microsoft.com/microsoft-edge/extensions/publish/publish-extension (Step 7)
+const MIN_EDGE_DESCRIPTION_CHARACTERS = 250;
+const MAX_EDGE_DESCRIPTION_CHARACTERS = 10_000;
+const LOCALES_ROOT = new URL("../../public/_locales/", import.meta.url);
 // https://mozilla.github.io/addons-server/topics/api/categories.html (extension type)
 const AMO_EXTENSION_CATEGORIES: ReadonlySet<string> = new Set([
   "alerts-updates",
@@ -91,6 +96,23 @@ describe("store listing", async () => {
 
   it.each(locales)("links the privacy policy from the %s description", (locale) => {
     expect(metadata.description[locale]).toContain("https://cl.dryk.net/privacy");
+  });
+
+  // Edge requires a description for every language in the package, within these lengths.
+  it.each(locales)("keeps the %s description within Edge's length range", (locale) => {
+    const length = characterCount(metadata.description[locale]);
+
+    expect(length).toBeGreaterThanOrEqual(MIN_EDGE_DESCRIPTION_CHARACTERS);
+    expect(length).toBeLessThanOrEqual(MAX_EDGE_DESCRIPTION_CHARACTERS);
+  });
+
+  it("has listing text for every language the package ships", async () => {
+    const entries = await readdir(LOCALES_ROOT, { withFileTypes: true });
+    const packageLocales = entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+
+    expect(packageLocales.toSorted()).toEqual(Object.keys(AMO_LOCALES).toSorted());
   });
 
   it("uses only AMO categories, within the listing guide's count", () => {

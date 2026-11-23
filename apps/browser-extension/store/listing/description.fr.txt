@@ -24,4 +24,4 @@ Politique de confidentialité : https://cl.dryk.net/privacy
 
 Où l’utiliser
 
-Sur les pages web classiques de Chrome pour ordinateur et de Firefox 140 ou version ultérieure. L’extension ne fonctionne pas sur les PDF, les champs de formulaire, les éléments canvas, les pages de paramètres du navigateur ni les boutiques d’extensions.
+Sur les pages web classiques de Chrome et Microsoft Edge pour ordinateur, et de Firefox 140 ou version ultérieure. L’extension ne fonctionne pas sur les PDF, les champs de formulaire, les éléments canvas, les pages de paramètres du navigateur ni les boutiques d’extensions.

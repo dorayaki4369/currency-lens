@@ -24,4 +24,4 @@ Política de privacidad: https://cl.dryk.net/privacy
 
 Dónde funciona
 
-En páginas web normales de Chrome para escritorio y Firefox 140 o posterior. No funciona en PDF, campos de formulario, elementos canvas, páginas de configuración del navegador ni tiendas de extensiones.
+En páginas web normales de Chrome y Microsoft Edge para escritorio, y de Firefox 140 o posterior. No funciona en PDF, campos de formulario, elementos canvas, páginas de configuración del navegador ni tiendas de extensiones.

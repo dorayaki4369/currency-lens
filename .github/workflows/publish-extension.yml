@@ -115,6 +115,10 @@ jobs:
     needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # id-token lets the job exchange its GitHub OIDC token for a short-lived Google access token.
+    permissions:
+      contents: read
+      id-token: write
     env:
       API_ENDPOINT: ${{ vars.API_ENDPOINT }}
       DRY_RUN: ${{ needs.preflight.outputs.mode == 'dry-run' }}
@@ -137,18 +141,12 @@ jobs:
       - name: Require repository publishing secrets
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
-          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
-          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
           FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
           FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
           FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
         run: |
           required_credentials=(
             CHROME_EXTENSION_ID
-            CHROME_CLIENT_ID
-            CHROME_CLIENT_SECRET
-            CHROME_REFRESH_TOKEN
             FIREFOX_EXTENSION_ID
             FIREFOX_JWT_ISSUER
             FIREFOX_JWT_SECRET
@@ -282,13 +280,30 @@ jobs:
       - name: Build the AMO listing metadata
         run: node apps/browser-extension/store/amo-metadata.ts "$RUNNER_TEMP/amo-metadata.json"
 
+      # Chrome Web Store API v2 accepts a service account token. The Workload Identity provider
+      # trusts only main of this repository, and the token expires after an hour, so no long-lived
+      # Google credential is stored. Dry runs get the token too: WXT then calls the read-only
+      # fetchStatus, which proves the whole chain without uploading. None of these identifiers is
+      # secret; docs/deployment.md describes the Google Cloud setup they point to.
+      - name: Get a Chrome Web Store access token
+        id: google-auth
+        uses: google-github-actions/auth@v3.0.0
+        with:
+          workload_identity_provider: projects/428782365118/locations/global/workloadIdentityPools/github/providers/currency-lens
+          service_account: cws-publisher@currency-lens-503208.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          # Only the access token is used, so no credentials file is written to the workspace.
+          create_credentials_file: false
+          export_environment_variables: false
+
       - name: Submit packages with WXT
         working-directory: apps/browser-extension
         env:
+          CHROME_API_VERSION: v2
+          CHROME_PUBLISHER_ID: 17fa10bf-51f9-4555-81cc-7131d5dbb052
+          CHROME_SERVICE_ACCOUNT_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
-          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
-          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
           FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
           FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
           FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}

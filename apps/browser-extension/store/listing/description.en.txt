@@ -24,4 +24,4 @@ Privacy policy: https://cl.dryk.net/privacy
 
 Where it works
 
-Regular web pages in desktop Chrome and Firefox 140 or later. It does not work on PDFs, form fields, canvas elements, browser settings pages or extension stores.
+Regular web pages in desktop Chrome and Microsoft Edge, and in Firefox 140 or later. It does not work on PDFs, form fields, canvas elements, browser settings pages or extension stores.

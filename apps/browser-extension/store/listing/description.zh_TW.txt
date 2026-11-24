@@ -24,4 +24,4 @@ Currency Lens 能在您正在閱讀的網頁上直接換算價格。在海外網
 
 適用範圍
 
-適用於桌面版 Chrome 和 Firefox 140 以上版本中的一般網頁。不支援 PDF、表單輸入欄位、canvas 元素、瀏覽器設定頁面和擴充功能商店。
+適用於桌面版 Chrome 和 Microsoft Edge 以及 Firefox 140 以上版本中的一般網頁。不支援 PDF、表單輸入欄位、canvas 元素、瀏覽器設定頁面和擴充功能商店。

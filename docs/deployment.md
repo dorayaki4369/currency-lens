@@ -28,7 +28,22 @@
 
 WXTは既存listingの更新を自動化しますが、最初のlistingは作成しません。Chrome Web Store、addons.mozilla.org、Microsoft Edge Add-onsで初回登録、説明、画像、プライバシー情報を手動で設定してください。掲載文と掲載設定の正本は[apps/browser-extension/store/listing/README.md](../apps/browser-extension/store/listing/README.md)にあります。AMOの名前、要約、詳細説明、サポート用のメールアドレスとURL、既定言語、カテゴリ、タグは、提出のたびにこの正本で上書きされるため、AMOのdashboardでは変更しません。プライバシーポリシーのURLには、Workerが配信する`https://cl.dryk.net/privacy`を指定します。このページは`main`へのmerge後の`deploy Worker`で公開されます。
 
-ChromeではChrome Web Store APIを有効にしたGoogle Cloud projectを用意し、listing所有者のGoogle accountでOAuth refresh tokenを発行します。Firefoxではaddons.mozilla.orgのAPI credentialsからJWT issuerとJWT secretを発行します。
+Firefoxではaddons.mozilla.orgのAPI credentialsからJWT issuerとJWT secretを発行します。Chromeの認証は次の節のとおり、長期の鍵を置かずに行います。
+
+### Chrome Web Store APIの認証
+
+ChromeへはChrome Web Store API v2で提出します。GitHub ActionsのOIDC tokenをGoogle CloudのWorkload Identity Federationでservice accountの短期access token（有効期限1時間）へ交換し、そのtokenでAPIを呼びます。refresh tokenやservice accountの鍵のような長期の認証情報をGitHubへ置かないためです。tokenを得られるのはこのリポジトリの`main`から動いたWorkflowだけなので、Pull Requestや`develop`のWorkflowはChrome Web Storeへ届きません。
+
+Google Cloudとdeveloper dashboardの設定は次のとおりです。値を変えたら、`.github/workflows/publish-extension.yml`の`Get a Chrome Web Store access token`と`Submit packages with WXT`の値もあわせて変えます。これらの値は秘密ではないため、Repository variablesではなくWorkflowに直接書き、変更をPull Requestで確かめられるようにしています。
+
+- Google Cloud project：`currency-lens-503208`（project番号`428782365118`）。Chrome Web Store API、IAM Service Account Credentials API、Security Token Service APIを有効にします。
+- Service account：`cws-publisher@currency-lens-503208.iam.gserviceaccount.com`
+- Workload Identity pool `github`とOIDC provider `currency-lens`：issuerは`https://token.actions.githubusercontent.com`、attribute mappingは`google.subject=assertion.sub`、`attribute.repository`、`attribute.repository_id`、`attribute.ref`です。attribute conditionの`assertion.repository_id == '1030857063' && assertion.ref == 'refs/heads/main'`で、このリポジトリの`main`に限ります。repository名ではなくIDで照合するのは、名前を変えたり同名のリポジトリを作り直したりしても、別のリポジトリが通らないようにするためです。
+- Service accountの`roles/iam.workloadIdentityUser`を、`principalSet://iam.googleapis.com/projects/428782365118/locations/global/workloadIdentityPools/github/attribute.repository_id/1030857063`へ付与します。
+- Chrome Web Storeのdeveloper dashboardの「サービス アカウント」へ、service accountのメールアドレスを登録します。Chrome Web Storeの権限はGoogle CloudのIAMではなく、この登録で与えます。
+- Publisher ID：`17fa10bf-51f9-4555-81cc-7131d5dbb052`
+
+拡張機能のIDだけは、これまでどおりRepository secretの`CHROME_EXTENSION_ID`に置きます。
 
 Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必要です。初回登録でIDが決まった後、`apps/browser-extension/wxt.config.ts`の`browser_specific_settings.gecko.id`へ同じ値を設定してから自動公開を有効にしてください。
 
@@ -59,7 +74,7 @@ API keyの期限が切れると、`publish Edge package`が401で失敗します
 4. `main`へのpushで`Publish browser extension`が動きます。`v{version}`のtagがまだなければ、`deploy Worker`の成功と公開中のAPIを確かめてからChromeとFirefoxへ提出し、成功後に`v{version}`のtagとGitHub Releaseを作ります。Releaseの本文はCHANGELOGの該当version、添付は提出したZIPとEdge用のZIPです。tagがすでにあれば何もしません。
 5. Edgeのsecretが登録されていれば、ChromeとFirefoxへの提出が成功した後に、`publish Edge package`がEdge用のZIPをアップロードして審査へ出します。審査を通ると自動で公開されます。
 
-`Publish browser extension`を`main`から手動で実行すると、提出せずにWorkerとの互換性、credentialの登録漏れ、成果物を確かめるdry-runになります。
+`Publish browser extension`を`main`から手動で実行すると、提出せずにWorkerとの互換性、credentialの登録漏れ、成果物を確かめるdry-runになります。Chromeについては、dry-runでもOIDCからaccess tokenを得て、読み取り専用の`fetchStatus`を呼ぶため、Workload Identity Federation、service account、developer dashboardへの登録、Publisher ID、拡張機能のIDまでの連鎖がつながっているかを確かめられます。FirefoxもAMOからadd-onの情報を読むところまで確かめます。
 
 ### ストア掲載用の宣伝画像
 

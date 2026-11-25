@@ -34,16 +34,23 @@ Firefoxではaddons.mozilla.orgのAPI credentialsからJWT issuerとJWT secret�
 
 ChromeへはChrome Web Store API v2で提出します。GitHub ActionsのOIDC tokenをGoogle CloudのWorkload Identity Federationでservice accountの短期access token（有効期限1時間）へ交換し、そのtokenでAPIを呼びます。refresh tokenやservice accountの鍵のような長期の認証情報をGitHubへ置かないためです。tokenを得られるのはこのリポジトリの`main`から動いたWorkflowだけなので、Pull Requestや`develop`のWorkflowはChrome Web Storeへ届きません。
 
-Google Cloudとdeveloper dashboardの設定は次のとおりです。値を変えたら、`.github/workflows/publish-extension.yml`の`Get a Chrome Web Store access token`と`Submit packages with WXT`の値もあわせて変えます。これらの値は秘密ではないため、Repository variablesではなくWorkflowに直接書き、変更をPull Requestで確かめられるようにしています。
+Google Cloudとdeveloper dashboardの設定は次のとおりです。
 
 - Google Cloud project：`currency-lens-503208`（project番号`428782365118`）。Chrome Web Store API、IAM Service Account Credentials API、Security Token Service APIを有効にします。
 - Service account：`cws-publisher@currency-lens-503208.iam.gserviceaccount.com`
 - Workload Identity pool `github`とOIDC provider `currency-lens`：issuerは`https://token.actions.githubusercontent.com`、attribute mappingは`google.subject=assertion.sub`、`attribute.repository`、`attribute.repository_id`、`attribute.ref`です。attribute conditionの`assertion.repository_id == '1030857063' && assertion.ref == 'refs/heads/main'`で、このリポジトリの`main`に限ります。repository名ではなくIDで照合するのは、名前を変えたり同名のリポジトリを作り直したりしても、別のリポジトリが通らないようにするためです。
 - Service accountの`roles/iam.workloadIdentityUser`を、`principalSet://iam.googleapis.com/projects/428782365118/locations/global/workloadIdentityPools/github/attribute.repository_id/1030857063`へ付与します。
 - Chrome Web Storeのdeveloper dashboardの「サービス アカウント」へ、service accountのメールアドレスを登録します。Chrome Web Storeの権限はGoogle CloudのIAMではなく、この登録で与えます。
-- Publisher ID：`17fa10bf-51f9-4555-81cc-7131d5dbb052`
 
-拡張機能のIDだけは、これまでどおりRepository secretの`CHROME_EXTENSION_ID`に置きます。
+Workflowは、この設定を指す値を次のRepository variablesから読みます。どれも秘密ではないため、secretではなくvariableにしています。Google Cloudやdeveloper dashboardの設定を変えたら、variableの値もあわせて変えます。`Require repository publishing secrets`が、3つとも空でないことを提出の前に確かめます。
+
+| Repository variable              | 値                                                                                                                     |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `CHROME_PUBLISHER_ID`            | developer dashboardのPublisher ID                                                                                      |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | OIDC providerの完全名（`projects/428782365118/locations/global/workloadIdentityPools/github/providers/currency-lens`） |
+| `GCP_SERVICE_ACCOUNT`            | service accountのメールアドレス                                                                                        |
+
+拡張機能のIDは、これまでどおりRepository secretの`CHROME_EXTENSION_ID`に置きます。
 
 Firefoxの更新提出には、成果物のmanifestに固定のadd-on IDが必要です。初回登録でIDが決まった後、`apps/browser-extension/wxt.config.ts`の`browser_specific_settings.gecko.id`へ同じ値を設定してから自動公開を有効にしてください。
 

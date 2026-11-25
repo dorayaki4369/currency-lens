@@ -144,6 +144,9 @@ jobs:
           FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
           FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
           FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+          CHROME_PUBLISHER_ID: ${{ vars.CHROME_PUBLISHER_ID }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
         run: |
           required_credentials=(
             CHROME_EXTENSION_ID
@@ -156,6 +159,20 @@ jobs:
           for credential_name in "${required_credentials[@]}"; do
             if [[ -z "${!credential_name:-}" ]]; then
               echo "::error title=Missing repository secret::Configure the repository Actions secret $credential_name."
+              missing_credentials=1
+            fi
+          done
+
+          # These identify the Chrome Web Store publisher and the Google Cloud identity. They are
+          # not secret, so they are repository variables.
+          required_variables=(
+            CHROME_PUBLISHER_ID
+            GCP_WORKLOAD_IDENTITY_PROVIDER
+            GCP_SERVICE_ACCOUNT
+          )
+          for variable_name in "${required_variables[@]}"; do
+            if [[ -z "${!variable_name:-}" ]]; then
+              echo "::error title=Missing repository variable::Configure the repository Actions variable $variable_name."
               missing_credentials=1
             fi
           done
@@ -283,14 +300,14 @@ jobs:
       # Chrome Web Store API v2 accepts a service account token. The Workload Identity provider
       # trusts only main of this repository, and the token expires after an hour, so no long-lived
       # Google credential is stored. Dry runs get the token too: WXT then calls the read-only
-      # fetchStatus, which proves the whole chain without uploading. None of these identifiers is
-      # secret; docs/deployment.md describes the Google Cloud setup they point to.
+      # fetchStatus, which proves the whole chain without uploading. docs/deployment.md describes
+      # the Google Cloud setup that the repository variables point to.
       - name: Get a Chrome Web Store access token
         id: google-auth
         uses: google-github-actions/auth@v3.0.0
         with:
-          workload_identity_provider: projects/428782365118/locations/global/workloadIdentityPools/github/providers/currency-lens
-          service_account: cws-publisher@currency-lens-503208.iam.gserviceaccount.com
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
           token_format: access_token
           access_token_scopes: https://www.googleapis.com/auth/chromewebstore
           # Only the access token is used, so no credentials file is written to the workspace.
@@ -301,7 +318,7 @@ jobs:
         working-directory: apps/browser-extension
         env:
           CHROME_API_VERSION: v2
-          CHROME_PUBLISHER_ID: 17fa10bf-51f9-4555-81cc-7131d5dbb052
+          CHROME_PUBLISHER_ID: ${{ vars.CHROME_PUBLISHER_ID }}
           CHROME_SERVICE_ACCOUNT_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}

@@ -1,11 +1,14 @@
 // Superscript cents are two digits, as in "$19<sup>99</sup>".
+const CENTS_LENGTH = 2;
 const CENTS_PATTERN = /^\d{2}$/u;
 const TRAILING_DIGITS_PATTERN = /\d+$/u;
 
 interface SuperscriptCents {
-  /** The whole-unit digits written right before the superscript. */
-  readonly whole: string;
-  readonly cents: string;
+  /** Matches the whole-unit digits written right before the superscript, then the cents. */
+  readonly pattern: RegExp;
+  readonly wholeLength: number;
+  /** Which match of the pattern in the selected text belongs to this superscript, from 1. */
+  readonly occurrence: number;
 }
 
 /**
@@ -18,10 +21,10 @@ export function readSelectionText(selection: Selection): string {
     return text;
   }
 
-  return findSuperscriptCents(selection.getRangeAt(0)).reduce(insertDecimalPoint, {
-    text,
-    cursor: 0,
-  }).text;
+  // Later prices go first, so an inserted point never shifts an earlier occurrence count.
+  return findSuperscriptCents(selection.getRangeAt(0))
+    .toReversed()
+    .reduce(insertDecimalPoint, text);
 }
 
 /** Finds two-digit superscripts in a range that directly follow whole-unit digits. */
@@ -42,7 +45,17 @@ function findSuperscriptCents(range: Range): SuperscriptCents[] {
       return [];
     }
     const whole = TRAILING_DIGITS_PATTERN.exec(getPrecedingText(element))?.[0];
-    return whole === undefined ? [] : [{ whole, cents }];
+    if (whole === undefined) {
+      return [];
+    }
+    // Markup whitespace may separate the elements, as in "$199 00".
+    const pattern = new RegExp(String.raw`${whole}\s*${cents}`, "gu");
+    // Counting the same digits before the superscript tells an ordinary "$1999" earlier in the
+    // selection apart from the price written as "$19<sup>99</sup>".
+    const before = range.cloneRange();
+    before.setEndBefore(element);
+    const occurrence = [...`${before.toString()}${cents}`.matchAll(pattern)].length;
+    return occurrence === 0 ? [] : [{ pattern, wholeLength: whole.length, occurrence }];
   });
 }
 
@@ -69,24 +82,16 @@ function getPrecedingText(element: Element): string {
   return "";
 }
 
-/**
- * Inserts a decimal point between the whole digits and the cents, searching in order.
- * Markup whitespace between the two elements is replaced, as in "$199 00".
- */
+/** Inserts a decimal point between the whole digits and the cents of one superscript price. */
 function insertDecimalPoint(
-  state: { readonly text: string; readonly cursor: number },
-  { whole, cents }: SuperscriptCents,
-): { readonly text: string; readonly cursor: number } {
-  const pattern = new RegExp(String.raw`${whole}\s*${cents}`, "gu");
-  pattern.lastIndex = state.cursor;
-  const match = pattern.exec(state.text);
-  if (match === null) {
-    return state;
+  text: string,
+  { pattern, wholeLength, occurrence }: SuperscriptCents,
+): string {
+  const match = [...text.matchAll(pattern)][occurrence - 1];
+  if (match === undefined) {
+    return text;
   }
-  const point = match.index + whole.length;
-  const centsStart = match.index + match[0].length - cents.length;
-  return {
-    text: `${state.text.slice(0, point)}.${state.text.slice(centsStart)}`,
-    cursor: point + 1 + cents.length,
-  };
+  const point = match.index + wholeLength;
+  const centsStart = match.index + match[0].length - CENTS_LENGTH;
+  return `${text.slice(0, point)}.${text.slice(centsStart)}`;
 }

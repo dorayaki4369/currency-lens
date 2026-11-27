@@ -55,6 +55,26 @@ describe("readSelectionText", () => {
     expect(readSelectionText(select("<p>$19<sup>99</sup></p>", "sup"))).toBe("99");
   });
 
+  it("leaves an ordinary price with the same digits before a superscript price", () => {
+    expect(readSelectionText(select("<p>$1999 or $19<sup>99</sup></p>"))).toBe(
+      "$1999 or $19.99",
+    );
+    expect(readSelectionText(select("<p>$19<sup>99</sup> or $1999</p>"))).toBe(
+      "$19.99 or $1999",
+    );
+  });
+
+  it("keeps the selected text when it lacks the digits found in the range", () => {
+    const selection = select("<p>$19<sup>99</sup></p>");
+    expect(
+      readSelectionText({
+        rangeCount: 1,
+        getRangeAt: () => selection.getRangeAt(0),
+        toString: () => "$19",
+      } as unknown as Selection),
+    ).toBe("$19");
+  });
+
   it("ignores superscripts outside the selection", () => {
     document.body.innerHTML = "<p><span>$19</span><sup>99</sup></p>";
     const range = document.createRange();

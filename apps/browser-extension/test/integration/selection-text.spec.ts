@@ -30,6 +30,13 @@ describe("selected prices with superscript cents in a real browser", () => {
     });
   });
 
+  it("leaves an ordinary price with the same digits before a superscript price", () => {
+    expect(detectSelectedPrice("$1999 or $19<sup>99</sup>")).toEqual({
+      text: "$1999 or $19.99",
+      amounts: [1_999, 19.99],
+    });
+  });
+
   it("reads cents raised with vertical-align across separate elements", () => {
     expect(
       detectSelectedPrice(

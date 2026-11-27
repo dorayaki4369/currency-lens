@@ -708,6 +708,9 @@ describe("detectCurrencies with number formats found on real sites", () => {
     expect(detectCurrencies("0.500 JPY", { pageLocale: "en-US" })).toMatchObject([
       { amount: 0.5, currencyCode: "JPY" },
     ]);
+    expect(detectCurrencies("1.500銭", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 0.015, currencyCode: "JPY" },
+    ]);
   });
 
   it("joins the digits after 千 into the group before a larger unit", () => {
@@ -733,5 +736,14 @@ describe("detectCurrencies with number formats found on real sites", () => {
         { amount: 1_000, currencyCode: "JPY" },
       ]);
     }
+  });
+
+  it("joins a grouped fullwidth or apostrophe main amount with its minor amount", () => {
+    expect(detectCurrencies("１，２３４円25銭", { pageLocale: "ja-JP" })).toMatchObject([
+      { amount: 1_234.25, currencyCode: "JPY", originalText: "１，２３４円25銭" },
+    ]);
+    expect(detectCurrencies("1'234円25銭", { pageLocale: "ja-JP" })).toMatchObject([
+      { amount: 1_234.25, currencyCode: "JPY" },
+    ]);
   });
 });

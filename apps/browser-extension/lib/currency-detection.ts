@@ -38,7 +38,7 @@ const AMOUNT_PART_PATTERN = new RegExp(`(${NUMBER_SOURCE})|(${MAGNITUDE_SOURCE})
 // The main part of "£3 20p" or "1,234 dollars and 5 cents" allows only three-digit groups,
 // so a space before the minor amount is not read as grouping. The lookahead keeps "$50 cents"
 // from being split into a main 5 and a minor 0.
-const INTEGER_SOURCE = String.raw`\p{Nd}+(?:[.,    ]\p{Nd}{3})*(?!\p{Nd})`;
+const INTEGER_SOURCE = String.raw`\p{Nd}+(?:[.,\u00A0\u202F\u2009 '\u2019\u02BC\uFF0C\uFF0E]\p{Nd}{3})*(?!\p{Nd})`;
 const COMPOUND_SEPARATOR_SOURCE = String.raw`(?:\s*[,&]\s*|\s+and\s+|\s*)`;
 const minorUnitByName = new Map(currencyMinorUnits.map((unit) => [unit.name, unit]));
 const MINOR_UNIT_SOURCE = buildMinorUnitSource(currencyMinorUnits);
@@ -263,11 +263,13 @@ function parseScaledAmount(
   amountText: string,
   options: CurrencyDetectionOptions,
   currencyCode: CurrencyCode,
+  isMinorAmount: boolean,
 ): number | null {
   const language = getPrimaryLanguage(options);
   const parts = [...amountText.matchAll(AMOUNT_PART_PATTERN)];
-  // A magnitude keeps a decimal meaningful, as in "1.234億", so only a bare number is regrouped.
-  const style = getNumberStyle(currencyCode, parts.length === 1);
+  // A magnitude keeps a decimal meaningful, as in "1.234億", and so does a minor unit, as in
+  // "1.500銭", so only a bare main-unit number is regrouped.
+  const style = getNumberStyle(currencyCode, !isMinorAmount && parts.length === 1);
   const state: ScaledAmountState = {
     completedTerms: [],
     groupTerms: [],
@@ -527,7 +529,7 @@ function createDetection(
   const currencyCode = resolveCurrencyToken(token, pattern.tokenKind, options);
   const minorUnit = getMatchedMinorUnit(match, pattern, token);
   const amount = toMainUnitAmount(
-    parseScaledAmount(amountText, options, currencyCode),
+    parseScaledAmount(amountText, options, currencyCode, minorUnit !== undefined),
     minorUnit,
   );
 

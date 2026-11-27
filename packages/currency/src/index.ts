@@ -1215,7 +1215,7 @@ export const symbols = [
     symbol: "Bs",
     default: "BOB",
     codes: ["BOB", "VEF_BLKMKT", "VEF_DICOM", "VEF_DIPRO"],
-    alternatives: [],
+    alternatives: ["Bs."],
   },
   {
     symbol: "Bs.S",
@@ -1251,7 +1251,7 @@ export const symbols = [
     symbol: "CHF",
     default: "CHF",
     codes: ["CHF"],
-    alternatives: [],
+    alternatives: ["Fr.", "SFr."],
   },
   {
     symbol: "D",
@@ -1455,7 +1455,7 @@ export const symbols = [
     symbol: "S/",
     default: "PEN",
     codes: ["PEN"],
-    alternatives: [],
+    alternatives: ["S/."],
   },
   {
     symbol: "SS£",
@@ -1614,6 +1614,78 @@ export const symbols = [
     alternatives: [],
   },
   {
+    symbol: "Rs",
+    default: "INR",
+    codes: ["INR", "LKR", "NPR", "PKR"],
+    alternatives: ["Rs."],
+  },
+  {
+    symbol: "RMB",
+    default: "CNY",
+    codes: ["CNY"],
+    alternatives: ["CN¥"],
+  },
+  {
+    symbol: "JP¥",
+    default: "JPY",
+    codes: ["JPY"],
+    alternatives: [],
+  },
+  {
+    symbol: "Mex$",
+    default: "MXN",
+    codes: ["MXN"],
+    alternatives: ["MX$"],
+  },
+  {
+    symbol: "COL$",
+    default: "COP",
+    codes: ["COP"],
+    alternatives: [],
+  },
+  {
+    symbol: "CLP$",
+    default: "CLP",
+    codes: ["CLP"],
+    alternatives: [],
+  },
+  {
+    symbol: "$U",
+    default: "UYU",
+    codes: ["UYU"],
+    alternatives: [],
+  },
+  {
+    symbol: "E£",
+    default: "EGP",
+    codes: ["EGP"],
+    alternatives: [],
+  },
+  {
+    symbol: "₦",
+    default: "NGN",
+    codes: ["NGN"],
+    alternatives: [],
+  },
+  {
+    symbol: "SR",
+    default: "SAR",
+    codes: ["SAR"],
+    alternatives: [],
+  },
+  {
+    symbol: "KD",
+    default: "KWD",
+    codes: ["KWD"],
+    alternatives: [],
+  },
+  {
+    symbol: "QR",
+    default: "QAR",
+    codes: ["QAR"],
+    alternatives: [],
+  },
+  {
     symbol: "$",
     default: "USD",
     codes: [
@@ -1643,8 +1715,10 @@ export const symbols = [
       "NZD",
       "PAB",
       "SBD",
+      "SGD",
       "SRD",
       "TTD",
+      "TWD",
       "USD",
       "UYU",
       "XCD",
@@ -1703,7 +1777,7 @@ export const symbols = [
     symbol: "kr",
     default: "DKK",
     codes: ["DKK", "ISK", "NOK", "SEK"],
-    alternatives: [],
+    alternatives: ["kr."],
   },
   {
     symbol: "kn",
@@ -1805,7 +1879,7 @@ export const symbols = [
     symbol: "₫",
     default: "VND",
     codes: ["VND"],
-    alternatives: [],
+    alternatives: ["đ", "VNĐ"],
   },
   {
     symbol: "₭",
@@ -1877,7 +1951,7 @@ export const symbols = [
     symbol: "₺",
     default: "TRY",
     codes: ["TRY"],
-    alternatives: [],
+    alternatives: ["TL"],
   },
   {
     symbol: "₼",

@@ -196,7 +196,9 @@ function selectionWith({
       ({
         commonAncestorContainer,
         getBoundingClientRect: () => rect,
-      }) as Range,
+        // The stubbed text stands for a selection that holds no superscript cents.
+        intersectsNode: () => false,
+      }) as unknown as Range,
     isCollapsed,
     rangeCount,
     toString: () => text,

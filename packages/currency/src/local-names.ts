@@ -81,6 +81,11 @@ export const currencyLocalNames = [
     code: "AUD",
     names: [
       {
+        name: "澳元",
+        sample: "100澳元",
+        locales: ["zh-CN", "zh-TW"],
+      },
+      {
         name: "dollars",
         sample: "100 dollars",
         locales: ["en-AU", "en-CC", "en-CX", "en-KI", "en-NF", "en-NR", "en-TV"],
@@ -310,6 +315,11 @@ export const currencyLocalNames = [
   {
     code: "CAD",
     names: [
+      {
+        name: "加元",
+        sample: "100加元",
+        locales: ["zh-CN", "zh-TW"],
+      },
       {
         name: "dollars",
         sample: "100 dollars",
@@ -541,6 +551,16 @@ export const currencyLocalNames = [
     code: "EUR",
     names: [
       {
+        name: "欧元",
+        sample: "100欧元",
+        locales: ["zh-CN"],
+      },
+      {
+        name: "歐元",
+        sample: "100歐元",
+        locales: ["zh-TW", "zh-HK"],
+      },
+      {
         name: "Euro",
         sample: "100 Euro",
         locales: ["de-DE", "de-BE", "de-LU", "lb-LU"],
@@ -690,6 +710,16 @@ export const currencyLocalNames = [
     code: "GBP",
     names: [
       {
+        name: "英镑",
+        sample: "100英镑",
+        locales: ["zh-CN"],
+      },
+      {
+        name: "英鎊",
+        sample: "100英鎊",
+        locales: ["zh-TW", "zh-HK"],
+      },
+      {
         name: "pounds",
         sample: "100 pounds",
         locales: ["en-GB", "en-GS", "en-TA"],
@@ -784,6 +814,16 @@ export const currencyLocalNames = [
   {
     code: "HKD",
     names: [
+      {
+        name: "港币",
+        sample: "100港币",
+        locales: ["zh-CN"],
+      },
+      {
+        name: "港幣",
+        sample: "100港幣",
+        locales: ["zh-HK", "zh-TW"],
+      },
       {
         name: "港元",
         sample: "100港元",
@@ -955,6 +995,16 @@ export const currencyLocalNames = [
     code: "JPY",
     names: [
       {
+        name: "日元",
+        sample: "100日元",
+        locales: ["zh-CN"],
+      },
+      {
+        name: "日圓",
+        sample: "100日圓",
+        locales: ["zh-TW", "zh-HK"],
+      },
+      {
         name: "円",
         sample: "100円",
         locales: ["ja-JP"],
@@ -1029,6 +1079,16 @@ export const currencyLocalNames = [
   {
     code: "KRW",
     names: [
+      {
+        name: "韩元",
+        sample: "100韩元",
+        locales: ["zh-CN"],
+      },
+      {
+        name: "韓元",
+        sample: "100韓元",
+        locales: ["zh-TW", "zh-HK"],
+      },
       {
         name: "원",
         sample: "100원",
@@ -1555,6 +1615,11 @@ export const currencyLocalNames = [
     code: "RUB",
     names: [
       {
+        name: "руб",
+        sample: "100 руб",
+        locales: ["ru-RU"],
+      },
+      {
         name: "рублей",
         sample: "100 рублей",
         locales: ["ru-RU"],
@@ -1870,6 +1935,16 @@ export const currencyLocalNames = [
     code: "TWD",
     names: [
       {
+        name: "新台幣",
+        sample: "100新台幣",
+        locales: ["zh-TW"],
+      },
+      {
+        name: "新台币",
+        sample: "100新台币",
+        locales: ["zh-CN"],
+      },
+      {
         name: "元",
         sample: "100元",
         locales: ["zh-TW"],
@@ -1905,6 +1980,11 @@ export const currencyLocalNames = [
     code: "UAH",
     names: [
       {
+        name: "грн",
+        sample: "100 грн",
+        locales: ["uk-UA"],
+      },
+      {
         name: "гривень",
         sample: "100 гривень",
         locales: ["uk-UA"],
@@ -1939,6 +2019,16 @@ export const currencyLocalNames = [
   {
     code: "USD",
     names: [
+      {
+        name: "美元",
+        sample: "100美元",
+        locales: ["zh-CN", "zh-TW", "zh-HK", "zh-SG"],
+      },
+      {
+        name: "美金",
+        sample: "100美金",
+        locales: ["zh-CN", "zh-TW"],
+      },
       {
         name: "dollars",
         sample: "100 dollars",

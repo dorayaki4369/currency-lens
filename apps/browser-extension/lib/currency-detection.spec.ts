@@ -747,3 +747,165 @@ describe("detectCurrencies with number formats found on real sites", () => {
     ]);
   });
 });
+
+describe("detectCurrencies with symbols and names found on real sites", () => {
+  it("reads an attached T as trillion", () => {
+    expect(detectCurrencies("$2.189T", { pageLocale: "en" })).toMatchObject([
+      { amount: 2_189_000_000_000, currencyCode: "USD" },
+    ]);
+    expect(
+      detectCurrencies("¥340.94T", { pageLocale: "en", browserLocale: "ja-JP" }),
+    ).toMatchObject([{ amount: 340_940_000_000_000, currencyCode: "JPY" }]);
+    expect(detectCurrencies("$5 T-shirts", { pageLocale: "en" })).toMatchObject([
+      { amount: 5, currencyCode: "USD" },
+    ]);
+  });
+
+  it("does not read a single letter attached to a number as a currency", () => {
+    expect(detectCurrencies("$50 / month per 25K redirects", { pageLocale: "en" })).toEqual(
+      [expect.objectContaining({ amount: 50, currencyCode: "USD" })],
+    );
+    expect(detectCurrencies("2.189T")).toEqual([]);
+    expect(detectCurrencies("100 K")).toMatchObject([{ amount: 100, currencyCode: "MMK" }]);
+    expect(detectCurrencies("K100")).toMatchObject([{ amount: 100, currencyCode: "MMK" }]);
+  });
+
+  it.each([
+    ["1.699,00 TL", "tr-TR", "TRY", 1_699],
+    ["229.999 TL", "tr-TR", "TRY", 229_999],
+    ["RMB 15,999", "zh-CN", "CNY", 15_999],
+    ["CN¥100", "en", "CNY", 100],
+    ["JP¥100", "en", "JPY", 100],
+    ["Mex$ 999.00", "es", "MXN", 999],
+    ["MX$10", "en", "MXN", 10],
+    ["COL$ 199.000,00", "es", "COP", 199_000],
+    ["CLP$39.999", "es", "CLP", 39_999],
+    ["$U1.599,00", "es", "UYU", 1_599],
+    ["S/. 99.00", "es", "PEN", 99],
+    ["Từ 64.999.000đ", "vi-VN", "VND", 64_999_000],
+    ["1,250,000 VNĐ", "vi", "VND", 1_250_000],
+    ["₦5,000", "en", "NGN", 5_000],
+    ["E£100", "en", "EGP", 100],
+    ["Fr. 12.50", "de-CH", "CHF", 12.5],
+    ["SFr. 12.50", "de-CH", "CHF", 12.5],
+    ["kr. 1.234,00", "da-DK", "DKK", 1_234],
+    ["Bs. 100", "es", "BOB", 100],
+    ["3199 руб", "ru", "RUB", 3_199],
+    ["100 грн", "uk", "UAH", 100],
+    ["229.00 SR", "en", "SAR", 229],
+    ["19.99 KD", "en", "KWD", 19.99],
+    ["239.00 QR", "en", "QAR", 239],
+  ] as const)("reads %s on a %s page as %s", (text, pageLocale, currencyCode, amount) => {
+    expect(detectCurrencies(text, { pageLocale })).toMatchObject([
+      { amount, currencyCode },
+    ]);
+  });
+
+  it("reads two-letter abbreviation symbols only after a spaced amount at the end of a phrase", () => {
+    expect(detectCurrencies("239.00 QR, 19.99 KD", { pageLocale: "en" })).toMatchObject([
+      { amount: 239, currencyCode: "QAR" },
+      { amount: 19.99, currencyCode: "KWD" },
+    ]);
+    for (const text of ["5 QR codes", "QR 239", "229.00SR", "5 KD ratio"]) {
+      expect(detectCurrencies(text, { pageLocale: "en" })).toEqual([]);
+    }
+  });
+
+  it("resolves Rs by the page region and the user's interpretation", () => {
+    expect(detectCurrencies("Rs. 1,567", { pageLocale: "en-PK" })).toMatchObject([
+      { amount: 1_567, currencyCode: "PKR" },
+    ]);
+    expect(detectCurrencies("Rs 500", { pageLocale: "en-LK" })).toMatchObject([
+      { currencyCode: "LKR" },
+    ]);
+    expect(detectCurrencies("Rs. 399", { pageLocale: "en" })).toMatchObject([
+      { currencyCode: "INR" },
+    ]);
+    expect(
+      detectCurrencies("Rs. 399", { pageLocale: "en", symbolOverrides: { "Rs.": "NPR" } }),
+    ).toMatchObject([{ currencyCode: "NPR" }]);
+  });
+
+  it.each([
+    ["一笔8000万美元首付款", "zh-CN", "USD", 80_000_000],
+    ["一夜暴涨3.3万亿美元", "zh-CN", "USD", 3_300_000_000_000],
+    ["37,830美元", "zh-TW", "USD", 37_830],
+    ["4,750億美元", "zh-TW", "USD", 475_000_000_000],
+    ["10亿美元", "zh-CN", "USD", 1_000_000_000],
+    ["60,984新台幣", "zh-TW", "TWD", 60_984],
+    ["100欧元", "zh-CN", "EUR", 100],
+    ["100日圓", "zh-TW", "JPY", 100],
+    ["100英鎊", "zh-HK", "GBP", 100],
+    ["100韩元", "zh-CN", "KRW", 100],
+    ["100港幣", "zh-HK", "HKD", 100],
+    ["100澳元", "zh-CN", "AUD", 100],
+    ["100加元", "zh-CN", "CAD", 100],
+  ] as const)(
+    "reads the Chinese amount %s on a %s page as %s",
+    (text, pageLocale, currencyCode, amount) => {
+      expect(detectCurrencies(text, { pageLocale })).toMatchObject([
+        { amount, currencyCode },
+      ]);
+    },
+  );
+
+  it("reads $ as the Taiwan or Singapore dollar on those pages only", () => {
+    expect(detectCurrencies("$3,290", { pageLocale: "zh-TW" })).toMatchObject([
+      { amount: 3_290, currencyCode: "TWD" },
+    ]);
+    expect(detectCurrencies("$12.90", { pageLocale: "en-SG" })).toMatchObject([
+      { amount: 12.9, currencyCode: "SGD" },
+    ]);
+    expect(detectCurrencies("$12.90", { pageLocale: "en-US" })).toMatchObject([
+      { currencyCode: "USD" },
+    ]);
+  });
+});
+
+describe("detectCurrencies with text that is not a price", () => {
+  it("does not read a percentage as an amount", () => {
+    expect(detectCurrencies("BTC 56.5%")).toEqual([]);
+    expect(detectCurrencies("EUR 5 %")).toEqual([]);
+    expect(detectCurrencies("47.49 AED\n37.99 AED\n20% OFF")).toMatchObject([
+      { amount: 47.49, currencyCode: "AED" },
+      { amount: 37.99, currencyCode: "AED" },
+    ]);
+  });
+
+  it("does not read a zero-padded model number as an amount", () => {
+    expect(
+      detectCurrencies("BELKIN 頭戴式無線降噪耳機 (AUD008)", { pageLocale: "zh-TW" }),
+    ).toEqual([]);
+    expect(detectCurrencies("0.5 USD")).toMatchObject([{ amount: 0.5 }]);
+  });
+
+  it("does not read a parenthesized year before a currency as an amount", () => {
+    expect(detectCurrencies("Worldwide gross (2025 $)", { pageLocale: "en" })).toEqual([]);
+    expect(detectCurrencies("(1999 USD)")).toEqual([]);
+    expect(detectCurrencies("2025 $", { pageLocale: "fr-CA" })).toMatchObject([
+      { amount: 2_025 },
+    ]);
+    expect(detectCurrencies("($2025)", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 2_025 },
+    ]);
+  });
+
+  it("does not drop the minus sign of a negative amount", () => {
+    for (const text of ["-$517.86M", "Loss: -$5", "−€5", "-5 USD", "-$5 and 50 cents"]) {
+      expect(detectCurrencies(text, { pageLocale: "en-US" })).toEqual([]);
+    }
+    for (const text of ["▲1,000円", "△500円"]) {
+      expect(detectCurrencies(text, { pageLocale: "ja-JP" })).toEqual([]);
+    }
+  });
+
+  it("keeps a hyphen that joins a range or a word", () => {
+    expect(detectCurrencies("$10-$20", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 10 },
+      { amount: 20 },
+    ]);
+    expect(detectCurrencies("item-$5", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 5 },
+    ]);
+  });
+});

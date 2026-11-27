@@ -171,12 +171,18 @@ function useCheckedItemBounds(root: HTMLElement | null): ItemBounds | null {
     };
     measure();
     // Radix flips data-state on selection, which covers controlled and uncontrolled use alike.
-    const selection = new MutationObserver(measure);
-    selection.observe(root, { attributeFilter: ["data-state"], subtree: true });
+    // Adding or removing options moves the checked one without changing its state or the
+    // root's size, so the child list is watched too.
+    const options = new MutationObserver(measure);
+    options.observe(root, {
+      attributeFilter: ["data-state"],
+      childList: true,
+      subtree: true,
+    });
     const size = new ResizeObserver(measure);
     size.observe(root);
     return () => {
-      selection.disconnect();
+      options.disconnect();
       size.disconnect();
     };
   }, [root]);

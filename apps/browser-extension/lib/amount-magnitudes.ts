@@ -8,6 +8,8 @@ export type MagnitudeRank = "group" | "within-group";
 export interface Magnitude {
   readonly exponent: number;
   readonly rank: MagnitudeRank;
+  /** Whether the token is a separate word, such as "thousand", rather than a character such as 千. */
+  readonly spaced: boolean;
 }
 
 export interface MagnitudeToken {
@@ -215,7 +217,7 @@ export function resolveMagnitude(token: string, language: string | undefined): M
       ? definition.longScaleExponent
       : definition.exponent;
 
-  return { exponent, rank: definition.rank };
+  return { exponent, rank: definition.rank, spaced: definition.spaced };
 }
 
 /** Adds sentence-case forms such as "Million" for words that are usually lowercase. */

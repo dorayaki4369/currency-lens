@@ -22,7 +22,8 @@ import {
 export const MAX_DETECTED_AMOUNTS = 3;
 
 const MAX_SELECTION_LENGTH = 1_000;
-const NUMBER_SOURCE = String.raw`\p{Nd}+(?:[.,\u00A0\u202F\u2009 ]\p{Nd}+)*`;
+// Separators include Swiss apostrophes ("1'099") and fullwidth punctuation ("\uFF11\uFF0C\uFF10\uFF10\uFF10").
+const NUMBER_SOURCE = String.raw`\p{Nd}+(?:[.,\u00A0\u202F\u2009 '\u2019\u02BC\uFF0C\uFF0E]\p{Nd}+)*`;
 // Scripts that join words without spaces, so a neighboring letter does not extend a token.
 const UNSPACED_SCRIPT_SOURCE = String.raw`[\p{Script_Extensions=Han}\p{Script_Extensions=Hiragana}\p{Script_Extensions=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]`;
 // Enough for Korean amounts that combine six magnitudes, such as "1조 2천억 3천만 4천".
@@ -37,7 +38,7 @@ const AMOUNT_PART_PATTERN = new RegExp(`(${NUMBER_SOURCE})|(${MAGNITUDE_SOURCE})
 // The main part of "£3 20p" or "1,234 dollars and 5 cents" allows only three-digit groups,
 // so a space before the minor amount is not read as grouping. The lookahead keeps "$50 cents"
 // from being split into a main 5 and a minor 0.
-const INTEGER_SOURCE = String.raw`\p{Nd}+(?:[.,    ]\p{Nd}{3})*(?!\p{Nd})`;
+const INTEGER_SOURCE = String.raw`\p{Nd}+(?:[.,\u00A0\u202F\u2009 '\u2019\u02BC\uFF0C\uFF0E]\p{Nd}{3})*(?!\p{Nd})`;
 const COMPOUND_SEPARATOR_SOURCE = String.raw`(?:\s*[,&]\s*|\s+and\s+|\s*)`;
 const minorUnitByName = new Map(currencyMinorUnits.map((unit) => [unit.name, unit]));
 const MINOR_UNIT_SOURCE = buildMinorUnitSource(currencyMinorUnits);
@@ -51,6 +52,19 @@ const MINOR_UNIT_PRESENCE_PATTERN = new RegExp(
 );
 const GROUPING_SEPARATOR_PATTERN = /^[.,\u00A0\u202F\u2009 ]$/u;
 const GROUPING_SPACE_PATTERN = /[\u00A0\u202F\u2009 ]/gu;
+const APOSTROPHE_PATTERN = /['\u2019\u02BC]/gu;
+// An apostrophe only groups thousands, and the decimal mark may be either "." or ",".
+const APOSTROPHE_GROUPED_PATTERN = /^\d{1,3}(?:'\d{3})+(?:[.,]\d+)?$/u;
+// Indian grouping, as in "12,34,567", puts two-digit groups above the last three digits.
+const LAKH_GROUPED_PATTERN = /^\d{1,2}(?:,\d{2})+,\d{3}$/u;
+// South Asian currencies whose prices use lakh grouping.
+const LAKH_GROUPING_CURRENCIES: ReadonlySet<CurrencyCode> = new Set([
+  "BDT",
+  "INR",
+  "LKR",
+  "NPR",
+  "PKR",
+]);
 const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}_]/u;
 const DIGIT_PATTERN = /\p{N}/u;
 const KATAKANA_PATTERN = /\p{Script_Extensions=Katakana}/u;
@@ -63,6 +77,7 @@ const DECIMAL_DIGIT_SETS = [
   "০১২৩৪৫৬৭৮৯",
   "༠༡༢༣༤༥༦༧༨༩",
   "၀၁၂၃၄၅၆၇၈၉",
+  "０１２３４５６７８９",
 ] as const;
 
 export interface DetectedCurrency {
@@ -82,6 +97,16 @@ interface NumberSeparators {
   readonly decimal: string;
   readonly group: string;
 }
+
+/** Grouping conventions that depend on the detected currency rather than the locale. */
+interface NumberStyle {
+  /** Accepts Indian grouping such as "1,24,990". */
+  readonly lakhGrouping: boolean;
+  /** Reads one separator before three digits as grouping, since the currency has no decimals. */
+  readonly wholeUnits: boolean;
+}
+
+const DEFAULT_NUMBER_STYLE: NumberStyle = { lakhGrouping: false, wholeUnits: false };
 
 type Placement = "currency-before" | "currency-after";
 type MainTokenKind = "code" | "local-name" | "symbol";
@@ -106,6 +131,8 @@ interface ScaledAmountState {
   pendingNumber: string | null;
   lastGroupExponent: number;
   lastWithinGroupExponent: number;
+  /** Whether the last within-group magnitude was a spaced word such as "thousand". */
+  lastWithinGroupSpaced: boolean;
 }
 
 interface CandidateDetection extends DetectedCurrency {
@@ -193,22 +220,39 @@ function buildMagnitudeSource(): string {
 function normalizeMoneyNumber(
   amountText: string,
   options: Pick<CurrencyDetectionOptions, "pageLocale" | "browserLocale">,
+  style: NumberStyle = DEFAULT_NUMBER_STYLE,
 ): string | null {
-  const normalized = normalizeDecimalDigits(amountText).replace(
-    GROUPING_SPACE_PATTERN,
-    " ",
-  );
+  const normalized = normalizeNumberCharacters(amountText);
+  if (normalized.includes("'")) {
+    return normalizeApostropheGroupedNumber(normalized);
+  }
   if (!/^\d+(?:[., ]\d+)*$/u.test(normalized)) {
     return null;
   }
 
   const separators = getPreferredNumberSeparators(options);
-  const decimalSeparator = determineDecimalSeparator(normalized, separators);
+  const decimalSeparator = determineDecimalSeparator(normalized, separators, style);
   if (decimalSeparator === undefined) {
     return null;
   }
 
-  return normalizeGroupedNumber(normalized, decimalSeparator);
+  return normalizeGroupedNumber(normalized, decimalSeparator, style);
+}
+
+/** Converts digits and separators to ASCII, so "１，０００" and "1’099" use "," and "'". */
+function normalizeNumberCharacters(amountText: string): string {
+  return normalizeDecimalDigits(amountText)
+    .replace(GROUPING_SPACE_PATTERN, " ")
+    .replace(APOSTROPHE_PATTERN, "'")
+    .replaceAll("，", ",")
+    .replaceAll("．", ".");
+}
+
+/** Reads Swiss grouping such as "1'099.50", where an apostrophe only separates thousands. */
+function normalizeApostropheGroupedNumber(amountText: string): string | null {
+  return APOSTROPHE_GROUPED_PATTERN.test(amountText)
+    ? amountText.replaceAll("'", "").replace(",", ".")
+    : null;
 }
 
 /**
@@ -218,19 +262,26 @@ function normalizeMoneyNumber(
 function parseScaledAmount(
   amountText: string,
   options: CurrencyDetectionOptions,
+  currencyCode: CurrencyCode,
+  isMinorAmount: boolean,
 ): number | null {
   const language = getPrimaryLanguage(options);
+  const parts = [...amountText.matchAll(AMOUNT_PART_PATTERN)];
+  // A magnitude keeps a decimal meaningful, as in "1.234億", and so does a minor unit, as in
+  // "1.500銭", so only a bare main-unit number is regrouped.
+  const style = getNumberStyle(currencyCode, !isMinorAmount && parts.length === 1);
   const state: ScaledAmountState = {
     completedTerms: [],
     groupTerms: [],
     pendingNumber: null,
     lastGroupExponent: Number.POSITIVE_INFINITY,
     lastWithinGroupExponent: Number.POSITIVE_INFINITY,
+    lastWithinGroupSpaced: false,
   };
 
-  for (const [, numberText, magnitudeText] of amountText.matchAll(AMOUNT_PART_PATTERN)) {
+  for (const [, numberText, magnitudeText] of parts) {
     if (numberText !== undefined) {
-      state.pendingNumber = normalizeMoneyNumber(numberText, options);
+      state.pendingNumber = normalizeMoneyNumber(numberText, options, style);
       if (state.pendingNumber === null) {
         return null;
       }
@@ -276,13 +327,13 @@ function applyMagnitude(state: ScaledAmountState, magnitude: Magnitude): boolean
     }
     state.groupTerms.push({ value: state.pendingNumber, exponent: magnitude.exponent });
     state.lastWithinGroupExponent = magnitude.exponent;
+    state.lastWithinGroupSpaced = magnitude.spaced;
     state.pendingNumber = null;
     return true;
   }
 
   if (state.pendingNumber !== null) {
-    // A bare number after a within-group term, as in "5 thousand 3 million", would be scaled twice.
-    if (state.groupTerms.length > 0) {
+    if (state.groupTerms.length > 0 && !isGroupRemainder(state, state.pendingNumber)) {
       return false;
     }
     state.groupTerms.push({ value: state.pendingNumber, exponent: 0 });
@@ -301,6 +352,27 @@ function applyMagnitude(state: ScaledAmountState, magnitude: Magnitude): boolean
   state.lastGroupExponent = magnitude.exponent;
   state.lastWithinGroupExponent = Number.POSITIVE_INFINITY;
   return true;
+}
+
+/**
+ * Checks whether a number fills the digits below an unspaced within-group unit, as 800 does in
+ * "2千800万", so the group magnitude scales both. A spaced word, as in "5 thousand 3 million",
+ * would scale the number twice, and a shorter number, as in "1千5万", may omit a unit such as 百.
+ */
+function isGroupRemainder(state: ScaledAmountState, numberText: string): boolean {
+  return (
+    !state.lastWithinGroupSpaced &&
+    /^\d+$/u.test(numberText) &&
+    numberText.length === state.lastWithinGroupExponent
+  );
+}
+
+/** Chooses grouping rules for a currency, regrouping decimals only for a bare number. */
+function getNumberStyle(currencyCode: CurrencyCode, isBareNumber: boolean): NumberStyle {
+  return {
+    lakhGrouping: LAKH_GROUPING_CURRENCIES.has(currencyCode),
+    wholeUnits: isBareNumber && getCurrencyMetadata(currencyCode).minorUnit === 0,
+  };
 }
 
 /** Returns the language of the first valid locale hint for long-scale magnitudes. */
@@ -456,14 +528,12 @@ function createDetection(
   const amountText = pattern.placement === "currency-before" ? second : first;
   const currencyCode = resolveCurrencyToken(token, pattern.tokenKind, options);
   const minorUnit = getMatchedMinorUnit(match, pattern, token);
-  const amount = toMainUnitAmount(parseScaledAmount(amountText, options), minorUnit);
+  const amount = toMainUnitAmount(
+    parseScaledAmount(amountText, options, currencyCode, minorUnit !== undefined),
+    minorUnit,
+  );
 
-  if (
-    currencyCode === undefined ||
-    amount === null ||
-    amount <= 0 ||
-    minorUnit?.codes.includes(currencyCode) === false
-  ) {
+  if (amount === null || amount <= 0 || minorUnit?.codes.includes(currencyCode) === false) {
     return null;
   }
 
@@ -577,7 +647,7 @@ function createCompoundDetection(
 
     // Joining decimal strings keeps "5 and 5 cents" exact as 5.05.
     const amount = Number(`${mainNumber}.${fraction}`);
-    // Unsupported digits, such as fullwidth ones, and oversized amounts are not finite.
+    // Unsupported digits, such as Thai ones, and oversized amounts are not finite.
     if (!Number.isFinite(amount)) {
       continue;
     }
@@ -589,7 +659,7 @@ function createCompoundDetection(
       amount,
       amountStart: match.indices![mainGroup]![0],
       amountEnd: match.indices![1 + count * 2]![1],
-      currencyCode: currencyCode!,
+      currencyCode,
       originalText: text.slice(match.index, end),
       index: match.index,
     };
@@ -613,7 +683,7 @@ function continuesAsOtherWord(text: string, end: number, name: string): boolean 
  */
 function joinMinorParts(
   parts: readonly (readonly [string, string])[],
-  currencyCode: CurrencyCode | undefined,
+  currencyCode: CurrencyCode,
 ): string | null {
   let fraction = "";
 
@@ -623,7 +693,6 @@ function joinMinorParts(
     const width = minorUnit.exponent - fraction.length;
     const digits = normalizeDecimalDigits(digitsText);
     if (
-      currencyCode === undefined ||
       !minorUnit.codes.includes(currencyCode) ||
       width <= 0 ||
       Number(digits) >= 10 ** width
@@ -717,9 +786,10 @@ function resolveCurrencyToken(
   token: string,
   tokenKind: TokenKind,
   options: CurrencyDetectionOptions,
-): CurrencyCode | undefined {
+): CurrencyCode {
   if (tokenKind === "code") {
-    return getCurrencyCodes().find((currencyCode) => currencyCode === token);
+    // Code patterns are built exclusively from this list, so every match is a supported code.
+    return getCurrencyCodes().find((currencyCode) => currencyCode === token)!;
   }
 
   if (tokenKind === "local-name") {
@@ -836,6 +906,7 @@ function getPreferredNumberSeparators(
 function determineDecimalSeparator(
   amountText: string,
   preferred: NumberSeparators | undefined,
+  style: NumberStyle,
 ): "." | "," | null | undefined {
   const dotCount = countCharacter(amountText, ".");
   const commaCount = countCharacter(amountText, ",");
@@ -850,10 +921,10 @@ function determineDecimalSeparator(
   const separator = dotCount > 0 ? "." : ",";
   const count = separator === "." ? dotCount : commaCount;
   if (count > 1) {
-    return normalizeGroupedInteger(amountText) === null ? undefined : null;
+    return normalizeGroupedInteger(amountText, style) === null ? undefined : null;
   }
 
-  return determineSingleDecimalSeparator(amountText, separator, preferred);
+  return determineSingleDecimalSeparator(amountText, separator, preferred, style);
 }
 
 /** Resolves one punctuation mark using locale hints and common grouping conventions. */
@@ -861,38 +932,50 @@ function determineSingleDecimalSeparator(
   amountText: string,
   separator: "." | ",",
   preferred: NumberSeparators | undefined,
+  style: NumberStyle,
 ): "." | "," | null {
-  const [integerPart = "", fractionPart = ""] = amountText.split(separator);
+  const isThousandsGroup = hasThousandsGroupShape(amountText, separator);
   if (amountText.includes(" ")) {
     return separator;
+  }
+  // A currency without decimals, as in "990.000₫", is grouped even where "." is decimal.
+  if (style.wholeUnits && isThousandsGroup) {
+    return null;
   }
   if (preferred?.decimal === separator) {
     return separator;
   }
-  if (preferred?.group === separator && normalizeGroupedInteger(amountText) !== null) {
+  if (
+    preferred?.group === separator &&
+    normalizeGroupedInteger(amountText, style) !== null
+  ) {
     return null;
   }
-  if (integerPart === "0") {
-    return separator;
-  }
-  if (fractionPart.length === 3 && integerPart.length <= 3) {
+  if (isThousandsGroup) {
     return null;
   }
 
   return separator;
 }
 
+/** Checks whether one separator splits off three digits after a short nonzero integer, as in "1.500". */
+function hasThousandsGroupShape(amountText: string, separator: "." | ","): boolean {
+  const [integerPart = "", fractionPart = ""] = amountText.split(separator);
+  return integerPart !== "0" && fractionPart.length === 3 && integerPart.length <= 3;
+}
+
 /** Normalizes a validated grouped amount into JavaScript's dot-decimal representation. */
 function normalizeGroupedNumber(
   amountText: string,
   decimalSeparator: "." | "," | null,
+  style: NumberStyle,
 ): string | null {
   const decimalIndex =
     decimalSeparator === null ? -1 : amountText.lastIndexOf(decimalSeparator);
   const integerPart = decimalIndex >= 0 ? amountText.slice(0, decimalIndex) : amountText;
   const fractionPart = decimalIndex >= 0 ? amountText.slice(decimalIndex + 1) : undefined;
 
-  const normalizedInteger = normalizeGroupedInteger(integerPart);
+  const normalizedInteger = normalizeGroupedInteger(integerPart, style);
   if (normalizedInteger === null) {
     return null;
   }
@@ -903,7 +986,7 @@ function normalizeGroupedNumber(
 }
 
 /** Validates one consistent thousands separator and removes it from an integer. */
-function normalizeGroupedInteger(integerPart: string): string | null {
+function normalizeGroupedInteger(integerPart: string, style: NumberStyle): string | null {
   if (/^\d+$/u.test(integerPart)) {
     return integerPart;
   }
@@ -919,7 +1002,10 @@ function normalizeGroupedInteger(integerPart: string): string | null {
     `^\\d{1,3}(?:${escapeRegularExpression(separator)}\\d{3})+$`,
     "u",
   );
-  return groupedPattern.test(integerPart) ? integerPart.split(separator).join("") : null;
+  const isGrouped =
+    groupedPattern.test(integerPart) ||
+    (style.lakhGrouping && LAKH_GROUPED_PATTERN.test(integerPart));
+  return isGrouped ? integerPart.split(separator).join("") : null;
 }
 
 /** Counts exact occurrences of one separator character. */

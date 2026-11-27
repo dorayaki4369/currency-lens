@@ -10,8 +10,8 @@ export default defineContentScript({
   async main(context) {
     const ui = await createShadowRootUi<Root>(context, {
       name: "currency-lens-overlay",
+      // assets/style.css stacks the host above the page; WXT's inline z-index loses to its reset.
       position: "overlay",
-      zIndex: 2_147_483_647,
       isolateEvents: ["keydown", "keyup", "keypress", "pointerdown", "click"],
       onMount(container) {
         const root = createRoot(container);

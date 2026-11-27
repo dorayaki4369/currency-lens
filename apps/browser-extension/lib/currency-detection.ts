@@ -66,6 +66,12 @@ const LAKH_GROUPING_CURRENCIES: ReadonlySet<CurrencyCode> = new Set([
   "PKR",
 ]);
 const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}_]/u;
+const WHITESPACE_PATTERN = /\s/u;
+const FOLLOWING_WORD_PATTERN = /^\s*\p{L}/u;
+// A single capital attached to a number, as in "25K", abbreviates a magnitude rather than a currency.
+const SINGLE_LETTER_SYMBOL_PATTERN = /^[A-Z]$/u;
+// Symbols that are also common abbreviations, as in "5 QR codes", only end a phrase after a space.
+const PHRASE_END_SYMBOLS: ReadonlySet<string> = new Set(["KD", "QR", "SR"]);
 const DIGIT_PATTERN = /\p{N}/u;
 const KATAKANA_PATTERN = /\p{Script_Extensions=Katakana}/u;
 const UNSPACED_SCRIPT_PATTERN = new RegExp(UNSPACED_SCRIPT_SOURCE, "u");
@@ -206,7 +212,11 @@ function buildMagnitudeSource(): string {
   );
   const spacedSource = tokens
     .filter(({ spaced }) => spaced)
-    .map(({ token }) => escapeRegularExpression(token))
+    .map(({ token, attachedToNumber }) =>
+      attachedToNumber
+        ? String.raw`(?<=\p{Nd})${escapeRegularExpression(token)}`
+        : escapeRegularExpression(token),
+    )
     .join("|");
   const attachedSource = tokens
     .filter(({ spaced }) => !spaced)
@@ -525,6 +535,9 @@ function createDetection(
   }
 
   const token = pattern.placement === "currency-before" ? first : second;
+  if (!isSymbolPlacementValid(text, match, pattern, token)) {
+    return null;
+  }
   const amountText = pattern.placement === "currency-before" ? second : first;
   const currencyCode = resolveCurrencyToken(token, pattern.tokenKind, options);
   const minorUnit = getMatchedMinorUnit(match, pattern, token);
@@ -551,6 +564,35 @@ function createDetection(
     originalText: match[0],
     index: match.index,
   };
+}
+
+/**
+ * Rejects symbols that read as other abbreviations where they are written: a single letter
+ * attached to a number, as K in "25K", and a phrase-end symbol such as QR anywhere except
+ * after a spaced amount at the end of a phrase, as in "239.00 QR".
+ */
+function isSymbolPlacementValid(
+  text: string,
+  match: RegExpExecArray,
+  pattern: DetectionPattern,
+  token: string,
+): boolean {
+  if (pattern.tokenKind !== "symbol") {
+    return true;
+  }
+  const isAfter = pattern.placement === "currency-after";
+  // A symbol after the amount ends the match, and a symbol before it starts the match.
+  const tokenStart = isAfter ? match.index + match[0].length - token.length : match.index;
+  const isSpaced = WHITESPACE_PATTERN.test(text[tokenStart - 1] ?? "");
+  if (PHRASE_END_SYMBOLS.has(token)) {
+    return (
+      isAfter &&
+      isSpaced &&
+      !FOLLOWING_WORD_PATTERN.test(text.slice(tokenStart + token.length))
+    );
+  }
+
+  return !(isAfter && SINGLE_LETTER_SYMBOL_PATTERN.test(token) && !isSpaced);
 }
 
 /** Returns the minor unit written in a match, as "cents" in "50 cents" or "CAD 50 cents". */

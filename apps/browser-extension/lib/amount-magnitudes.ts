@@ -16,6 +16,8 @@ export interface MagnitudeToken {
   readonly token: string;
   /** Whether the token is written as a separate word that must end at a word boundary. */
   readonly spaced: boolean;
+  /** Whether the token must directly follow a digit, without a space. */
+  readonly attachedToNumber: boolean;
 }
 
 interface MagnitudeDefinition {
@@ -25,6 +27,7 @@ interface MagnitudeDefinition {
   readonly spaced: boolean;
   /** Exponent used by long-scale languages, where "billion" means 10^12. */
   readonly longScaleExponent?: number;
+  readonly attachedToNumber?: boolean;
 }
 
 const LONG_SCALE_LANGUAGES: ReadonlySet<string> = new Set(["de", "fr"]);
@@ -35,7 +38,8 @@ const magnitudeDefinitions: readonly MagnitudeDefinition[] = [
   { tokens: ["千"], exponent: 3, rank: "within-group", spaced: false },
   { tokens: ["万", "萬"], exponent: 4, rank: "group", spaced: false },
   { tokens: ["億", "亿"], exponent: 8, rank: "group", spaced: false },
-  { tokens: ["兆"], exponent: 12, rank: "group", spaced: false },
+  // 万亿 is the Chinese way to write 10^12, so "3.3万亿" is one magnitude rather than 万 then 亿.
+  { tokens: ["兆", "万亿", "萬億"], exponent: 12, rank: "group", spaced: false },
   // Korean
   { tokens: ["백"], exponent: 2, rank: "within-group", spaced: false },
   { tokens: ["천"], exponent: 3, rank: "within-group", spaced: false },
@@ -183,6 +187,8 @@ const magnitudeDefinitions: readonly MagnitudeDefinition[] = [
     rank: "group",
     spaced: true,
   },
+  // "$2.189T" abbreviates trillion, but a spaced T starts a word, as in "$5 T-shirts".
+  { tokens: ["T"], exponent: 12, rank: "group", spaced: true, attachedToNumber: true },
   {
     tokens: ["trillion", "trillions"],
     exponent: 12,
@@ -203,6 +209,7 @@ export function getMagnitudeTokens(): MagnitudeToken[] {
   return [...definitionByToken].map(([token, definition]) => ({
     token,
     spaced: definition.spaced,
+    attachedToNumber: definition.attachedToNumber === true,
   }));
 }
 

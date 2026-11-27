@@ -36,6 +36,19 @@ describe("parseMoneyAmount", () => {
     expect(parseMoneyAmount("1,234", { pageLocale: "en-US" })).toBe(1_234);
   });
 
+  it("parses Swiss apostrophe grouping only between thousands", () => {
+    expect(parseMoneyAmount("1'099.00", { pageLocale: "de-CH" })).toBe(1_099);
+    expect(parseMoneyAmount("1’234’567,50", { pageLocale: "de-CH" })).toBe(1_234_567.5);
+    expect(parseMoneyAmount("1ʼ099", { pageLocale: "de-CH" })).toBe(1_099);
+    expect(parseMoneyAmount("12'34", { pageLocale: "de-CH" })).toBeNull();
+    expect(parseMoneyAmount("1'234,567.89", { pageLocale: "de-CH" })).toBeNull();
+  });
+
+  it("parses fullwidth digits and separators", () => {
+    expect(parseMoneyAmount("１，０００", { pageLocale: "ja-JP" })).toBe(1_000);
+    expect(parseMoneyAmount("１２．５", { pageLocale: "ja-JP" })).toBe(12.5);
+  });
+
   it("ignores invalid locale hints and tries the next locale", () => {
     expect(
       parseMoneyAmount("1,25", { pageLocale: "not_a_locale", browserLocale: "de-DE" }),
@@ -515,8 +528,8 @@ describe("detectCurrencies with minor units", () => {
   });
 
   it("does not join parts whose value cannot be represented", () => {
-    // Fullwidth digits are not supported as amounts.
-    expect(detectCurrencies("£3 ２０p")).toEqual([]);
+    // Thai digits are not supported as amounts.
+    expect(detectCurrencies("£3 ๒๐p")).toEqual([]);
     const detections = detectCurrencies(`$${"9".repeat(400)} and 50 cents`);
     expect(detections.length).toBeGreaterThan(0);
     expect(detections.every(({ amount }) => Number.isFinite(amount))).toBe(true);
@@ -643,3 +656,82 @@ function detect(text: string, pageLocale: string): [number, string][] {
     currencyCode,
   ]);
 }
+
+describe("detectCurrencies with number formats found on real sites", () => {
+  it("reads Swiss apostrophe grouping as one amount", () => {
+    for (const text of ["CHF1'099", "Vorheriger Preis CHF 1'099.00"]) {
+      expect(detectCurrencies(text, { pageLocale: "de-CH" })).toMatchObject([
+        { amount: 1_099, currencyCode: "CHF" },
+      ]);
+    }
+    expect(detectCurrencies("CHF 1’234.50", { pageLocale: "de-CH" })).toMatchObject([
+      { amount: 1_234.5, currencyCode: "CHF" },
+    ]);
+    expect(detectCurrencies("1'234.56 CHF", { pageLocale: "de-CH" })).toMatchObject([
+      { amount: 1_234.56, currencyCode: "CHF", originalText: "1'234.56 CHF" },
+    ]);
+  });
+
+  it("does not read a fragment of malformed apostrophe grouping", () => {
+    expect(detectCurrencies("CHF 12'34", { pageLocale: "de-CH" })).toEqual([]);
+  });
+
+  it("reads Indian lakh grouping for South Asian currencies only", () => {
+    expect(detectCurrencies("M.R.P: ₹1,24,990", { pageLocale: "en-IN" })).toMatchObject([
+      { amount: 124_990, currencyCode: "INR" },
+    ]);
+    expect(detectCurrencies("₹12,34,567.89", { pageLocale: "en-IN" })).toMatchObject([
+      { amount: 1_234_567.89, currencyCode: "INR" },
+    ]);
+    expect(detectCurrencies("$1,23,456", { pageLocale: "en-US" })).toEqual([]);
+  });
+
+  it("reads three digits after one separator as grouping for currencies without decimals", () => {
+    expect(detectCurrencies("990.000₫", { pageLocale: "ja" })).toMatchObject([
+      { amount: 990_000, currencyCode: "VND" },
+    ]);
+    expect(detectCurrencies("990.000 VND", { pageLocale: "en" })).toMatchObject([
+      { amount: 990_000, currencyCode: "VND" },
+    ]);
+    expect(detectCurrencies("990,000 VND", { pageLocale: "de-DE" })).toMatchObject([
+      { amount: 990_000, currencyCode: "VND" },
+    ]);
+  });
+
+  it("keeps decimals for currencies with minor units and amounts with magnitudes", () => {
+    expect(detectCurrencies("$1.500", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 1.5, currencyCode: "USD" },
+    ]);
+    expect(detectCurrencies("1.234億円", { pageLocale: "ja-JP" })).toMatchObject([
+      { amount: 123_400_000, currencyCode: "JPY" },
+    ]);
+    expect(detectCurrencies("0.500 JPY", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 0.5, currencyCode: "JPY" },
+    ]);
+  });
+
+  it("joins the digits after 千 into the group before a larger unit", () => {
+    expect(
+      detectCurrencies("원베일리 84㎡ 보유세 2천800만원", { pageLocale: "ko" }),
+    ).toMatchObject([{ amount: 28_000_000, currencyCode: "KRW" }]);
+    expect(detectCurrencies("2千800万円", { pageLocale: "ja" })).toMatchObject([
+      { amount: 28_000_000, currencyCode: "JPY" },
+    ]);
+    expect(detectCurrencies("1億2千300万円", { pageLocale: "ja" })).toMatchObject([
+      { amount: 123_000_000, currencyCode: "JPY" },
+    ]);
+  });
+
+  it("does not join digits that leave a unit out after 千", () => {
+    expect(detectCurrencies("2千80万円", { pageLocale: "ja" })).toEqual([]);
+    expect(detectCurrencies("2千8.5万円", { pageLocale: "ja" })).toEqual([]);
+  });
+
+  it("reads fullwidth digits and separators", () => {
+    for (const text of ["１，０００円", "￥１，０００", "１０００円"]) {
+      expect(detectCurrencies(text, { pageLocale: "ja" })).toMatchObject([
+        { amount: 1_000, currencyCode: "JPY" },
+      ]);
+    }
+  });
+});

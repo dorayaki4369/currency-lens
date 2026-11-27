@@ -167,6 +167,8 @@ function selectionWith(text: string, rect: DOMRect): Selection {
       ({
         commonAncestorContainer: document.body,
         getBoundingClientRect: () => rect,
+        // The stubbed text stands for a selection that holds no superscript cents.
+        intersectsNode: () => false,
       }) as unknown as Range,
     isCollapsed: false,
     rangeCount: 1,

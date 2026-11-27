@@ -13,7 +13,6 @@ interface ShadowOptions {
   readonly onMount: (container: HTMLElement) => RootLike;
   readonly onRemove: (mountedRoot?: RootLike) => void;
   readonly position: string;
-  readonly zIndex: number;
 }
 
 interface ContentDefinition {
@@ -80,7 +79,6 @@ describe("content script entrypoint", () => {
         isolateEvents: ["keydown", "keyup", "keypress", "pointerdown", "click"],
         name: "currency-lens-overlay",
         position: "overlay",
-        zIndex: 2_147_483_647,
       }),
     );
     expect(mocks.mount).toHaveBeenCalledOnce();

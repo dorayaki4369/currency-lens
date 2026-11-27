@@ -12,7 +12,10 @@
         font-family: sans-serif;
       }
 
+      /* Pages such as dev.meta.ai stack their content above the document's own layer. */
       main {
+        position: relative;
+        z-index: 1;
         max-width: 48rem;
         margin: 4rem auto;
         padding: 2rem;

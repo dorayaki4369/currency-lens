@@ -16,6 +16,13 @@
   /* rem crosses Shadow DOM boundaries; pin only the in-page UI's scale here. */
   --lens-rem: 16px;
   font-size: var(--lens-rem);
+  /*
+   * WXT's ":host { all: initial !important }" reset outranks the host's inline z-index, so the
+   * in-page UI would sit below page content that forms its own stacking layer, such as
+   * "position: relative; z-index: 1". Lift the host above the page from inside the shadow root.
+   */
+  position: relative !important;
+  z-index: 2147483647 !important;
 }
 
 @theme {

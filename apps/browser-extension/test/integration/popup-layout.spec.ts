@@ -365,6 +365,43 @@ describe("popup layout", () => {
     expectEdge(periodChoice.thumb.top - periodChoice.group.top, 2);
   });
 
+  it("keeps the currency thumb on its choice when the base leaves the choices", async () => {
+    await openPopupScreen();
+    await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));
+    const gbp = page.getByRole("radio", { name: "GBP", exact: true });
+    await userEvent.click(gbp);
+    await expect.element(gbp).toHaveAttribute("aria-checked", "true");
+
+    // Making a listed currency the base drops it from the choices, so GBP moves and widens.
+    await userEvent.click(page.getByRole("combobox", { name: "基準", exact: true }));
+    const picker = queryAll('[data-slot="popover-content"]').at(-1);
+    if (picker === undefined) {
+      throw new Error("Base currency menu was not rendered");
+    }
+    const pickerLocator = page.elementLocator(picker);
+    await userEvent.fill(
+      pickerLocator.getByRole("combobox", { name: "通貨を検索" }),
+      "JPY",
+    );
+    await userEvent.click(pickerLocator.getByRole("option", { name: /^JPY\b/u }));
+    await expect
+      .element(page.getByRole("radio", { name: "JPY", exact: true }))
+      .not.toBeInTheDocument();
+    await expect.element(gbp).toHaveAttribute("aria-checked", "true");
+
+    await expect
+      .poll(() => {
+        const thumb = requireSegmentedBounds("表示する通貨").thumb;
+        const choice = gbp.element().getBoundingClientRect();
+        return {
+          left: Math.abs(thumb.left - choice.left) < 0.5,
+          width: Math.abs(thumb.width - choice.width) < 0.5,
+        };
+      })
+      .toEqual({ left: true, width: true });
+    await saveReviewScreenshot("popup-rates-base-change");
+  });
+
   it("keeps the right axis one left-aligned column of fixed width per chart mode", async () => {
     await openPopupScreen();
     await userEvent.click(page.getByRole("radio", { name: "レート", exact: true }));

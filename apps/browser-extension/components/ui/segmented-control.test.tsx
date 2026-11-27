@@ -91,6 +91,27 @@ describe("SegmentedControl", () => {
     unmount();
   });
 
+  it("follows the checked option when the options around it change", async () => {
+    const renderOptions = (values: readonly string[]) => (
+      <SegmentedControl aria-label="Currency" value="EUR">
+        {values.map((value) => (
+          <SegmentedControlItem key={value} ref={layOutInOrder} value={value}>
+            {value}
+          </SegmentedControlItem>
+        ))}
+      </SegmentedControl>
+    );
+    const { container, rerender } = render(renderOptions(["USD", "EUR"]));
+    const thumb = container.querySelector<HTMLElement>(
+      '[data-slot="segmented-control-thumb"]',
+    );
+    await waitFor(() => expect(thumb?.style.translate).toBe("40px 0"));
+
+    // The checked option keeps its state while another is inserted before it.
+    rerender(renderOptions(["JPY", "USD", "EUR"]));
+    await waitFor(() => expect(thumb?.style.translate).toBe("80px 0"));
+  });
+
   it("keeps the theme toggle's look by default and offers smaller and pill-shaped styles", () => {
     const { rerender } = render(
       <SegmentedControl aria-label="Screen" defaultValue="a">
@@ -167,3 +188,18 @@ describe("SegmentedControl", () => {
     expect(onSelect.mock.calls).toEqual([["b"]]);
   });
 });
+
+/** Lays each option out 40px wide in document order, as a stretched track would. */
+function layOutInOrder(item: HTMLElement | null): void {
+  if (item === null) {
+    return;
+  }
+  Object.defineProperty(item, "offsetLeft", {
+    configurable: true,
+    get: () => {
+      const options = item.parentElement?.querySelectorAll('[role="radio"]') ?? [];
+      return Array.from(options).indexOf(item) * 40;
+    },
+  });
+  Object.defineProperty(item, "offsetWidth", { configurable: true, value: 40 });
+}

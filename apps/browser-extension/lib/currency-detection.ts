@@ -68,6 +68,13 @@ const LAKH_GROUPING_CURRENCIES: ReadonlySet<CurrencyCode> = new Set([
 const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}_]/u;
 const WHITESPACE_PATTERN = /\s/u;
 const FOLLOWING_WORD_PATTERN = /^\s*\p{L}/u;
+const PERCENT_FOLLOWING_PATTERN = /^\s*[%％]/u;
+// A price never starts with a zero before another digit, but a model number such as "AUD008" does.
+const ZERO_PADDED_PATTERN = /^0\d/u;
+const YEAR_PATTERN = /^(?:19|20)\d{2}$/u;
+// Minus signs, including ▲ and △ that Japanese accounting writes before a negative amount.
+const MINUS_SIGN_PATTERN = /[-\u2212\uFF0D\u25B2\u25B3]/u;
+const HYPHEN_PATTERN = /[-\uFF0D]/u;
 // A single capital attached to a number, as in "25K", abbreviates a magnitude rather than a currency.
 const SINGLE_LETTER_SYMBOL_PATTERN = /^[A-Z]$/u;
 // Symbols that are also common abbreviations, as in "5 QR codes", only end a phrase after a space.
@@ -144,6 +151,12 @@ interface ScaledAmountState {
 interface CandidateDetection extends DetectedCurrency {
   readonly amountStart: number;
   readonly amountEnd: number;
+  /**
+   * Whether a minus sign precedes the amount. Negative amounts cannot be converted, and dropping
+   * the sign would show a loss as a gain, so the span is accepted only to hide its fragments,
+   * such as "50 cents" in "-$5 and 50 cents", and is then left out.
+   */
+  readonly negated: boolean;
 }
 
 const detectionPatterns = buildDetectionPatterns();
@@ -184,7 +197,10 @@ export function detectCurrencies(
     }
   }
 
-  return acceptedDetections.slice(0, MAX_DETECTED_AMOUNTS).map(toDetectedCurrency);
+  return acceptedDetections
+    .filter((detection) => !detection.negated)
+    .slice(0, MAX_DETECTED_AMOUNTS)
+    .map(toDetectedCurrency);
 }
 
 /** Parses US, European, and space-grouped amount text using optional locale hints. */
@@ -535,10 +551,10 @@ function createDetection(
   }
 
   const token = pattern.placement === "currency-before" ? first : second;
-  if (!isSymbolPlacementValid(text, match, pattern, token)) {
+  const amountText = pattern.placement === "currency-before" ? second : first;
+  if (!isMatchContextValid(text, match, pattern, token, amountText)) {
     return null;
   }
-  const amountText = pattern.placement === "currency-before" ? second : first;
   const currencyCode = resolveCurrencyToken(token, pattern.tokenKind, options);
   const minorUnit = getMatchedMinorUnit(match, pattern, token);
   const amount = toMainUnitAmount(
@@ -563,7 +579,55 @@ function createDetection(
     currencyCode,
     originalText: match[0],
     index: match.index,
+    negated: isNegated(text, match.index),
   };
+}
+
+/**
+ * Rejects matches whose surroundings show they are not a price: a percentage, a zero-padded
+ * number such as a model number, or a year in a table header.
+ */
+function isMatchContextValid(
+  text: string,
+  match: RegExpExecArray,
+  pattern: DetectionPattern,
+  token: string,
+  amountText: string,
+): boolean {
+  const end = match.index + match[0].length;
+  return (
+    isSymbolPlacementValid(text, match, pattern, token) &&
+    !PERCENT_FOLLOWING_PATTERN.test(text.slice(end)) &&
+    !ZERO_PADDED_PATTERN.test(normalizeDecimalDigits(amountText)) &&
+    !isParenthesizedYear(text, match, pattern, amountText)
+  );
+}
+
+/**
+ * Checks for a minus sign before an amount, as in "-$517.86M". A hyphen after a digit or a
+ * letter joins a range or a word instead, as in "$10-$20".
+ */
+function isNegated(text: string, start: number): boolean {
+  const sign = text[start - 1];
+  if (sign === undefined || !MINUS_SIGN_PATTERN.test(sign)) {
+    return false;
+  }
+  return !HYPHEN_PATTERN.test(sign) || isStrictWordBoundary(text[start - 2]);
+}
+
+/** Checks for a year written as a unit label, as "(2025 $)" in an inflation-adjusted table. */
+function isParenthesizedYear(
+  text: string,
+  match: RegExpExecArray,
+  pattern: DetectionPattern,
+  amountText: string,
+): boolean {
+  return (
+    pattern.placement === "currency-after" &&
+    YEAR_PATTERN.test(amountText) &&
+    text[match.index - 1] === "(" &&
+    text[match.index + match[0].length] === ")"
+  );
 }
 
 /**
@@ -704,6 +768,7 @@ function createCompoundDetection(
       currencyCode,
       originalText: text.slice(match.index, end),
       index: match.index,
+      negated: isNegated(text, match.index),
     };
   }
 

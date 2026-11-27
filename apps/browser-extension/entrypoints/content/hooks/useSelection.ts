@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { readSelectionText } from "@/lib/selection-text";
 
 const DEFAULT_DEBOUNCE_MS = 180;
 const MAX_SELECTION_LENGTH = 1_000;
@@ -27,7 +28,7 @@ export function useSelection(
       return;
     }
 
-    const text = selection.toString().trim();
+    const text = readSelectionText(selection).trim();
     const rect = range.getBoundingClientRect();
     if (
       text.length === 0 ||

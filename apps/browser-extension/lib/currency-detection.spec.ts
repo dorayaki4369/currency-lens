@@ -861,3 +861,51 @@ describe("detectCurrencies with symbols and names found on real sites", () => {
     ]);
   });
 });
+
+describe("detectCurrencies with text that is not a price", () => {
+  it("does not read a percentage as an amount", () => {
+    expect(detectCurrencies("BTC 56.5%")).toEqual([]);
+    expect(detectCurrencies("EUR 5 %")).toEqual([]);
+    expect(detectCurrencies("47.49 AED\n37.99 AED\n20% OFF")).toMatchObject([
+      { amount: 47.49, currencyCode: "AED" },
+      { amount: 37.99, currencyCode: "AED" },
+    ]);
+  });
+
+  it("does not read a zero-padded model number as an amount", () => {
+    expect(
+      detectCurrencies("BELKIN 頭戴式無線降噪耳機 (AUD008)", { pageLocale: "zh-TW" }),
+    ).toEqual([]);
+    expect(detectCurrencies("0.5 USD")).toMatchObject([{ amount: 0.5 }]);
+  });
+
+  it("does not read a parenthesized year before a currency as an amount", () => {
+    expect(detectCurrencies("Worldwide gross (2025 $)", { pageLocale: "en" })).toEqual([]);
+    expect(detectCurrencies("(1999 USD)")).toEqual([]);
+    expect(detectCurrencies("2025 $", { pageLocale: "fr-CA" })).toMatchObject([
+      { amount: 2_025 },
+    ]);
+    expect(detectCurrencies("($2025)", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 2_025 },
+    ]);
+  });
+
+  it("does not drop the minus sign of a negative amount", () => {
+    for (const text of ["-$517.86M", "Loss: -$5", "−€5", "-5 USD", "-$5 and 50 cents"]) {
+      expect(detectCurrencies(text, { pageLocale: "en-US" })).toEqual([]);
+    }
+    for (const text of ["▲1,000円", "△500円"]) {
+      expect(detectCurrencies(text, { pageLocale: "ja-JP" })).toEqual([]);
+    }
+  });
+
+  it("keeps a hyphen that joins a range or a word", () => {
+    expect(detectCurrencies("$10-$20", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 10 },
+      { amount: 20 },
+    ]);
+    expect(detectCurrencies("item-$5", { pageLocale: "en-US" })).toMatchObject([
+      { amount: 5 },
+    ]);
+  });
+});
